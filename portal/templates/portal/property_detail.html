@@ -1,0 +1,68 @@
+{% extends "portal/base.html" %}
+{% block title %}{{ property.designation }}{% endblock %}
+
+{% block content %}
+  <div class="mb-3">
+    <a href="{% url 'portal:property_list' %}" class="btn btn-sm btn-outline-secondary">
+      ← Tillbaka till listan
+    </a>
+  </div>
+
+  <!-- Fastighetskort -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h1 class="h4 mb-1">{{ property.designation }}</h1>
+      <p class="text-muted mb-0">
+        Extern ID: {{ property.external_id|default:"—" }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Ägare & andel -->
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <strong>Ägare & andelstal</strong>
+    </div>
+
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Rättighetsägare</th>
+            <th style="width: 180px;">Andelstal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in shares %}
+            <tr>
+              <td class="ps-3">{{ s.holder }}</td>
+              <td>{{ s.share }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="2" class="p-3 text-muted">Inga andelar registrerade.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Summering -->
+    <div class="card-footer d-flex align-items-center justify-content-between">
+      <div>
+        <strong>Total andel:</strong> {{ total_share }}
+        {% if total_share != 1 %}
+          <span class="badge text-bg-danger ms-2">Summerar inte till 1.0</span>
+        {% else %}
+          <span class="badge text-bg-success ms-2">OK</span>
+        {% endif %}
+      </div>
+
+      <!-- Plats för framtida knappar -->
+      <div class="d-flex gap-2">
+        {# Ex: senare export-knapp #}
+        {# <a class="btn btn-sm btn-outline-primary" href="#">Exportera Excel</a> #}
+      </div>
+    </div>
+  </div>
+{% endblock %}

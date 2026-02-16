@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "documents",
     "fishingrights",
     "governance",
+    "portal",
 
 ]
 
