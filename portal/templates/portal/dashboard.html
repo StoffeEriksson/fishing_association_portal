@@ -71,25 +71,25 @@
             <h2 class="h5 mb-1">Dokument</h2>
             <div class="text-muted small">Protokoll, beslut och arkiv</div>
           </div>
-          <span class="badge text-bg-secondary">Kommer</span>
+          <span class="badge text-bg-success">Aktiv</span>
         </div>
 
         <p class="text-muted small mb-3">
-          Samla föreningens dokument strukturerat och sökbart i portalen.
+          Hantera föreningens dokument, inklusive protokoll, beslut och stadgar.
         </p>
 
         <ul class="small text-muted ps-3 mb-0">
-          <li>Dokumentarkiv</li>
-          <li>Uppladdning</li>
-          <li>Sökning</li>
+          <li>Dokumentlista</li>
+          <li>Filtrering per kategori</li>
+          <li>Sökfunktion</li>
         </ul>
 
       </div>
 
       <div class="card-footer pt-0 px-3 pb-3">
-        <button class="btn btn-outline-secondary w-100" disabled>
-          Snart tillgänglig
-        </button>
+        <a href="{% url 'portal:document_list' %}" class="btn btn-dark w-100">
+          Öppna modul
+        </a>
       </div>
     </div>
   </div>

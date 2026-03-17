@@ -1,0 +1,161 @@
+{% extends "portal/base.html" %}
+{% block title %}{{ doc.title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ doc.title }}</h1>
+    <div class="text-muted small">
+      {{ doc.get_category_display }} · {{ doc.uploaded_at|date:"Y-m-d" }}
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{{ doc.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+      Öppna orginal
+    </a>
+    <a href="{% url 'portal:document_list' %}" class="btn btn-dark btn-sm">
+      Tillbaka
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-soft mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="small text-muted">Kategori</div>
+        <div class="fw-semibold">{{ doc.get_category_display }}</div>
+      </div>
+      <div class="col-md-4">
+        <div class="small text-muted">Uppladdad</div>
+        <div class="fw-semibold">{{ doc.uploaded_at|date:"Y-m-d H:i" }}</div>
+      </div>
+      <div class="col-md-4">
+        <div class="small text-muted">Filnamn</div>
+        <div class="fw-semibold">{{ doc.file.name }}</div>
+      </div>
+    </div>
+
+    {% if doc.description %}
+      <hr>
+      <div class="small text-muted mb-1">Beskrivning</div>
+      <div>{{ doc.description }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body p-4">
+
+    {% if preview_type == "image" %}
+      <div class="text-center">
+        <img src="{{ doc.file.url }}" class="img-fluid rounded" alt="{{ doc.title }}">
+      </div>
+
+    {% elif preview_type == "pdf" %}
+      <div id="pdf-toolbar" class="d-flex justify-content-between align-items-center mb-3">
+        <div class="fw-semibold">PDF-förhandsvisning</div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <button id="zoom-out" class="btn btn-outline-secondary btn-sm" type="button">−</button>
+          <button id="zoom-in" class="btn btn-outline-secondary btn-sm" type="button">+</button>
+          <button id="prev-page" class="btn btn-outline-secondary btn-sm" type="button">Föregående</button>
+          <span class="small">
+            Sida <span id="page-num">1</span> av <span id="page-count">?</span>
+          </span>
+          <button id="next-page" class="btn btn-outline-secondary btn-sm" type="button">Nästa</button>
+        </div>
+      </div>
+
+      <div id="pdf-wrapper" class="border rounded bg-white p-3 text-center overflow-auto">
+        <canvas id="pdf-canvas" style="max-width: 100%; height: auto;"></canvas>
+      </div>
+
+      <script type="module">
+        import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs";
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+
+        const url = "{{ doc.file.url|escapejs }}";
+        const loadingTask = pdfjsLib.getDocument(url);
+
+        let pdfDoc = null;
+        let pageNum = 1;
+        let scale = 1.2;
+
+        const canvas = document.getElementById("pdf-canvas");
+        const ctx = canvas.getContext("2d");
+        const wrapper = document.getElementById("pdf-wrapper");
+
+        function renderPage(num) {
+          pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({ scale: scale });
+
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            const renderContext = {
+              canvasContext: ctx,
+              viewport: viewport,
+            };
+
+            page.render(renderContext);
+            document.getElementById("page-num").textContent = num;
+          });
+        }
+
+        loadingTask.promise.then(function(pdf) {
+          pdfDoc = pdf;
+          document.getElementById("page-count").textContent = pdf.numPages;
+          renderPage(pageNum);
+        }).catch(function(error) {
+          wrapper.innerHTML = `
+            <div class="py-5">
+              <div class="mb-3">Kunde inte visa PDF inne i portalen.</div>
+              <a href="${url}" target="_blank" class="btn btn-dark">Öppna PDF</a>
+            </div>
+          `;
+          console.error(error);
+        });
+
+        document.getElementById("prev-page").addEventListener("click", function() {
+          if (!pdfDoc || pageNum <= 1) return;
+          pageNum--;
+          renderPage(pageNum);
+        });
+
+        document.getElementById("next-page").addEventListener("click", function() {
+          if (!pdfDoc || pageNum >= pdfDoc.numPages) return;
+          pageNum++;
+          renderPage(pageNum);
+        });
+
+        document.getElementById("zoom-in").addEventListener("click", function() {
+          if (!pdfDoc) return;
+          scale = Math.min(scale + 0.2, 3);
+          renderPage(pageNum);
+        });
+
+        document.getElementById("zoom-out").addEventListener("click", function() {
+          if (!pdfDoc) return;
+          scale = Math.max(scale - 0.2, 0.6);
+          renderPage(pageNum);
+        });
+      </script>
+
+    {% else %}
+      <div class="text-center py-5">
+        <h2 class="h5 mb-2">Förhandsvisning stöds inte</h2>
+        <p class="text-muted mb-4">
+          Den här filtypen kan inte visas direkt i portalen ännu.
+        </p>
+        <a href="{{ doc.file.url }}" target="_blank" class="btn btn-dark">
+          Öppna fil
+        </a>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
