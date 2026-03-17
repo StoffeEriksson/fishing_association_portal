@@ -1,48 +1,102 @@
+{% load static %}
 <!doctype html>
 <html lang="sv">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Portal{% endblock %}</title>
+  <title>{% block title %}FVO Portal{% endblock %}</title>
 
-  <!-- Bootstrap (om du redan laddar globalt, ta bort detta) -->
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Din CSS -->
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
 </head>
-<body class="bg-light">
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="{% url 'portal:dashboard' %}">FVO Portal</a>
+<body>
 
-    <div class="collapse navbar-collapse">
-      <ul class="navbar-nav me-auto">
-        <!-- Nästa steg: länkar till Fastigheter, Styrelse, osv -->
+<nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
+  <div class="container-fluid content-wrapper">
+
+    <!-- Logo -->
+    <a class="navbar-brand portal-brand" href="{% url 'portal:dashboard' %}">
+      FVO Portal
+    </a>
+
+    <!-- Mobil toggle -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#portalNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Meny -->
+    <div class="collapse navbar-collapse" id="portalNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
         <li class="nav-item">
-          <a class="nav-link" href="{% url 'portal:dashboard' %}">Översikt</a>
+          <a class="nav-link activeish" href="{% url 'portal:dashboard' %}">
+            Översikt
+          </a>
         </li>
+
         <li class="nav-item">
-            <a class="nav-link" href="{% url 'portal:property_list' %}">Fastigheter</a>
+          <a class="nav-link" href="{% url 'portal:property_list' %}">
+            Fastigheter
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link disabled" href="#">
+            Dokument
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link disabled" href="#">
+            Styrelse
+          </a>
         </li>
 
       </ul>
 
+      <!-- Höger del -->
       <div class="d-flex align-items-center gap-3">
+
         {% if request.org %}
-          <span class="badge text-bg-danger">Org: {{ request.org.name }}</span>
+          <span class="badge org-badge px-3 py-2">
+            {{ request.org.name }}
+          </span>
         {% else %}
-          <span class="badge text-bg-warning">Ingen org vald</span>
+          <span class="badge text-bg-warning px-3 py-2">
+            Ingen organisation
+          </span>
         {% endif %}
 
-        <span class="text-white small">{{ request.user.email|default:request.user.username }}</span>
-        <a class="btn btn-outline-light btn-sm" href="{% url 'account_logout' %}">Logga ut</a>
+        <div class="text-end top-meta">
+          <div>Inloggad som</div>
+          <div class="fw-semibold text-white">
+            {{ request.user.email|default:request.user.username }}
+          </div>
+        </div>
+
+        <a class="btn btn-outline-light btn-sm" href="{% url 'account_logout' %}">
+          Logga ut
+        </a>
+
       </div>
     </div>
   </div>
 </nav>
 
-<main class="container py-4">
+<!-- Innehåll -->
+<main class="container-fluid content-wrapper py-4">
   {% block content %}{% endblock %}
 </main>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Din JS -->
+<script src="{% static 'js/main.js' %}"></script>
 
 </body>
 </html>

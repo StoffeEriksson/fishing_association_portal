@@ -1,0 +1,65 @@
+body {
+  background-color: #f4f6f9;
+}
+
+.portal-navbar {
+  background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%);
+}
+
+.portal-brand {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.org-badge {
+  background-color: #dc3545;
+  color: #fff;
+  font-weight: 600;
+}
+
+.content-wrapper {
+  max-width: 1280px;
+}
+
+.card {
+  border: none;
+  border-radius: 14px;
+}
+
+.shadow-soft {
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+}
+
+.module-card h2 {
+  font-weight: 700;
+}
+
+.module-card .card-footer {
+  background: transparent;
+  border-top: none;
+}
+
+.top-meta {
+  font-size: 0.92rem;
+  color: #cbd5e1;
+}
+
+.page-title {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.muted-label {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.nav-link.activeish {
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.premium-box {
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: #fffaf0;
+}

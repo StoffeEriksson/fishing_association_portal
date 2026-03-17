@@ -143,4 +143,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
+
+# Var Django ska hitta dina egna static-filer (css/js)
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
+# Används i production senare (collectstatic)
+STATIC_ROOT = BASE_DIR / "staticfiles"

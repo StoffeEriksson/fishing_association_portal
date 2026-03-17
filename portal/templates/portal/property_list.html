@@ -2,54 +2,143 @@
 {% block title %}Fastigheter{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Fastigheter</h1>
 
-  <form class="d-flex" method="get">
-    <input class="form-control form-control-sm me-2" type="search" name="q" value="{{ q }}"
-           placeholder="Sök beteckning eller extern id...">
-    <button class="btn btn-sm btn-outline-secondary" type="submit">Sök</button>
-  </form>
-</div>
+<!-- Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">Fastigheter</h1>
+    <div class="muted-label">
+      Hantera fiskerättsförteckning
+    </div>
+  </div>
 
-<div class="card shadow-sm">
-  <div class="card-body p-0">
-    <table class="table table-hover mb-0">
-      <thead class="table-light">
-        <tr>
-          <th class="ps-3">Fastighetsbeteckning</th>
-          <th>Extern ID</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in page_obj %}
-          <tr>
-            <td class="ps-3">
-                <a href="{% url 'portal:property_detail' p.id %}">
-                    {{ p.designation }}
-                </a>
-            </td>
-            <td class="text-muted">{{ p.external_id|default:"—" }}</td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="2" class="p-3 text-muted">Inga fastigheter hittades.</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="d-flex gap-2">
+    <span class="badge text-bg-light border">
+      {{ page_obj.paginator.count }} fastigheter
+    </span>
+
+    <button class="btn btn-outline-secondary btn-sm" disabled>
+      Export (kommer)
+    </button>
   </div>
 </div>
 
+<!-- Sök -->
+<div class="card shadow-soft mb-4">
+  <div class="card-body">
+
+    <form method="get" class="row g-2 align-items-center">
+
+      <div class="col-12 col-md-6 position-relative">
+        <input
+          type="search"
+          name="q"
+          value="{{ q }}"
+          class="form-control ps-4"
+          placeholder="Sök fastighetsbeteckning eller extern id..."
+        >
+        <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; color:#999;">
+          🔍
+        </span>
+      </div>
+
+      <div class="col-auto">
+        <button type="submit" class="btn btn-dark">
+          Sök
+        </button>
+      </div>
+
+      {% if q %}
+      <div class="col-auto">
+        <a href="{% url 'portal:property_list' %}" class="btn btn-outline-secondary">
+          Rensa
+        </a>
+      </div>
+      {% endif %}
+
+    </form>
+
+  </div>
+</div>
+
+<!-- Lista -->
+<div class="card shadow-soft">
+  <div class="card-body p-0">
+
+    {% if page_obj and page_obj.paginator.count > 0 %}
+
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Fastighetsbeteckning</th>
+              <th>Extern ID</th>
+              <th style="width: 140px;"></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for p in page_obj %}
+              <tr>
+
+                <td class="ps-3 fw-semibold">
+                  <a href="{% url 'portal:property_detail' p.id %}" class="text-decoration-none">
+                    {{ p.designation }}
+                  </a>
+                </td>
+
+                <td class="text-muted">
+                  {{ p.external_id|default:"—" }}
+                </td>
+
+                <td class="text-end pe-3">
+                  <a href="{% url 'portal:property_detail' p.id %}" class="btn btn-sm btn-outline-dark">
+                    Visa
+                  </a>
+                </td>
+
+              </tr>
+            {% endfor %}
+          </tbody>
+
+        </table>
+      </div>
+
+    {% else %}
+
+      <!-- Tomt läge -->
+      <div class="p-5 text-center">
+        <div class="mb-2 fw-semibold">Inga fastigheter hittades</div>
+        <div class="text-muted small mb-3">
+          Börja med att lägga till fastigheter i systemet.
+        </div>
+
+        <button class="btn btn-dark btn-sm" disabled>
+          Lägg till fastighet (kommer)
+        </button>
+      </div>
+
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- Pagination -->
 {% if page_obj.paginator.num_pages > 1 %}
 <nav class="mt-3">
-  <ul class="pagination pagination-sm mb-0">
+  <ul class="pagination pagination-sm">
+
     {% if page_obj.has_previous %}
       <li class="page-item">
-        <a class="page-link" href="?q={{ q }}&page={{ page_obj.previous_page_number }}">Föregående</a>
+        <a class="page-link" href="?q={{ q }}&page={{ page_obj.previous_page_number }}">
+          Föregående
+        </a>
       </li>
     {% else %}
-      <li class="page-item disabled"><span class="page-link">Föregående</span></li>
+      <li class="page-item disabled">
+        <span class="page-link">Föregående</span>
+      </li>
     {% endif %}
 
     <li class="page-item disabled">
@@ -60,12 +149,18 @@
 
     {% if page_obj.has_next %}
       <li class="page-item">
-        <a class="page-link" href="?q={{ q }}&page={{ page_obj.next_page_number }}">Nästa</a>
+        <a class="page-link" href="?q={{ q }}&page={{ page_obj.next_page_number }}">
+          Nästa
+        </a>
       </li>
     {% else %}
-      <li class="page-item disabled"><span class="page-link">Nästa</span></li>
+      <li class="page-item disabled">
+        <span class="page-link">Nästa</span>
+      </li>
     {% endif %}
+
   </ul>
 </nav>
 {% endif %}
+
 {% endblock %}
