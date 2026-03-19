@@ -1,0 +1,13 @@
+#pdf-wrapper {
+  min-height: 500px;
+}
+
+#pdf-toolbar {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.pdf-canvas {
+  max-width: 100%;
+  height: auto;
+}

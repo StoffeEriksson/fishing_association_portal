@@ -21,18 +21,90 @@ class Document(OrgModel):
         default=DocumentCategory.OTHER,
     )
     description = models.TextField(blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="documents",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_documents",
+    )
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def current_version(self):
+        return self.versions.order_by("-version_number").first()
+
+
+class DocumentVersion(models.Model):
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name="versions",
+    )
+    version_number = models.PositiveIntegerField()
     file = models.FileField(upload_to="documents/%Y/%m/")
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="uploaded_documents",
+        related_name="document_versions",
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True)
 
     class Meta:
-        ordering = ["-uploaded_at"]
+        ordering = ["-version_number"]
+        unique_together = ("document", "version_number")
 
     def __str__(self):
-        return self.title
+        return f"{self.document.title} v{self.version_number}"
+    
+
+class DocumentActivity(models.Model):
+    ACTION_CHOICES = [
+        ("created", "Skapad"),
+        ("version_added", "Ny version"),
+        ("updated", "Uppdaterad"),
+        ("deleted", "Borttagen"),
+        ("restored", "Återställd")
+    ]
+
+    document = models.ForeignKey(
+        "Document",
+        on_delete=models.CASCADE,
+        related_name="activities"
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    action = models.CharField(max_length=50, choices=ACTION_CHOICES)
+
+    message = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.document} - {self.action} - {self.created_at}"

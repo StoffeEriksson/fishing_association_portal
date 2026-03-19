@@ -1,0 +1,55 @@
+{% extends "portal/base.html" %}
+{% block title %}Ny version{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">Ladda upp ny version</h1>
+    <div class="muted-label">
+      {{ document.title }} · version {{ next_version_number }}
+    </div>
+  </div>
+
+  <div>
+    <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
+      Tillbaka till dokument
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body p-4">
+    <form method="post" enctype="multipart/form-data" class="row g-3">
+      {% csrf_token %}
+
+      <div class="col-12">
+        <label class="form-label">Ny fil</label>
+        {{ form.file }}
+        {% if form.file.errors %}
+          <div class="text-danger small mt-1">{{ form.file.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Vad har ändrats?</label>
+        {{ form.notes }}
+        {% if form.notes.errors %}
+          <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
+        {% endif %}
+        <div class="form-text">
+          Exempel: "Rättat paragraf 4", "Ny version efter årsstämma", "Uppdaterad kontaktinfo".
+        </div>
+      </div>
+
+      <div class="col-12 d-flex gap-2 pt-2">
+        <button type="submit" class="btn btn-dark">
+          Ladda upp version {{ next_version_number }}
+        </button>
+        <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
+          Avbryt
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

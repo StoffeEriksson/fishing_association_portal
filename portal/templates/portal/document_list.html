@@ -16,8 +16,12 @@
       {{ page_obj.paginator.count }} dokument
     </span>
 
+    <a href="{% url 'portal:document_trash' %}" class="btn btn-outline-secondary btn-sm">
+      Papperskorg
+    </a>
+
     <a href="{% url 'portal:document_upload' %}" class="btn btn-dark btn-sm">
-    Ladda upp
+      Ladda upp
     </a>
   </div>
 </div>
@@ -71,7 +75,8 @@
             <tr>
               <th class="ps-3">Titel</th>
               <th>Kategori</th>
-              <th>Uppladdad</th>
+              <th>Aktuell version</th>
+              <th>Senast uppladdad</th>
               <th style="width: 120px;"></th>
             </tr>
           </thead>
@@ -79,7 +84,9 @@
             {% for doc in page_obj %}
               <tr>
                 <td class="ps-3 fw-semibold">
-                  {{ doc.title }}
+                  <a href="{% url 'portal:document_detail' doc.pk %}" class="text-decoration-none">
+                    {{ doc.title }}
+                  </a>
                 </td>
 
                 <td>
@@ -89,13 +96,25 @@
                 </td>
 
                 <td class="text-muted small">
-                  {{ doc.uploaded_at|date:"Y-m-d" }}
+                  {% if doc.current_version %}
+                    v{{ doc.current_version.version_number }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+
+                <td class="text-muted small">
+                  {% if doc.current_version %}
+                    {{ doc.current_version.uploaded_at|date:"Y-m-d" }}
+                  {% else %}
+                    —
+                  {% endif %}
                 </td>
 
                 <td class="text-end pe-3">
-                    <a href="{% url 'portal:document_detail' doc.pk %}" class="btn btn-sm btn-outline-dark">
+                  <a href="{% url 'portal:document_detail' doc.pk %}" class="btn btn-sm btn-outline-dark">
                     Öppna
-                    </a>
+                  </a>
                 </td>
               </tr>
             {% endfor %}
@@ -109,7 +128,7 @@
           När dokument har laddats upp visas de här.
         </div>
         <a href="{% url 'portal:document_upload' %}" class="btn btn-dark btn-sm">
-            Ladda upp
+          Ladda upp
         </a>
       </div>
     {% endif %}

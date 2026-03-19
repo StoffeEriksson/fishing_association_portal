@@ -1,0 +1,60 @@
+{% extends "portal/base.html" %}
+{% block title %}Redigera dokument{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">Redigera dokument</h1>
+    <div class="muted-label">
+      Uppdatera titel, kategori och beskrivning
+    </div>
+  </div>
+
+  <div>
+    <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
+      Tillbaka till dokument
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body p-4">
+    <form method="post" class="row g-3">
+      {% csrf_token %}
+
+      <div class="col-12">
+        <label class="form-label">Titel</label>
+        {{ form.title }}
+        {% if form.title.errors %}
+          <div class="text-danger small mt-1">{{ form.title.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label">Kategori</label>
+        {{ form.category }}
+        {% if form.category.errors %}
+          <div class="text-danger small mt-1">{{ form.category.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Beskrivning</label>
+        {{ form.description }}
+        {% if form.description.errors %}
+          <div class="text-danger small mt-1">{{ form.description.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 d-flex gap-2 pt-2">
+        <button type="submit" class="btn btn-dark">
+          Spara ändringar
+        </button>
+        <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
+          Avbryt
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

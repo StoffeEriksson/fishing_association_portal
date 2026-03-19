@@ -1,0 +1,47 @@
+{% extends "portal/base.html" %}
+{% block title %}Ta bort dokument{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">Ta bort dokument</h1>
+    <div class="muted-label">
+      Detta kan inte ångras.
+    </div>
+  </div>
+
+  <div>
+    <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
+      Tillbaka
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-soft border-danger">
+  <div class="card-body p-4">
+    <h2 class="h5 mb-3">Är du säker?</h2>
+
+    <p class="mb-2">
+      Du är på väg att ta bort dokumentet:
+    </p>
+
+    <div class="fw-semibold mb-3">
+      {{ document.title }}
+    </div>
+
+    <p class="text-muted small mb-4">
+      Alla versioner och tillhörande aktivitet för dokumentet kommer att försvinna.
+    </p>
+
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">
+        Ja, ta bort dokumentet
+      </button>
+      <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
+        Avbryt
+      </a>
+    </form>
+  </div>
+</div>
+{% endblock %}
