@@ -365,3 +365,39 @@ def document_restore(request, pk):
             "document": document,
         },
     )
+
+
+DOCUMENT_CATEGORIES = [
+    {"key": "protocol", "label": "Protokoll", "icon": "bi-folder"},
+    {"key": "bylaws", "label": "Stadgar", "icon": "bi-folder"},
+    {"key": "notice", "label": "Kallelser", "icon": "bi-folder"},
+    {"key": "motion", "label": "Motioner", "icon": "bi-folder"},
+    {"key": "decision", "label": "Beslut", "icon": "bi-folder"},
+    {"key": "other", "label": "Övrigt", "icon": "bi-folder"},
+]
+
+
+def document_folder_list(request):
+    org = request.org
+
+    folder_data = []
+    for category in DOCUMENT_CATEGORIES:
+        count = Document.objects.filter(
+            org=org,
+            category=category["key"],
+            is_deleted=False
+        ).count()
+
+        folder_data.append({
+            "key": category["key"],
+            "label": category["label"],
+            "icon": category["icon"],
+            "count": count,
+        })
+
+    context = {
+        "folders": folder_data,
+    }
+    return render(request, "portal/documents/folder_list.html", context)
+
+
