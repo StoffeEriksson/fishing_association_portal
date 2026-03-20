@@ -1,16 +1,22 @@
 import os
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
-from django.shortcuts import render, get_object_or_404, redirect
-
-from fishingrights.models import Property, FishingRightShare
-from documents.models import Document, DocumentVersion, DocumentActivity
-from documents.forms import DocumentCreateForm, DocumentVersionForm, DocumentUpdateForm
-
-from documents.utils import log_document_activity
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+
+from fishingrights.models import FishingRightShare, Property
+from documents.forms import DocumentCreateForm, DocumentUpdateForm, DocumentVersionForm
+from documents.models import (
+    Document,
+    DocumentActivity,
+    DocumentSourceType,
+    DocumentTemplate,
+    DocumentVersion,
+)
+from documents.utils import log_document_activity
 
 
 @login_required
@@ -130,6 +136,7 @@ def document_upload(request):
             document = form.save(commit=False)
             document.org = org
             document.uploaded_by = request.user
+            document.source_type = DocumentSourceType.UPLOADED
             document.save()
 
             DocumentVersion.objects.create(
@@ -143,7 +150,7 @@ def document_upload(request):
                 document=document,
                 user=request.user,
                 action="created",
-                message="Dokument skapades"
+                message="Dokument skapades",
             )
 
             messages.success(request, "Dokumentet har laddats upp.")
@@ -183,7 +190,7 @@ def document_upload_version(request, pk):
                 document=document,
                 user=request.user,
                 action="version_created",
-                message=f"Ny version (v{next_version_number}) laddades upp"
+                message=f"Ny version (v{next_version_number}) laddades upp",
             )
 
             messages.success(request, f"Ny version (v{next_version_number}) har laddats upp.")
@@ -208,11 +215,10 @@ def document_detail(request, pk):
 
     doc = get_object_or_404(
         Document.objects.filter(org=org, is_deleted=False).prefetch_related("versions"),
-        pk=pk
+        pk=pk,
     )
 
     activities = doc.activities.select_related("user").order_by("-created_at")
-
     current_version = doc.current_version
 
     if not current_version:
@@ -258,10 +264,10 @@ def document_edit(request, pk):
                 document=document,
                 user=request.user,
                 action="updated",
-                message="Metadata uppdaterades"
+                message="Dokument uppdaterades",
             )
-            
-            messages.success(request, "Dokumentets metadata har uppdaterats.")
+
+            messages.success(request, "Dokumentet har uppdaterats.")
             return redirect("portal:document_detail", pk=document.pk)
     else:
         form = DocumentUpdateForm(instance=document)
@@ -295,7 +301,7 @@ def document_delete(request, pk):
             document=document,
             user=request.user,
             action="deleted",
-            message=f"Dokumentet '{document.title}' markerades som borttaget"
+            message=f"Dokumentet '{document.title}' markerades som borttaget",
         )
 
         messages.success(request, f"Dokumentet '{document.title}' har tagits bort.")
@@ -352,7 +358,7 @@ def document_restore(request, pk):
             document=document,
             user=request.user,
             action="restored",
-            message=f"Dokumentet '{document.title}' återställdes"
+            message=f"Dokumentet '{document.title}' återställdes",
         )
 
         messages.success(request, f"Dokumentet '{document.title}' har återställts.")
@@ -377,6 +383,7 @@ DOCUMENT_CATEGORIES = [
 ]
 
 
+@login_required
 def document_folder_list(request):
     org = request.org
 
@@ -385,7 +392,7 @@ def document_folder_list(request):
         count = Document.objects.filter(
             org=org,
             category=category["key"],
-            is_deleted=False
+            is_deleted=False,
         ).count()
 
         folder_data.append({
@@ -395,9 +402,44 @@ def document_folder_list(request):
             "count": count,
         })
 
-    context = {
-        "folders": folder_data,
-    }
-    return render(request, "portal/documents/folder_list.html", context)
+    return render(
+        request,
+        "portal/documents/folder_list.html",
+        {"folders": folder_data},
+    )
 
 
+@login_required
+def template_list(request):
+    templates = DocumentTemplate.objects.all()
+
+    return render(
+        request,
+        "portal/documents/template_list.html",
+        {"templates": templates},
+    )
+
+
+@login_required
+def create_from_template(request, template_id):
+    template = get_object_or_404(DocumentTemplate, id=template_id)
+
+    document = Document.objects.create(
+        org=request.org,
+        title=template.name,
+        category=template.category,
+        content=template.content,
+        template=template,
+        source_type=DocumentSourceType.TEMPLATE,
+        uploaded_by=request.user,
+    )
+
+    log_document_activity(
+        document=document,
+        user=request.user,
+        action="created",
+        message=f"Dokument skapades från mallen '{template.name}'",
+    )
+
+    messages.success(request, f"Dokumentet '{document.title}' skapades från mall.")
+    return redirect("portal:document_detail", pk=document.pk)

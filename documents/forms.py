@@ -45,7 +45,7 @@ class DocumentVersionForm(forms.ModelForm):
 class DocumentUpdateForm(forms.ModelForm):
     class Meta:
         model = Document
-        fields = ["title", "category", "description"]
+        fields = ["title", "category", "description", "content"]
         widgets = {
             "title": forms.TextInput(attrs={
                 "class": "form-control",
@@ -58,5 +58,10 @@ class DocumentUpdateForm(forms.ModelForm):
                 "class": "form-control",
                 "rows": 4,
                 "placeholder": "Kort beskrivning av dokumentet",
+            }),
+            "content": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 20,
+                "placeholder": "Skriv dokumentinnehåll här...",
             }),
         }

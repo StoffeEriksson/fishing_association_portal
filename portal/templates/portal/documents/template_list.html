@@ -1,0 +1,28 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2 class="mb-4">Skapa dokument från mall</h2>
+
+    <div class="row">
+        {% for template in templates %}
+            <div class="col-md-4 mb-3">
+                <div class="card p-3 shadow-sm h-100">
+
+                    <h5>{{ template.name }}</h5>
+                    <p class="text-muted small">{{ template.get_category_display }}</p>
+
+                    <a href="{% url 'portal:create_from_template' template.id %}" 
+                       class="btn btn-dark mt-auto">
+                        Använd mall
+                    </a>
+
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

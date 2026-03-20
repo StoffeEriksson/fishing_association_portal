@@ -1,6 +1,10 @@
 from django.contrib import admin
 from core.admin import OrgAdminMixin
-from .models import Document, DocumentVersion
+from .models import Document, DocumentVersion, DocumentTemplate
+
+@admin.register(DocumentTemplate)
+class DocumentTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "created_at")
 
 
 class DocumentVersionInline(admin.TabularInline):
@@ -23,3 +27,10 @@ class DocumentAdmin(OrgAdminMixin, admin.ModelAdmin):
 class DocumentVersionAdmin(admin.ModelAdmin):
     list_display = ("document", "version_number", "uploaded_by", "uploaded_at")
     ordering = ("-uploaded_at",)
+
+
+class DocumentTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "created_at")
+    search_fields = ("name",)
+    list_filter = ("category",)
+    ordering = ("name",)

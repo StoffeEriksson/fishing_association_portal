@@ -18,4 +18,10 @@ urlpatterns = [
     path("documents/<int:pk>/delete/", views.document_delete, name="document_delete"),
     path("documents/trash/", views.document_trash, name="document_trash"),
     path("documents/<int:pk>/restore/", views.document_restore, name="document_restore"),
+    path("documents/templates/", views.template_list, name="template_list"),
+    path(
+    "documents/create-from-template/<int:template_id>/",
+    views.create_from_template,
+    name="create_from_template"
+    ),
 ]

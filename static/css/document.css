@@ -210,3 +210,33 @@
         height: 44px;
     }
 }
+
+.document-content {
+    font-size: 1rem;
+    line-height: 1.75;
+    color: #212529;
+}
+
+.document-content h1,
+.document-content h2,
+.document-content h3,
+.document-content h4 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.document-content p {
+    margin-bottom: 0.9rem;
+}
+
+.document-content ul,
+.document-content ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.document-content li {
+    margin-bottom: 0.35rem;
+}
