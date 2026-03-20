@@ -66,3 +66,46 @@ class DocumentUpdateForm(forms.ModelForm):
                 "id": "id_content",
             }),
         }
+
+
+class TemplateDocumentCreateForm(forms.Form):
+    title = forms.CharField(
+        label="Dokumenttitel",
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ange dokumenttitel",
+        }),
+    )
+    date = forms.DateField(
+        label="Datum",
+        widget=forms.DateInput(attrs={
+            "class": "form-control",
+            "type": "date",
+        }),
+    )
+    time = forms.TimeField(
+        label="Tid",
+        widget=forms.TimeInput(attrs={
+            "class": "form-control",
+            "type": "time",
+        }),
+    )
+    location = forms.CharField(
+        label="Plats",
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ange plats",
+        }),
+    )
+    attendees = forms.CharField(
+        label="Närvarande",
+        required=False,
+        widget=forms.Textarea(attrs={
+            "class": "form-control",
+            "rows": 5,
+            "placeholder": "En person per rad",
+        }),
+        help_text="Skriv en person per rad.",
+    )

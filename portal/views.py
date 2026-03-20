@@ -8,15 +8,41 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from fishingrights.models import FishingRightShare, Property
-from documents.forms import DocumentCreateForm, DocumentUpdateForm, DocumentVersionForm
+from documents.forms import DocumentCreateForm, DocumentUpdateForm, DocumentVersionForm, TemplateDocumentCreateForm
 from documents.models import (
     Document,
     DocumentActivity,
     DocumentSourceType,
     DocumentTemplate,
     DocumentVersion,
+    
 )
 from documents.utils import log_document_activity
+
+
+def render_template_content(template_content, cleaned_data):
+    attendees_raw = cleaned_data.get("attendees", "").strip()
+
+    if attendees_raw:
+        attendees_list = [
+            line.strip() for line in attendees_raw.splitlines() if line.strip()
+        ]
+        attendees_html = "<ul>" + "".join(f"<li>{name}</li>" for name in attendees_list) + "</ul>"
+    else:
+        attendees_html = "<ul><li></li></ul>"
+
+    replacements = {
+        "{{ date }}": cleaned_data.get("date").strftime("%Y-%m-%d") if cleaned_data.get("date") else "",
+        "{{ time }}": cleaned_data.get("time").strftime("%H:%M") if cleaned_data.get("time") else "",
+        "{{ location }}": cleaned_data.get("location", ""),
+        "{{ attendees_html }}": attendees_html,
+    }
+
+    content = template_content
+    for placeholder, value in replacements.items():
+        content = content.replace(placeholder, value)
+
+    return content
 
 
 @login_required
@@ -424,22 +450,43 @@ def template_list(request):
 def create_from_template(request, template_id):
     template = get_object_or_404(DocumentTemplate, id=template_id)
 
-    document = Document.objects.create(
-        org=request.org,
-        title=template.name,
-        category=template.category,
-        content=template.content,
-        template=template,
-        source_type=DocumentSourceType.TEMPLATE,
-        uploaded_by=request.user,
-    )
+    if request.method == "POST":
+        form = TemplateDocumentCreateForm(request.POST)
+        if form.is_valid():
+            content = render_template_content(template.content, form.cleaned_data)
 
-    log_document_activity(
-        document=document,
-        user=request.user,
-        action="created",
-        message=f"Dokument skapades från mallen '{template.name}'",
-    )
+            document = Document.objects.create(
+                org=request.org,
+                title=form.cleaned_data["title"],
+                category=template.category,
+                description="Skapat från mall",
+                content=content,
+                template=template,
+                source_type=DocumentSourceType.TEMPLATE,
+                uploaded_by=request.user,
+            )
 
-    messages.success(request, f"Dokumentet '{document.title}' skapades från mall.")
-    return redirect("portal:document_detail", pk=document.pk)
+            log_document_activity(
+                document=document,
+                user=request.user,
+                action="created",
+                message=f"Dokument skapades från mallen '{template.name}'",
+            )
+
+            messages.success(request, f"Dokumentet '{document.title}' skapades från mall.")
+            return redirect("portal:document_detail", pk=document.pk)
+    else:
+        form = TemplateDocumentCreateForm(
+            initial={
+                "title": template.name,
+            }
+        )
+
+    return render(
+        request,
+        "portal/documents/create_from_template.html",
+        {
+            "template": template,
+            "form": form,
+        },
+    )
