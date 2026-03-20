@@ -64,6 +64,9 @@
         <div class="col-12">
           <label for="{{ form.content.id_for_label }}" class="form-label">Innehåll</label>
           {{ form.content }}
+          <div class="document-editor-help">
+            Skriv och formatera dokumentet direkt här. Du behöver inte använda HTML.
+          </div>
           {% if form.content.errors %}
             <div class="text-danger small mt-1">{{ form.content.errors }}</div>
           {% endif %}
@@ -84,4 +87,8 @@
     </div>
   </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.tiny.cloud/1/kkm9kg3cnp1z251j5uo7e9hcp8k3tf5osb4lme4z1p0wwryv/tinymce/8/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="{% static 'js/document_editor.js' %}"></script>
 {% endblock %}

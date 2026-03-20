@@ -63,5 +63,6 @@ class DocumentUpdateForm(forms.ModelForm):
                 "class": "form-control",
                 "rows": 20,
                 "placeholder": "Skriv dokumentinnehåll här...",
+                "id": "id_content",
             }),
         }

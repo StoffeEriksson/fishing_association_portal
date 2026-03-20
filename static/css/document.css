@@ -240,3 +240,25 @@
 .document-content li {
     margin-bottom: 0.35rem;
 }
+
+.tox-tinymce {
+    border-radius: 14px !important;
+    border: 1px solid #d9dee7 !important;
+    overflow: hidden;
+}
+
+.tox .tox-toolbar,
+.tox .tox-toolbar__primary,
+.tox .tox-menubar {
+    background: #f8fafc !important;
+}
+
+.tox .tox-edit-area__iframe {
+    background: #ffffff !important;
+}
+
+.document-editor-help {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
