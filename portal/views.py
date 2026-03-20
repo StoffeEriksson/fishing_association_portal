@@ -10,7 +10,15 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 
 from fishingrights.models import FishingRightShare, Property
-from documents.forms import DocumentCreateForm, DocumentUpdateForm, DocumentVersionForm, TemplateDocumentCreateForm
+from documents.forms import (
+    DocumentCreateForm,
+    DocumentUpdateForm,
+    DocumentVersionForm,
+    TemplateDocumentCreateForm,
+    NoticeTemplateForm,
+    DecisionTemplateForm,
+    MotionTemplateForm,
+) 
 from documents.models import (
     Document,
     DocumentActivity,
@@ -454,9 +462,14 @@ def template_list(request):
 def create_from_template(request, template_id):
     template = get_object_or_404(DocumentTemplate, id=template_id)
 
+    # 🔥 Välj rätt form baserat på kategori
+    FormClass = get_template_form(template)
+
     if request.method == "POST":
-        form = TemplateDocumentCreateForm(request.POST)
+        form = FormClass(request.POST)
         if form.is_valid():
+
+            # 🔥 Tillfällig: använd gamla rendern (funkar för protocol)
             content = render_template_content(template.content, form.cleaned_data)
 
             document = Document.objects.create(
@@ -480,7 +493,7 @@ def create_from_template(request, template_id):
             messages.success(request, f"Dokumentet '{document.title}' skapades från mall.")
             return redirect("portal:document_detail", pk=document.pk)
     else:
-        form = TemplateDocumentCreateForm(
+        form = FormClass(
             initial={
                 "title": template.name,
             }
@@ -507,4 +520,49 @@ def document_print_view(request, pk):
         request,
         "portal/documents/document_print.html",
         {"doc": doc, "org": request.org},
+    )
+
+
+def get_template_form(template):
+    if template.category == "protocol":
+        return TemplateDocumentCreateForm
+    elif template.category == "notice":
+        return NoticeTemplateForm
+    elif template.category == "decision":
+        return DecisionTemplateForm
+    elif template.category == "motion":
+        return MotionTemplateForm
+    return TemplateDocumentCreateForm
+
+
+@login_required
+def create_blank_document(request):
+    if request.method == "POST":
+        form = DocumentUpdateForm(request.POST)
+        if form.is_valid():
+            document = form.save(commit=False)
+            document.org = request.org
+            document.source_type = DocumentSourceType.TEMPLATE
+            document.uploaded_by = request.user
+            document.save()
+
+            log_document_activity(
+                document=document,
+                user=request.user,
+                action="created",
+                message="Tomt dokument skapades",
+            )
+
+            messages.success(request, f"Dokumentet '{document.title}' skapades.")
+            return redirect("portal:document_edit", pk=document.pk)
+    else:
+        form = DocumentUpdateForm(initial={
+            "title": "Nytt dokument",
+            "content": "<h1>Rubrik</h1><p>Börja skriva här...</p>",
+        })
+
+    return render(
+        request,
+        "portal/documents/create_blank_document.html",
+        {"form": form},
     )

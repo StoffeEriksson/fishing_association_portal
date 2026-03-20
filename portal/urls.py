@@ -29,4 +29,5 @@ urlpatterns = [
     views.document_print_view,
     name="document_print",
     ),
+    path("documents/create/blank/", views.create_blank_document, name="create_blank_document"),
 ]

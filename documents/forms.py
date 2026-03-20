@@ -109,3 +109,53 @@ class TemplateDocumentCreateForm(forms.Form):
         }),
         help_text="Skriv en person per rad.",
     )
+
+
+class NoticeTemplateForm(forms.Form):
+    title = forms.CharField(max_length=255, widget=forms.TextInput(attrs={"class": "form-control"}))
+
+    date = forms.DateField(widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}))
+    time = forms.TimeField(widget=forms.TimeInput(attrs={"class": "form-control", "type": "time"}))
+    location = forms.CharField(max_length=255, widget=forms.TextInput(attrs={"class": "form-control"}))
+
+    agenda = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            "class": "form-control",
+            "rows": 6,
+            "placeholder": "En punkt per rad",
+        })
+    )
+
+
+class DecisionTemplateForm(forms.Form):
+    title = forms.CharField(max_length=255, widget=forms.TextInput(attrs={"class": "form-control"}))
+
+    subject = forms.CharField(
+        label="Ärende",
+        widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+
+    background = forms.CharField(
+        label="Bakgrund",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 4})
+    )
+
+    decision = forms.CharField(
+        label="Beslut",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 4})
+    )
+
+
+class MotionTemplateForm(forms.Form):
+    title = forms.CharField(max_length=255, widget=forms.TextInput(attrs={"class": "form-control"}))
+
+    proposal = forms.CharField(
+        label="Förslag",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 4})
+    )
+
+    motivation = forms.CharField(
+        label="Motivering",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 4})
+    )

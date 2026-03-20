@@ -30,31 +30,33 @@
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-3">
           <div>
-            <h2 class="h5 mb-1">Fiskerätt</h2>
-            <div class="text-muted small">Fastigheter, ägare och andelstal</div>
+            <h2 class="h5 mb-1">Skapa ny</h2>
+            <div class="text-muted small">Skapa nya dokument och handlingar</div>
           </div>
           <span class="badge text-bg-success">Aktiv</span>
         </div>
 
         <p class="text-muted small mb-3">
-          Hantera fiskerättsförteckning med fastighetslista, detaljvy och kontroll av andelssummor.
+          Skapa nya dokument som protokoll, kallelser, motioner osv
         </p>
 
         <ul class="small text-muted ps-3 mb-0">
-          <li>Fastighetslista</li>
-          <li>Fastighetsdetalj</li>
-          <li>Ägare och andelar</li>
-          <li>Kontrollsumma</li>
+          <li>Protokoll</li>
+          <li>Kallelser</li>
+          <li>Motioner</li>
+          <li>Övrigt</li>
         </ul>
       </div>
 
       <div class="card-footer pt-0 px-3 pb-3">
-        <a href="{% url 'portal:property_list' %}" class="btn btn-dark w-100">
+        <a href="{% url 'portal:template_list' %}" class="btn btn-dark w-100">
           Öppna modul
         </a>
       </div>
     </div>
   </div>
+
+  
 
   <div class="col-12 col-md-6 col-xl-4">
     <div class="card shadow-soft module-card h-100">
@@ -117,7 +119,40 @@
     </div>
   </div>
 
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card shadow-soft module-card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h2 class="h5 mb-1">Fiskerätt</h2>
+            <div class="text-muted small">Fastigheter, ägare och andelstal</div>
+          </div>
+          <span class="badge text-bg-success">Aktiv</span>
+        </div>
+
+        <p class="text-muted small mb-3">
+          Hantera fiskerättsförteckning med fastighetslista, detaljvy och kontroll av andelssummor.
+        </p>
+
+        <ul class="small text-muted ps-3 mb-0">
+          <li>Fastighetslista</li>
+          <li>Fastighetsdetalj</li>
+          <li>Ägare och andelar</li>
+          <li>Kontrollsumma</li>
+        </ul>
+      </div>
+
+      <div class="card-footer pt-0 px-3 pb-3">
+        <a href="{% url 'portal:property_list' %}" class="btn btn-dark w-100">
+          Öppna modul
+        </a>
+      </div>
+    </div>
+  </div>
+
 </div>
+
+
 
 <div class="row g-4">
 

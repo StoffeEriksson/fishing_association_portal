@@ -1,27 +1,75 @@
 {% extends "portal/base.html" %}
 {% load static %}
 
+{% block title %}Skapa dokument{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/document.css' %}?v=9">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.tiny.cloud/1/kkm9kg3cnp1z251j5uo7e9hcp8k3tf5osb4lme4z1p0wwryv/tinymce/6/tinymce.min.js"></script>
+<script src="{% static 'js/document_editor.js' %}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
 
-    <h2 class="mb-4">Skapa dokument från mall</h2>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="mb-1">Skapa dokument</h2>
+            <p class="text-muted mb-0">
+                Välj en färdig mall eller skapa ett helt tomt dokument.
+            </p>
+        </div>
 
-    <div class="row">
+        <a href="{% url 'portal:document_folders' %}" class="btn btn-outline-secondary">
+            Tillbaka
+        </a>
+    </div>
+
+    <div class="row g-4">
         {% for template in templates %}
-            <div class="col-md-4 mb-3">
-                <div class="card p-3 shadow-sm h-100">
+            <div class="col-md-6 col-xl-4">
+                <div class="card p-3 shadow-sm h-100 border-0">
+                    <div class="d-flex flex-column h-100">
+                        <span class="badge text-bg-light border mb-3 align-self-start">
+                            {{ template.get_category_display }}
+                        </span>
 
-                    <h5>{{ template.name }}</h5>
-                    <p class="text-muted small">{{ template.get_category_display }}</p>
+                        <h5 class="mb-2">{{ template.name }}</h5>
 
-                    <a href="{% url 'portal:create_from_template' template.id %}" 
-                       class="btn btn-dark mt-auto">
-                        Använd mall
-                    </a>
+                        <p class="text-muted small flex-grow-1">
+                            Skapa ett nytt dokument från en färdig mall.
+                        </p>
 
+                        <a href="{% url 'portal:create_from_template' template.id %}" class="btn btn-dark mt-auto">
+                            Använd mall
+                        </a>
+                    </div>
                 </div>
             </div>
         {% endfor %}
+
+        <div class="col-md-6 col-xl-4">
+            <div class="card p-3 shadow-sm h-100 border-0">
+                <div class="d-flex flex-column h-100">
+                    <span class="badge text-bg-light border mb-3 align-self-start">
+                        Fritt dokument
+                    </span>
+
+                    <h5 class="mb-2">Skapa tomt dokument</h5>
+
+                    <p class="text-muted small flex-grow-1">
+                        Skapa ett helt tomt dokument och börja skriva direkt i editorn utan mall.
+                    </p>
+
+                    <a href="{% url 'portal:create_blank_document' %}" class="btn btn-outline-dark mt-auto">
+                        Skapa tomt
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>
