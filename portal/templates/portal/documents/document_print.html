@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ doc.title }}</title>
+    <link rel="stylesheet" href="{% static 'css/document_pdf.css' %}?v=3">
+</head>
+<body class="print-body">
+
+<div class="print-page">
+    <div class="print-actions">
+        <button onclick="window.print()" class="print-btn">
+            🖨 Skriv ut / Spara som PDF
+        </button>
+    </div>
+
+    <header class="print-header">
+        <div class="print-brand-row">
+            <div>
+                <div class="print-brand">FVO Portal</div>
+                <div class="print-org">{{ org.name }}</div>
+            </div>
+
+            <div class="print-badge">
+                {{ doc.get_category_display }}
+            </div>
+        </div>
+
+        <div class="print-title-row">
+            <h1 class="print-title">{{ doc.title }}</h1>
+            <div class="print-meta">
+                <div><strong>Senast uppdaterad:</strong> {{ doc.updated_at|date:"Y-m-d" }}</div>
+                <div><strong>Dokumenttyp:</strong> {{ doc.get_category_display }}</div>
+            </div>
+        </div>
+    </header>
+
+    <section class="print-content">
+        {{ doc.content|safe }}
+    </section>
+
+    <section class="print-signatures">
+        <div class="signature-block">
+            <div class="signature-line"></div>
+            <div class="signature-label">Ordförande</div>
+        </div>
+
+        <div class="signature-block">
+            <div class="signature-line"></div>
+            <div class="signature-label">Sekreterare</div>
+        </div>
+
+        <div class="signature-block">
+            <div class="signature-line"></div>
+            <div class="signature-label">Justerare</div>
+        </div>
+    </section>
+
+    <footer class="print-footer">
+        <div>Genererad från FVO Portal</div>
+        <div>{{ org.name }}</div>
+    </footer>
+
+</div>
+
+<script>
+    window.addEventListener("load", function () {
+        setTimeout(function () {
+            window.print();
+        }, 300);
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,266 @@
+@page {
+    size: A4;
+    margin: 18mm;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: #e9ecef;
+    color: #111827;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 12pt;
+    line-height: 1.65;
+}
+
+.print-body {
+    padding: 2rem 0;
+}
+
+.print-page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    background: #ffffff;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+    padding: 20mm 18mm 18mm;
+    box-sizing: border-box;
+}
+
+.print-header {
+    border-bottom: 2px solid #d8dee8;
+    padding-bottom: 18px;
+    margin-bottom: 26px;
+}
+
+.print-brand-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 20px;
+}
+
+.print-brand {
+    font-size: 11pt;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+
+.print-org {
+    font-size: 12pt;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.print-badge {
+    font-size: 10pt;
+    font-weight: 600;
+    color: #374151;
+    border: 1px solid #cfd6e1;
+    border-radius: 999px;
+    padding: 7px 12px;
+    white-space: nowrap;
+}
+
+.print-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1.5rem;
+}
+
+.print-title {
+    font-size: 28pt;
+    line-height: 1.15;
+    margin: 0;
+    color: #0f172a;
+    font-weight: 800;
+    max-width: 65%;
+}
+
+.print-meta {
+    font-size: 10pt;
+    color: #4b5563;
+    text-align: right;
+    min-width: 200px;
+    line-height: 1.4;
+}
+
+.print-meta div {
+    margin-bottom: 4px;
+}
+
+.print-content {
+    font-size: 12pt;
+    color: #111827;
+    min-height: 500px;
+}
+
+.print-content h1 {
+    font-size: 22pt;
+    margin-top: 0;
+    margin-bottom: 14px;
+    font-weight: 800;
+    color: #111827;
+}
+
+.print-content h2 {
+    font-size: 16pt;
+    margin-top: 26px;
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: #0f172a;
+
+    border-bottom: 2px solid #d1d5db; /* tydligare linje */
+    padding-bottom: 4px;
+}
+
+.print-content h3 {
+    font-size: 14pt;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.print-content p {
+    margin: 0 0 12px 0;
+}
+
+.print-content ul,
+.print-content ol {
+    margin: 0 0 14px 24px;
+    padding: 0;
+}
+
+.print-content li {
+    margin-bottom: 6px;
+}
+
+.print-content strong {
+    font-weight: 700;
+}
+
+.print-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 18px;
+}
+
+.print-content table th,
+.print-content table td {
+    border: 1px solid #d9dee7;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.print-content blockquote {
+    border-left: 4px solid #d9dee7;
+    margin: 16px 0;
+    padding: 8px 0 8px 14px;
+    color: #4b5563;
+}
+
+.print-content hr {
+    border: 0;
+    border-top: 1px solid #e5e7eb;
+    margin: 20px 0;
+}
+
+.print-signatures {
+    margin-top: 48px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+}
+
+.signature-block {
+    text-align: center;
+}
+
+.signature-line {
+    border-top: 2px solid #111827;
+    margin-bottom: 6px;
+    height: 30px;
+}
+
+.signature-label {
+    font-size: 10.5pt;
+    color: #4b5563;
+}
+
+.print-footer {
+    margin-top: 36px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    font-size: 10pt;
+    color: #6b7280;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+@media print {
+    html,
+    body {
+        background: #ffffff;
+    }
+
+    .print-body {
+        padding: 0;
+    }
+
+    .print-page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    background: #ffffff;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+    padding: 18mm 16mm 16mm; /* mindre padding */
+}
+
+    .print-signatures {
+        break-inside: avoid;
+    }
+}
+
+@page {
+    @bottom-right {
+        content: "Sida " counter(page);
+        font-size: 9pt;
+        color: #6b7280;
+    }
+}
+
+.print-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.print-btn {
+    background: #111827;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    font-size: 10pt;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.print-btn:hover {
+    background: #1f2937;
+}
+
+@media print {
+    .print-actions {
+        display: none;
+    }
+}

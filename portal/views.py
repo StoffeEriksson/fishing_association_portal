@@ -6,6 +6,8 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.http import HttpResponse
+from django.template.loader import render_to_string
 
 from fishingrights.models import FishingRightShare, Property
 from documents.forms import DocumentCreateForm, DocumentUpdateForm, DocumentVersionForm, TemplateDocumentCreateForm
@@ -18,6 +20,8 @@ from documents.models import (
     
 )
 from documents.utils import log_document_activity
+
+
 
 
 def render_template_content(template_content, cleaned_data):
@@ -489,4 +493,18 @@ def create_from_template(request, template_id):
             "template": template,
             "form": form,
         },
+    )
+
+
+@login_required
+def document_print_view(request, pk):
+    doc = get_object_or_404(
+        Document.objects.filter(org=request.org, is_deleted=False),
+        pk=pk,
+    )
+
+    return render(
+        request,
+        "portal/documents/document_print.html",
+        {"doc": doc, "org": request.org},
     )

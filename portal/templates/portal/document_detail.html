@@ -25,6 +25,9 @@
     <a href="{% url 'portal:document_delete' doc.pk %}" class="btn btn-outline-danger btn-sm">
       Ta bort
     </a>
+    <a href="{% url 'portal:document_print' doc.pk %}" target="_blank" class="btn btn-outline-dark btn-sm">
+      🖨 Skriv ut / PDF
+    </a>
     <a href="{% url 'portal:document_list' %}" class="btn btn-outline-secondary btn-sm">
       Tillbaka
     </a>

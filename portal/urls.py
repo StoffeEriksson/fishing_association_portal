@@ -24,4 +24,9 @@ urlpatterns = [
     views.create_from_template,
     name="create_from_template"
     ),
+    path(
+    "documents/<int:pk>/print/",
+    views.document_print_view,
+    name="document_print",
+    ),
 ]
