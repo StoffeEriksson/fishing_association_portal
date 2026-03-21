@@ -18,7 +18,8 @@ from documents.forms import (
     NoticeTemplateForm,
     DecisionTemplateForm,
     MotionTemplateForm,
-) 
+    MeetingProtocolForm,
+)
 from documents.models import (
     Document,
     DocumentActivity,
@@ -30,9 +31,20 @@ from documents.models import (
 from documents.utils import log_document_activity
 
 
+def text_to_paragraphs(text):
+    if not text:
+        return ""
+
+    paragraphs = [
+        f"<p>{p.strip()}</p>"
+        for p in text.split("\n")
+        if p.strip()
+    ]
+
+    return "".join(paragraphs)
 
 
-def render_template_content(template_content, cleaned_data):
+def render_protocol(template_content, cleaned_data):
     attendees_raw = cleaned_data.get("attendees", "").strip()
 
     if attendees_raw:
@@ -55,6 +67,100 @@ def render_template_content(template_content, cleaned_data):
         content = content.replace(placeholder, value)
 
     return content
+
+
+def render_notice(template_content, cleaned_data):
+    agenda_raw = cleaned_data.get("agenda", "").strip()
+
+    if agenda_raw:
+        agenda_list = [
+            line.strip() for line in agenda_raw.splitlines() if line.strip()
+        ]
+        agenda_html = "<ol>" + "".join(f"<li>{item}</li>" for item in agenda_list) + "</ol>"
+    else:
+        agenda_html = "<ol><li></li></ol>"
+
+    replacements = {
+        "{{ date }}": cleaned_data.get("date").strftime("%Y-%m-%d") if cleaned_data.get("date") else "",
+        "{{ time }}": cleaned_data.get("time").strftime("%H:%M") if cleaned_data.get("time") else "",
+        "{{ location }}": cleaned_data.get("location", ""),
+        "{{ agenda_html }}": agenda_html,
+    }
+
+    content = template_content
+    for placeholder, value in replacements.items():
+        content = content.replace(placeholder, value)
+
+    return content
+
+
+def render_decision(template_content, cleaned_data):
+    replacements = {
+        "{{ subject }}": text_to_paragraphs(cleaned_data.get("subject", "")),
+        "{{ background }}": text_to_paragraphs(cleaned_data.get("background", "")),
+        "{{ decision }}": text_to_paragraphs(cleaned_data.get("decision", "")),
+    }
+
+    content = template_content
+    for placeholder, value in replacements.items():
+        content = content.replace(placeholder, value)
+
+    return content
+
+
+def render_motion(template_content, cleaned_data):
+    replacements = {
+        "{{ proposal }}": text_to_paragraphs(cleaned_data.get("proposal", "")),
+        "{{ motivation }}": text_to_paragraphs(cleaned_data.get("motivation", "")),
+    }
+
+    content = template_content
+    for placeholder, value in replacements.items():
+        content = content.replace(placeholder, value)
+
+    return content
+
+
+def render_meeting_protocol(template_content, cleaned_data):
+    def list_to_html(text):
+        if not text:
+            return "<ul><li></li></ul>"
+
+        items = [line.strip() for line in text.splitlines() if line.strip()]
+        return "<ul>" + "".join(f"<li>{i}</li>" for i in items) + "</ul>"
+
+    replacements = {
+        "{{ date }}": cleaned_data.get("date").strftime("%Y-%m-%d") if cleaned_data.get("date") else "",
+        "{{ time }}": cleaned_data.get("time").strftime("%H:%M") if cleaned_data.get("time") else "",
+        "{{ location }}": cleaned_data.get("location", ""),
+
+        "{{ chairman }}": cleaned_data.get("chairman", ""),
+        "{{ secretary }}": cleaned_data.get("secretary", ""),
+
+        "{{ attendees_html }}": list_to_html(cleaned_data.get("attendees", "")),
+        "{{ adjusters_html }}": list_to_html(cleaned_data.get("adjusters", "")),
+    }
+
+    content = template_content
+    for k, v in replacements.items():
+        content = content.replace(k, v)
+
+    return content
+
+
+def generate_document_content(template, cleaned_data):
+    if template.category == "protocol":
+        return render_protocol(template.content, cleaned_data)
+    elif template.category == "notice":
+        return render_notice(template.content, cleaned_data)
+    elif template.category == "decision":
+        return render_decision(template.content, cleaned_data)
+    elif template.category == "motion":
+        return render_motion(template.content, cleaned_data)
+    elif template.category == "meeting":
+        return render_meeting_protocol(template.content, cleaned_data)
+
+    return template.content
 
 
 @login_required
@@ -470,7 +576,7 @@ def create_from_template(request, template_id):
         if form.is_valid():
 
             # 🔥 Tillfällig: använd gamla rendern (funkar för protocol)
-            content = render_template_content(template.content, form.cleaned_data)
+            content = generate_document_content(template, form.cleaned_data)
 
             document = Document.objects.create(
                 org=request.org,
@@ -532,6 +638,8 @@ def get_template_form(template):
         return DecisionTemplateForm
     elif template.category == "motion":
         return MotionTemplateForm
+    elif template.category == "meeting":
+        return MeetingProtocolForm
     return TemplateDocumentCreateForm
 
 

@@ -5,6 +5,7 @@ from core.tenancy import OrgModel
 
 
 class DocumentCategory(models.TextChoices):
+    MEETING = "meeting", "Stämmoprotokoll"
     PROTOCOL = "protocol", "Protokoll"
     BYLAWS = "bylaws", "Stadgar"
     NOTICE = "notice", "Kallelse"

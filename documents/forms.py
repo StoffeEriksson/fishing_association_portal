@@ -159,3 +159,79 @@ class MotionTemplateForm(forms.Form):
         label="Motivering",
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 4})
     )
+
+
+class MeetingProtocolForm(forms.Form):
+    title = forms.CharField(
+        label="Dokumenttitel",
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ange dokumenttitel",
+        }),
+    )
+
+    date = forms.DateField(
+        label="Datum",
+        widget=forms.DateInput(attrs={
+            "class": "form-control",
+            "type": "date",
+        }),
+    )
+
+    time = forms.TimeField(
+        label="Tid",
+        widget=forms.TimeInput(attrs={
+            "class": "form-control",
+            "type": "time",
+        }),
+    )
+
+    location = forms.CharField(
+        label="Plats",
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ange plats",
+        }),
+    )
+
+    chairman = forms.CharField(
+        label="Stämmans ordförande",
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ange namn",
+        }),
+    )
+
+    secretary = forms.CharField(
+        label="Sekreterare",
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ange namn",
+        }),
+    )
+
+    adjusters = forms.CharField(
+        label="Justerare",
+        required=False,
+        widget=forms.Textarea(attrs={
+            "class": "form-control",
+            "rows": 4,
+            "placeholder": "En person per rad",
+        }),
+        help_text="Skriv en justerare per rad.",
+    )
+
+    attendees = forms.CharField(
+        label="Närvarande",
+        required=False,
+        widget=forms.Textarea(attrs={
+            "class": "form-control",
+            "rows": 5,
+            "placeholder": "En person per rad",
+        }),
+        help_text="Skriv en person per rad.",
+    )
