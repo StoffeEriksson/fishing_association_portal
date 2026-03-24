@@ -97,7 +97,7 @@
             <h2 class="h5 mb-1">Styrelse</h2>
             <div class="text-muted small">Roller, spårbarhet och process</div>
           </div>
-          <span class="badge text-bg-secondary">Kommer</span>
+          <span class="badge text-bg-success">Aktiv</span>
         </div>
 
         <p class="text-muted small mb-3">
@@ -112,9 +112,9 @@
       </div>
 
       <div class="card-footer pt-0 px-3 pb-3">
-        <button class="btn btn-outline-secondary w-100" disabled>
-          Snart tillgänglig
-        </button>
+        <a href="{% url 'governance:dashboard' %}" class="btn btn-dark w-100">
+          Öppna modul
+        </a>
       </div>
     </div>
   </div>

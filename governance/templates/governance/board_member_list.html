@@ -1,0 +1,124 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Styrelsemedlemmar{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">Styrelsemedlemmar</h1>
+    <div class="muted-label">
+      Översikt över roller, ansvar och behörigheter i styrelsen.
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{% url 'governance:dashboard' %}" class="btn btn-outline-secondary">
+      Tillbaka
+    </a>
+
+    {% if membership.can_manage_members %}
+    <a href="{% url 'governance:board_member_create' %}" class="btn btn-dark">
+        + Lägg till medlem
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body p-0">
+
+    {% if members %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Namn</th>
+              <th>Roll</th>
+              <th>Status</th>
+              <th>Behörigheter</th>
+
+              {% if membership.can_manage_members %}
+                <th class="text-end pe-4">Åtgärder</th>
+              {% endif %}
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for member in members %}
+              <tr>
+                <!-- NAMN -->
+                <td class="ps-4">
+                  <div class="fw-semibold">
+                    {{ member.user.get_full_name|default:member.user.username }}
+                  </div>
+                  <div class="small text-muted">
+                    {{ member.user.email }}
+                  </div>
+                </td>
+
+                <!-- ROLL -->
+                <td>
+                  <span class="fw-medium">
+                    {{ member.get_role_display }}
+                  </span>
+                </td>
+
+                <!-- STATUS -->
+                <td>
+                  {% if member.is_active %}
+                    <span class="badge text-bg-success">Aktiv</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">Inaktiv</span>
+                  {% endif %}
+                </td>
+
+                <!-- BEHÖRIGHETER -->
+                <td>
+                  <div class="small text-muted">
+                    {% if member.can_manage_members %}
+                      <span class="me-2">Medlemmar</span>
+                    {% endif %}
+
+                    {% if member.can_manage_matters %}
+                      <span class="me-2">Ärenden</span>
+                    {% endif %}
+
+                    {% if member.can_manage_documents %}
+                      <span class="me-2">Dokument</span>
+                    {% endif %}
+
+                    {% if not member.can_manage_members and not member.can_manage_matters and not member.can_manage_documents %}
+                      Inga särskilda behörigheter
+                    {% endif %}
+                  </div>
+                </td>
+
+                <!-- ÅTGÄRDER -->
+                {% if membership.can_manage_members %}
+                  <td class="text-end pe-4">
+                    <div class="d-flex justify-content-end gap-2">
+                      <a href="#" class="btn btn-sm btn-outline-secondary">
+                        Redigera
+                      </a>
+
+                      <a href="#" class="btn btn-sm btn-outline-danger">
+                        Ta bort
+                      </a>
+                    </div>
+                  </td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    {% else %}
+      <div class="p-4 text-muted">
+        Inga styrelsemedlemmar registrerade ännu.
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

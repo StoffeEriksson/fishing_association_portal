@@ -8,6 +8,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("portal/", include("portal.urls")),
     path("", include("core.urls")),
+    path("governance/", include("governance.urls")),
 ]
 
 if settings.DEBUG:
