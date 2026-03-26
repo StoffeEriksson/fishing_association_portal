@@ -1,0 +1,128 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Ärenden{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">Ärenden</h1>
+    <div class="muted-label">
+      Hantera inkomna motioner och styrelseärenden.
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{% url 'governance:dashboard' %}" class="btn btn-outline-secondary">
+      Tillbaka
+    </a>
+
+    {% if membership.can_manage_matters %}
+      <a href="{% url 'governance:matter_create' %}" class="btn btn-dark">
+        + Skapa ärende
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-soft mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-2">
+      <a
+        href="{% url 'governance:matter_list' %}?status=all"
+        class="btn {% if status == 'all' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+      >
+        Alla
+      </a>
+
+      <a
+        href="{% url 'governance:matter_list' %}?status=received"
+        class="btn {% if status == 'received' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+      >
+        Inkomna
+      </a>
+
+      <a
+        href="{% url 'governance:matter_list' %}?status=in_preparation"
+        class="btn {% if status == 'in_preparation' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+      >
+        Under beredning
+      </a>
+
+      <a
+        href="{% url 'governance:matter_list' %}?status=ready_for_meeting"
+        class="btn {% if status == 'ready_for_meeting' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+      >
+        Klar för stämma
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body p-0">
+    {% if matters %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Titel</th>
+              <th>Typ</th>
+              <th>Status</th>
+              <th>Ansvarig</th>
+              <th class="pe-4">Datum</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for matter in matters %}
+              <tr>
+                <td class="ps-4">
+                  <div class="fw-semibold">
+                    <a href="{% url 'governance:matter_detail' matter.pk %}"        class="text-decoration-none">
+                        {{ matter.title }}
+                    </a>
+                  </div>
+                  <div class="small text-muted">
+                    {{ matter.description|default:"Ingen beskrivning"|truncatechars:80 }}
+                  </div>
+                </td>
+
+                <td>
+                  {{ matter.get_type_display }}
+                </td>
+
+                <td>
+                  <span class="badge text-bg-secondary">
+                    {{ matter.get_status_display }}
+                  </span>
+                </td>
+
+                <td>
+                  {% if matter.assigned_to %}
+                    <div class="fw-medium">
+                      {{ matter.assigned_to.get_full_name|default:matter.assigned_to.username }}
+                    </div>
+                    <div class="small text-muted">
+                      {{ matter.assigned_to.email }}
+                    </div>
+                  {% else %}
+                    <span class="text-muted">Ej tilldelad</span>
+                  {% endif %}
+                </td>
+
+                <td class="pe-4 small text-muted">
+                  {{ matter.created_at|date:"Y-m-d" }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="p-4 text-muted">
+        Inga ärenden hittades.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

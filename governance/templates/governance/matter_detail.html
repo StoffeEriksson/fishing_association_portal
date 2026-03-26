@@ -1,0 +1,137 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ matter.title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">{{ matter.title }}</h1>
+    <div class="muted-label">
+      Detaljvy för governance-ärende.
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'governance:matter_list' %}" class="btn btn-outline-secondary">
+      Tillbaka
+    </a>
+
+    {% if membership.can_manage_matters %}
+      <a href="{% url 'governance:matter_update' matter.pk %}" class="btn btn-dark">
+        Redigera
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+{% if membership.can_manage_matters %}
+  <div class="card shadow-soft mb-4">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Snabb statusändring</h2>
+
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'governance:matter_change_status' matter.pk 'received' %}" class="btn btn-outline-secondary btn-sm">
+          Inkommen
+        </a>
+
+        <a href="{% url 'governance:matter_change_status' matter.pk 'in_preparation' %}" class="btn btn-outline-secondary btn-sm">
+          Under beredning
+        </a>
+
+        <a href="{% url 'governance:matter_change_status' matter.pk 'ready_for_proposal' %}" class="btn btn-outline-secondary btn-sm">
+          Klar för styrelseförslag
+        </a>
+
+        <a href="{% url 'governance:matter_change_status' matter.pk 'ready_for_meeting' %}" class="btn btn-outline-secondary btn-sm">
+          Klar för stämma
+        </a>
+
+        <a href="{% url 'governance:matter_change_status' matter.pk 'decided' %}" class="btn btn-outline-secondary btn-sm">
+          Beslutad
+        </a>
+
+        <a href="{% url 'governance:matter_change_status' matter.pk 'closed' %}" class="btn btn-outline-secondary btn-sm">
+          Avslutad
+        </a>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<div class="card shadow-soft mb-4">
+  <div class="card-body">
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="small text-muted">Typ</div>
+        <div class="fw-semibold">{{ matter.get_type_display }}</div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Status</div>
+        <div class="fw-semibold">{{ matter.get_status_display }}</div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Ansvarig</div>
+        <div class="fw-semibold">
+          {% if matter.assigned_to %}
+            {{ matter.assigned_to.get_full_name|default:matter.assigned_to.username }}
+          {% else %}
+            Ej tilldelad
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Inskickad av</div>
+        <div class="fw-semibold">
+          {% if matter.submitted_by %}
+            {{ matter.submitted_by.get_full_name|default:matter.submitted_by.username }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Klar för stämma</div>
+        <div class="fw-semibold">
+          {% if matter.ready_for_meeting %}Ja{% else %}Nej{% endif %}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Skapad</div>
+        <div class="fw-semibold">{{ matter.created_at|date:"Y-m-d H:i" }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-soft mb-4">
+  <div class="card-body">
+    <h2 class="h5 mb-3">Beskrivning</h2>
+    <div class="text-muted">
+      {{ matter.description|linebreaks }}
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-soft mb-4">
+  <div class="card-body">
+    <h2 class="h5 mb-3">Styrelsekommentar</h2>
+    <div class="text-muted">
+      {{ matter.board_comment|default:"Ingen kommentar ännu."|linebreaks }}
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body">
+    <h2 class="h5 mb-3">Beredning / yttrande</h2>
+    <div class="text-muted">
+      {{ matter.prepared_statement|default:"Ingen beredning ännu."|linebreaks }}
+    </div>
+  </div>
+</div>
+{% endblock %}

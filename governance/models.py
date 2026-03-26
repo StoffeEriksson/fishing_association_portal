@@ -49,6 +49,9 @@ class GovernanceActivityLog(OrgModel):
         ("member_deleted", "Styrelsemedlem borttagen"),
         ("permission_changed", "Behörighet ändrad"),
         ("login_access", "Åtkomst till governance"),
+        ("matter_created", "Ärende skapat"),
+        ("matter_updated", "Ärende uppdaterat"),
+        ("matter_status_changed", "Ärendestatus ändrad"),
     ]
 
     user = models.ForeignKey(
@@ -77,3 +80,65 @@ class GovernanceActivityLog(OrgModel):
 
     def __str__(self):
         return f"{self.get_action_display()} - {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class MatterStatus(models.TextChoices):
+    RECEIVED = "received", "Inkommen"
+    IN_PREPARATION = "in_preparation", "Under beredning"
+    READY_FOR_PROPOSAL = "ready_for_proposal", "Klar för styrelseförslag"
+    READY_FOR_MEETING = "ready_for_meeting", "Klar för stämma"
+    DECIDED = "decided", "Beslutad"
+    CLOSED = "closed", "Avslutad"
+
+
+class MatterType(models.TextChoices):
+    MOTION = "motion", "Motion"
+    CASE = "case", "Ärende"
+    INFORMATION = "information", "Information"
+
+
+class BoardMatter(OrgModel):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+
+    type = models.CharField(
+        max_length=20,
+        choices=MatterType.choices,
+        default=MatterType.CASE,
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=MatterStatus.choices,
+        default=MatterStatus.RECEIVED,
+    )
+
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="submitted_matters",
+    )
+
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_matters",
+    )
+
+    board_comment = models.TextField(blank=True)
+    prepared_statement = models.TextField(blank=True)
+
+    ready_for_meeting = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title

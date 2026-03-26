@@ -1,0 +1,113 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">{{ page_title }}</h1>
+    <div class="muted-label">
+      Skapa och bered governance-ärenden, motioner och styrelseärenden.
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{% url 'governance:matter_list' %}" class="btn btn-outline-secondary">
+      Tillbaka
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body p-4">
+    <form method="post" class="row g-3">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="col-12">
+          <div class="alert alert-danger mb-0">
+            {{ form.non_field_errors }}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="col-12">
+        <label for="{{ form.title.id_for_label }}" class="form-label">Titel</label>
+        {{ form.title }}
+        {% if form.title.errors %}
+          <div class="text-danger small mt-1">{{ form.title.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12">
+        <label for="{{ form.description.id_for_label }}" class="form-label">Beskrivning</label>
+        {{ form.description }}
+        {% if form.description.errors %}
+          <div class="text-danger small mt-1">{{ form.description.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label for="{{ form.type.id_for_label }}" class="form-label">Typ</label>
+        {{ form.type }}
+        {% if form.type.errors %}
+          <div class="text-danger small mt-1">{{ form.type.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label for="{{ form.status.id_for_label }}" class="form-label">Status</label>
+        {{ form.status }}
+        {% if form.status.errors %}
+          <div class="text-danger small mt-1">{{ form.status.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12">
+        <label for="{{ form.assigned_to.id_for_label }}" class="form-label">Ansvarig</label>
+        {{ form.assigned_to }}
+        {% if form.assigned_to.errors %}
+          <div class="text-danger small mt-1">{{ form.assigned_to.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12">
+        <label for="{{ form.board_comment.id_for_label }}" class="form-label">Styrelsekommentar</label>
+        {{ form.board_comment }}
+        {% if form.board_comment.errors %}
+          <div class="text-danger small mt-1">{{ form.board_comment.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12">
+        <label for="{{ form.prepared_statement.id_for_label }}" class="form-label">Beredning / yttrande</label>
+        {{ form.prepared_statement }}
+        {% if form.prepared_statement.errors %}
+          <div class="text-danger small mt-1">{{ form.prepared_statement.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12">
+        <div class="form-check">
+          {{ form.ready_for_meeting }}
+          <label for="{{ form.ready_for_meeting.id_for_label }}" class="form-check-label">
+            Klar för stämma
+          </label>
+        </div>
+        {% if form.ready_for_meeting.errors %}
+          <div class="text-danger small mt-1">{{ form.ready_for_meeting.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 d-flex gap-2 pt-2">
+        <button type="submit" class="btn btn-dark">
+          {{ submit_label }}
+        </button>
+        <a href="{% url 'governance:matter_list' %}" class="btn btn-outline-secondary">
+          Avbryt
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

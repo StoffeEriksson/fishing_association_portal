@@ -1,0 +1,54 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Inaktivera styrelsemedlem{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">Inaktivera styrelsemedlem</h1>
+    <div class="muted-label">
+      Bekräfta att du vill markera medlemmen som inaktiv.
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{% url 'governance:board_member_list' %}" class="btn btn-outline-secondary">
+      Tillbaka
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body p-4">
+    <p class="mb-3">
+      Du är på väg att inaktivera följande styrelsemedlem:
+    </p>
+
+    <div class="border rounded p-3 mb-4 bg-light-subtle">
+      <div class="fw-semibold">
+        {{ board_member.user.get_full_name|default:board_member.user.username }}
+      </div>
+      <div class="small text-muted">
+        {{ board_member.user.email }}
+      </div>
+      <div class="small mt-2">
+        Roll: {{ board_member.get_role_display }}
+      </div>
+    </div>
+
+    <p class="text-muted">
+      Medlemmen tas inte bort, men kommer inte längre räknas som aktiv i styrelsen.
+    </p>
+
+    <form method="post" class="d-flex gap-2 pt-2">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">
+        Ja, inaktivera
+      </button>
+      <a href="{% url 'governance:board_member_list' %}" class="btn btn-outline-secondary">
+        Avbryt
+      </a>
+    </form>
+  </div>
+</div>
+{% endblock %}

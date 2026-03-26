@@ -17,10 +17,37 @@
     </a>
 
     {% if membership.can_manage_members %}
-    <a href="{% url 'governance:board_member_create' %}" class="btn btn-dark">
+      <a href="{% url 'governance:board_member_create' %}" class="btn btn-dark">
         + Lägg till medlem
-    </a>
+      </a>
     {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-soft mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-2">
+      <a
+        href="{% url 'governance:board_member_list' %}?status=active"
+        class="btn {% if status == 'active' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+      >
+        Aktiva
+      </a>
+
+      <a
+        href="{% url 'governance:board_member_list' %}?status=inactive"
+        class="btn {% if status == 'inactive' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+      >
+        Inaktiva
+      </a>
+
+      <a
+        href="{% url 'governance:board_member_list' %}?status=all"
+        class="btn {% if status == 'all' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+      >
+        Alla
+      </a>
+    </div>
   </div>
 </div>
 
@@ -46,7 +73,6 @@
           <tbody>
             {% for member in members %}
               <tr>
-                <!-- NAMN -->
                 <td class="ps-4">
                   <div class="fw-semibold">
                     {{ member.user.get_full_name|default:member.user.username }}
@@ -56,14 +82,12 @@
                   </div>
                 </td>
 
-                <!-- ROLL -->
                 <td>
                   <span class="fw-medium">
                     {{ member.get_role_display }}
                   </span>
                 </td>
 
-                <!-- STATUS -->
                 <td>
                   {% if member.is_active %}
                     <span class="badge text-bg-success">Aktiv</span>
@@ -72,7 +96,6 @@
                   {% endif %}
                 </td>
 
-                <!-- BEHÖRIGHETER -->
                 <td>
                   <div class="small text-muted">
                     {% if member.can_manage_members %}
@@ -93,17 +116,22 @@
                   </div>
                 </td>
 
-                <!-- ÅTGÄRDER -->
                 {% if membership.can_manage_members %}
                   <td class="text-end pe-4">
                     <div class="d-flex justify-content-end gap-2">
-                      <a href="#" class="btn btn-sm btn-outline-secondary">
+                      <a href="{% url 'governance:board_member_update' member.pk %}" class="btn btn-sm btn-outline-secondary">
                         Redigera
                       </a>
 
-                      <a href="#" class="btn btn-sm btn-outline-danger">
-                        Ta bort
-                      </a>
+                      {% if member.is_active %}
+                        <a href="{% url 'governance:board_member_deactivate' member.pk %}" class="btn btn-sm btn-outline-danger">
+                          Inaktivera
+                        </a>
+                      {% else %}
+                        <span class="btn btn-sm btn-outline-secondary disabled">
+                          Inaktiv
+                        </span>
+                      {% endif %}
                     </div>
                   </td>
                 {% endif %}
@@ -115,7 +143,7 @@
 
     {% else %}
       <div class="p-4 text-muted">
-        Inga styrelsemedlemmar registrerade ännu.
+        Inga styrelsemedlemmar hittades för valt filter.
       </div>
     {% endif %}
 

@@ -7,8 +7,13 @@
   <div>
     <h1 class="page-title h2 mb-1">{{ page_title }}</h1>
     <div class="muted-label">
-      Lägg till en styrelsemedlem och ange roll samt behörigheter.
+        Ange roll, status och behörigheter för styrelsemedlemmen.
     </div>
+    {% if board_member %}
+        <div class="small text-muted mt-1">
+            Redigerar: {{ board_member.user.get_full_name|default:board_member.user.username }} · {{    board_member.user.email }}
+        </div>
+    {% endif %}
   </div>
 
   <div class="d-flex gap-2">

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import BoardMembership, GovernanceActivityLog
+from .models import BoardMembership, GovernanceActivityLog, BoardMatter
 
 
 @admin.register(BoardMembership)
@@ -15,3 +15,10 @@ class GovernanceActivityLogAdmin(admin.ModelAdmin):
     list_filter = ("action", "created_at")
     search_fields = ("user__email", "target_user__email", "message")
     ordering = ("-created_at",)
+
+
+@admin.register(BoardMatter)
+class BoardMatterAdmin(admin.ModelAdmin):
+    list_display = ("title", "type", "status", "assigned_to", "created_at")
+    list_filter = ("type", "status")
+    search_fields = ("title", "description")
