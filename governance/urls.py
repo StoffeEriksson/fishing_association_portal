@@ -18,5 +18,13 @@ urlpatterns = [
     path("matters/<int:pk>/", views.matter_detail, name="matter_detail"),
     path("matters/<int:pk>/edit/", views.matter_update, name="matter_update"),
     path("matters/<int:pk>/status/<str:new_status>/", views.matter_change_status, name="matter_change_status"),
+
+    path("meetings/create/", views.meeting_create, name="meeting_create"),
+    path("meetings/<int:pk>/", views.meeting_detail, name="meeting_detail"),
+    path(
+    "meetings/<int:pk>/documents/<str:doc_type>/create/",
+    views.create_document_from_meeting,
+    name="create_document_from_meeting",
+    ),
     
 ]

@@ -1,0 +1,111 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ meeting.title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">{{ meeting.title }}</h1>
+    <div class="muted-label">
+      Dagordning och kopplade ärenden för stämman.
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 flex-wrap">
+  <a href="{% url 'governance:dashboard' %}" class="btn btn-outline-secondary">
+    Tillbaka
+  </a>
+
+  {% if membership.can_manage_matters %}
+    <a href="{% url 'governance:create_document_from_meeting' meeting.pk 'notice' %}" class="btn btn-outline-dark">
+      Skapa kallelse
+    </a>
+
+    <a href="{% url 'governance:create_document_from_meeting' meeting.pk 'protocol' %}" class="btn btn-dark">
+      Skapa protokoll
+    </a>
+  {% endif %}
+</div>
+</div>
+
+<div class="card shadow-soft mb-4">
+  <div class="card-body">
+    <div class="row g-4">
+      <div class="col-md-3">
+        <div class="small text-muted">Typ av möte</div>
+        <div class="fw-semibold">{{ meeting.get_meeting_type_display }}</div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="small text-muted">Mötesdatum</div>
+        <div class="fw-semibold">{{ meeting.meeting_date|date:"Y-m-d H:i" }}</div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="small text-muted">Plats</div>
+        <div class="fw-semibold">
+          {{ meeting.location|default:"—" }}
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="small text-muted">Skapad av</div>
+        <div class="fw-semibold">
+          {% if meeting.created_by %}
+            {{ meeting.created_by.get_full_name|default:meeting.created_by.username }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body">
+    <h2 class="h5 mb-4">Dagordning</h2>
+
+    {% if matters %}
+      <div class="d-flex flex-column gap-4">
+        {% for matter in matters %}
+          <div class="border rounded p-4">
+            <div class="small text-muted mb-2">
+              Punkt {{ forloop.counter }}
+            </div>
+
+            <h3 class="h5 mb-2">
+              <a href="{% url 'governance:matter_detail' matter.pk %}" class="text-decoration-none">
+                {{ matter.title }}
+              </a>
+            </h3>
+
+            <div class="small text-muted mb-2">
+              {{ matter.get_type_display }} · {{ matter.get_status_display }}
+            </div>
+
+            {% if matter.description %}
+              <div class="text-muted">
+                {{ matter.description|linebreaks }}
+              </div>
+            {% endif %}
+
+            {% if matter.prepared_statement %}
+              <div class="mt-3">
+                <div class="small text-muted mb-1">Beredning / yttrande</div>
+                <div class="border rounded p-3 bg-light-subtle">
+                  {{ matter.prepared_statement|linebreaks }}
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-muted">
+        Inga ärenden är kopplade till denna stämma ännu.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,5 +1,5 @@
 from django import forms
-from .models import BoardMembership, BoardMatter
+from .models import BoardMembership, BoardMatter, Meeting
 
 
 class BoardMembershipForm(forms.ModelForm):
@@ -61,3 +61,58 @@ class BoardMatterForm(forms.ModelForm):
             }),
             "ready_for_meeting": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
+
+
+class MeetingForm(forms.ModelForm):
+    matters = forms.ModelMultipleChoiceField(
+        queryset=BoardMatter.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Ärenden till stämman",
+        help_text="Välj vilka ärenden som ska kopplas till denna stämma.",
+    )
+
+    previous_matters = forms.ModelMultipleChoiceField(
+        queryset=BoardMatter.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Tidigare upptagna ärenden",
+        help_text="Valfritt: välj tidigare upptagna ärenden som ska användas igen.",
+    )
+
+    class Meta:
+        model = Meeting
+        fields = ["title", "location", "meeting_type", "meeting_date"]
+        widgets = {
+            "title": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Ange titel för stämman",
+            }),
+            "location": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Ange plats för stämman",
+            }),
+            "meeting_type": forms.Select(attrs={"class": "form-select"}),
+            "meeting_date": forms.DateTimeInput(attrs={
+                "class": "form-control",
+                "type": "datetime-local",
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        org = kwargs.pop("org", None)
+        super().__init__(*args, **kwargs)
+
+        if org is not None:
+            self.fields["matters"].queryset = BoardMatter.objects.filter(
+                org=org,
+                ready_for_meeting=True,
+            ).exclude(
+                meeting_links__isnull=False,
+            ).distinct().order_by("created_at")
+
+            self.fields["previous_matters"].queryset = BoardMatter.objects.filter(
+                org=org,
+                ready_for_meeting=True,
+                meeting_links__isnull=False,
+            ).distinct().order_by("created_at")

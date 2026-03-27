@@ -1,0 +1,213 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Skapa stämma{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">Skapa stämma</h1>
+    <div class="muted-label">
+      Skapa en stämma och välj vilka ärenden som ska tas upp.
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{% url 'governance:dashboard' %}" class="btn btn-outline-secondary">
+      Tillbaka
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body p-4">
+    <form method="post" class="row g-3">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="col-12">
+          <div class="alert alert-danger mb-0">
+            {{ form.non_field_errors }}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="col-12">
+        <label for="{{ form.title.id_for_label }}" class="form-label">Titel</label>
+        {{ form.title }}
+        {% if form.title.errors %}
+          <div class="text-danger small mt-1">{{ form.title.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12">
+        <label for="{{ form.location.id_for_label }}" class="form-label">Plats</label>
+        {{ form.location }}
+        {% if form.location.errors %}
+          <div class="text-danger small mt-1">{{ form.location.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label for="{{ form.meeting_type.id_for_label }}" class="form-label">Typ av möte</label>
+        {{ form.meeting_type }}
+        {% if form.meeting_type.errors %}
+          <div class="text-danger small mt-1">{{ form.meeting_type.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label for="{{ form.meeting_date.id_for_label }}" class="form-label">Datum och tid</label>
+        {{ form.meeting_date }}
+        {% if form.meeting_date.errors %}
+          <div class="text-danger small mt-1">{{ form.meeting_date.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 pt-2">
+        <h2 class="h5 mb-3">Tillgängliga ärenden</h2>
+
+        {% if form.matters.field.queryset %}
+          <div class="d-flex flex-column gap-3">
+            {% for matter in form.matters.field.queryset %}
+              <label for="matter_{{ matter.pk }}" class="border rounded p-3 d-block">
+                <div class="d-flex align-items-start gap-3">
+                  <div class="pt-1">
+                    <input
+                      type="checkbox"
+                      id="matter_{{ matter.pk }}"
+                      name="matters"
+                      value="{{ matter.pk }}"
+                      class="form-check-input"
+                      {% if matter.pk in selected_matter_ids %}checked{% endif %}
+                    >
+                  </div>
+
+                  <div class="flex-grow-1">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                      <div class="fw-semibold">{{ matter.title }}</div>
+                      <div class="small text-muted">
+                        {{ matter.get_type_display }} · {{ matter.get_status_display }}
+                      </div>
+                    </div>
+
+                    {% if matter.description %}
+                      <div class="small text-muted">
+                        {{ matter.description|truncatechars:160 }}
+                      </div>
+                    {% else %}
+                      <div class="small text-muted">
+                        Ingen beskrivning angiven.
+                      </div>
+                    {% endif %}
+
+                    {% if matter.prepared_statement %}
+                      <div class="small mt-2">
+                        <span class="fw-semibold">Beredning:</span>
+                        <span class="text-muted">{{ matter.prepared_statement|truncatechars:140 }}</span>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </label>
+            {% endfor %}
+          </div>
+
+          {% if form.matters.help_text %}
+            <div class="form-text mt-2">{{ form.matters.help_text }}</div>
+          {% endif %}
+
+          {% if form.matters.errors %}
+            <div class="text-danger small mt-2">{{ form.matters.errors }}</div>
+          {% endif %}
+        {% else %}
+          <div class="alert alert-light border mb-0">
+            Det finns inga nya ärenden som är klara för stämma.
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 pt-2">
+        <h2 class="h5 mb-3">Tidigare upptagna ärenden</h2>
+
+        {% if form.previous_matters.field.queryset %}
+          <div class="alert alert-warning small">
+            Dessa ärenden har redan varit kopplade till en tidigare stämma, men kan återanvändas om de fortfarande är aktuella.
+          </div>
+
+          <div class="d-flex flex-column gap-3">
+            {% for matter in form.previous_matters.field.queryset %}
+              <label for="previous_matter_{{ matter.pk }}" class="border rounded p-3 d-block bg-light-subtle">
+                <div class="d-flex align-items-start gap-3">
+                  <div class="pt-1">
+                    <input
+                      type="checkbox"
+                      id="previous_matter_{{ matter.pk }}"
+                      name="previous_matters"
+                      value="{{ matter.pk }}"
+                      class="form-check-input"
+                      {% if matter.pk in selected_previous_matter_ids %}checked{% endif %}
+                    >
+                  </div>
+
+                  <div class="flex-grow-1">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                      <div class="fw-semibold">{{ matter.title }}</div>
+                      <div class="small text-muted">
+                        {{ matter.get_type_display }} · {{ matter.get_status_display }}
+                      </div>
+                    </div>
+
+                    {% if matter.description %}
+                      <div class="small text-muted">
+                        {{ matter.description|truncatechars:160 }}
+                      </div>
+                    {% else %}
+                      <div class="small text-muted">
+                        Ingen beskrivning angiven.
+                      </div>
+                    {% endif %}
+
+                    {% if matter.prepared_statement %}
+                      <div class="small mt-2">
+                        <span class="fw-semibold">Beredning:</span>
+                        <span class="text-muted">{{ matter.prepared_statement|truncatechars:140 }}</span>
+                      </div>
+                    {% endif %}
+
+                    {% if matter.meeting_links.exists %}
+                      <div class="small text-muted mt-2">
+                        Tidigare upptaget i minst en stämma.
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </label>
+            {% endfor %}
+          </div>
+
+          {% if form.previous_matters.help_text %}
+            <div class="form-text mt-2">{{ form.previous_matters.help_text }}</div>
+          {% endif %}
+
+          {% if form.previous_matters.errors %}
+            <div class="text-danger small mt-2">{{ form.previous_matters.errors }}</div>
+          {% endif %}
+        {% else %}
+          <div class="text-muted small">
+            Inga tidigare upptagna ärenden finns tillgängliga.
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 d-flex gap-2 pt-2">
+        <button type="submit" class="btn btn-dark">
+          Skapa stämma
+        </button>
+        <a href="{% url 'governance:dashboard' %}" class="btn btn-outline-secondary">
+          Avbryt
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

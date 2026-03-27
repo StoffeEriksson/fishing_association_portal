@@ -52,6 +52,8 @@ class GovernanceActivityLog(OrgModel):
         ("matter_created", "Ärende skapat"),
         ("matter_updated", "Ärende uppdaterat"),
         ("matter_status_changed", "Ärendestatus ändrad"),
+        ("meeting_created", "Stämma skapad"),
+        ("meeting_updated", "Stämma uppdaterad"),
     ]
 
     user = models.ForeignKey(
@@ -129,6 +131,14 @@ class BoardMatter(OrgModel):
         related_name="assigned_matters",
     )
 
+    meeting = models.ForeignKey(
+        "Meeting",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="matters",
+    )
+
     board_comment = models.TextField(blank=True)
     prepared_statement = models.TextField(blank=True)
 
@@ -142,3 +152,60 @@ class BoardMatter(OrgModel):
 
     def __str__(self):
         return self.title
+
+
+class Meeting(OrgModel):
+    MEETING_TYPE_CHOICES = [
+        ("annual", "Årsstämma"),
+        ("extra", "Extra stämma"),
+        ("board", "Styrelsemöte"),
+    ]
+
+    title = models.CharField(max_length=255)
+    location = models.CharField(max_length=255, blank=True)
+
+    meeting_type = models.CharField(
+        max_length=20,
+        choices=MEETING_TYPE_CHOICES,
+    )
+
+    meeting_date = models.DateTimeField()
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_meetings",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-meeting_date"]
+
+    def __str__(self):
+        return self.title
+
+
+class MeetingMatter(models.Model):
+    meeting = models.ForeignKey(
+        "Meeting",
+        on_delete=models.CASCADE,
+        related_name="meeting_matters",
+    )
+
+    matter = models.ForeignKey(
+        "BoardMatter",
+        on_delete=models.CASCADE,
+        related_name="meeting_links",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("meeting", "matter")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.meeting.title} - {self.matter.title}"

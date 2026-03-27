@@ -4,8 +4,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect, get_object_or_404
 
-from .forms import BoardMembershipForm, BoardMatterForm
-from .models import BoardMembership, GovernanceActivityLog, BoardMatter
+from .forms import BoardMembershipForm, BoardMatterForm, MeetingForm
+from .models import BoardMembership, GovernanceActivityLog, BoardMatter, Meeting, MeetingMatter
+
+from django.utils import timezone
+from documents.models import Document, DocumentTemplate, DocumentSourceType
+from documents.utils import log_document_activity
 
 
 User = get_user_model()
@@ -424,3 +428,231 @@ def matter_change_status(request, pk, new_status):
 
     messages.success(request, f"Status uppdaterad till {new_status_display}.")
     return redirect("governance:matter_detail", pk=matter.pk)
+
+
+@login_required
+def meeting_create(request):
+    membership = get_board_membership(request)
+
+    if not membership.can_manage_matters:
+        raise PermissionDenied("Du har inte behörighet att skapa stämmor.")
+
+    selected_matter_ids = []
+    selected_previous_matter_ids = []
+
+    if request.method == "POST":
+        form = MeetingForm(request.POST, org=request.org)
+
+        selected_matter_ids = [int(pk) for pk in request.POST.getlist("matters") if pk.isdigit()]
+        selected_previous_matter_ids = [int(pk) for pk in request.POST.getlist("previous_matters") if pk.isdigit()]
+
+        if form.is_valid():
+            meeting = form.save(commit=False)
+            meeting.org = request.org
+            meeting.created_by = request.user
+            meeting.save()
+
+            selected_matters = form.cleaned_data["matters"]
+            previous_matters = form.cleaned_data["previous_matters"]
+
+            total_count = 0
+
+            for matter in selected_matters:
+                MeetingMatter.objects.get_or_create(
+                    meeting=meeting,
+                    matter=matter,
+                )
+                total_count += 1
+
+            for matter in previous_matters:
+                MeetingMatter.objects.get_or_create(
+                    meeting=meeting,
+                    matter=matter,
+                )
+                total_count += 1
+
+            log_governance_activity(
+                org=request.org,
+                user=request.user,
+                action="meeting_created",
+                message=f"Stämman '{meeting.title}' skapades och {total_count} ärenden kopplades.",
+            )
+
+            messages.success(request, "Stämman skapades och valda ärenden kopplades.")
+            return redirect("governance:meeting_detail", pk=meeting.pk)
+    else:
+        form = MeetingForm(org=request.org)
+
+    return render(
+        request,
+        "governance/meeting_form.html",
+        {
+            "membership": membership,
+            "form": form,
+            "selected_matter_ids": selected_matter_ids,
+            "selected_previous_matter_ids": selected_previous_matter_ids,
+        },
+    )
+
+
+@login_required
+def meeting_detail(request, pk):
+    membership = get_board_membership(request)
+
+    meeting = get_object_or_404(
+        Meeting.objects.filter(org=request.org).select_related("created_by"),
+        pk=pk,
+    )
+
+    meeting_matters = meeting.meeting_matters.select_related(
+        "matter",
+        "matter__assigned_to",
+        "matter__submitted_by",
+    ).order_by("created_at")
+
+    matters = [link.matter for link in meeting_matters]
+
+    return render(
+        request,
+        "governance/meeting_detail.html",
+        {
+            "membership": membership,
+            "meeting": meeting,
+            "matters": matters,
+            "meeting_matters": meeting_matters,
+        },
+    )
+
+
+def build_meeting_agenda_html(matters):
+    if not matters:
+        return "<ol><li>Inga ärenden kopplade.</li></ol>"
+
+    items = []
+    for matter in matters:
+        items.append(f"<li>{matter.title}</li>")
+
+    return "<ol>" + "".join(items) + "</ol>"
+
+
+def build_meeting_matters_html(matters, heading_prefix="Motion"):
+    if not matters:
+        return "<p>Inga ärenden kopplade.</p>"
+
+    blocks = []
+    for index, matter in enumerate(matters, start=1):
+        block = f"""
+        <section style="margin-bottom: 2.5rem;">
+            <h3 style="margin-bottom: 0.75rem;">{heading_prefix} {index}: {matter.title}</h3>
+        """
+
+        if matter.description:
+            block += f"""
+            <div style="margin-bottom: 1rem;">
+                <div style="font-weight: 600; margin-bottom: 0.35rem;">Förslag / beskrivning</div>
+                <div>{matter.description}</div>
+            </div>
+            """
+
+        if matter.prepared_statement:
+            block += f"""
+            <div style="margin-bottom: 1rem;">
+                <div style="font-weight: 600; margin-bottom: 0.35rem;">Styrelsens yttrande</div>
+                <div>{matter.prepared_statement}</div>
+            </div>
+            """
+        else:
+            block += """
+            <div style="margin-bottom: 1rem;">
+                <div style="font-weight: 600; margin-bottom: 0.35rem;">Styrelsens yttrande</div>
+                <div>Inget yttrande angivet.</div>
+            </div>
+            """
+
+        block += """
+            <div style="margin-bottom: 1rem;">
+                <div style="font-weight: 600; margin-bottom: 0.35rem;">Beslut</div>
+                <div>Stämman beslutade att ____________________________________________</div>
+            </div>
+        </section>
+        """
+        blocks.append(block)
+
+    return "".join(blocks)
+
+
+@login_required
+def create_document_from_meeting(request, pk, doc_type):
+    membership = get_board_membership(request)
+
+    if not membership.can_manage_documents and not membership.can_manage_matters:
+        raise PermissionDenied("Du har inte behörighet att skapa dokument från möten.")
+
+    meeting = get_object_or_404(
+        Meeting.objects.filter(org=request.org).select_related("created_by"),
+        pk=pk,
+    )
+
+    meeting_matters = meeting.meeting_matters.select_related("matter").order_by("created_at")
+    matters = [link.matter for link in meeting_matters]
+
+    if doc_type == "notice":
+        template = get_object_or_404(DocumentTemplate, category="notice")
+
+        agenda_html = build_meeting_agenda_html(matters)
+
+        content = template.content
+        content = content.replace("{{ date }}", meeting.meeting_date.strftime("%Y-%m-%d"))
+        content = content.replace("{{ time }}", meeting.meeting_date.strftime("%H:%M"))
+        content = content.replace("{{ location }}", meeting.location or "")
+        content = content.replace("{{ agenda_html }}", agenda_html)
+
+        title = f"Kallelse - {meeting.title}"
+        document_category = "notice"
+
+    elif doc_type == "protocol":
+        template = get_object_or_404(DocumentTemplate, category="meeting")
+
+        motions = [matter for matter in matters if matter.type == "motion"]
+        other_matters = [matter for matter in matters if matter.type != "motion"]
+
+        motions_html = build_meeting_matters_html(motions, heading_prefix="Motion")
+        other_matters_html = build_meeting_matters_html(other_matters, heading_prefix="Ärende")
+
+        content = template.content
+        content = content.replace("{{ date }}", meeting.meeting_date.strftime("%Y-%m-%d"))
+        content = content.replace("{{ time }}", meeting.meeting_date.strftime("%H:%M"))
+        content = content.replace("{{ location }}", meeting.location or "")
+        content = content.replace("{{ attendees_html }}", "<ul><li></li></ul>")
+        content = content.replace("{{ adjusters_html }}", "<ul><li></li></ul>")
+        content = content.replace("{{ chairman }}", "")
+        content = content.replace("{{ secretary }}", "")
+        content = content.replace("{{ motions_html }}", motions_html)
+        content = content.replace("{{ other_matters_html }}", other_matters_html)
+
+        title = f"Stämmoprotokoll - {meeting.title}"
+        document_category = "protocol"
+
+    else:
+        raise PermissionDenied("Ogiltig dokumenttyp.")
+
+    document = Document.objects.create(
+        org=request.org,
+        title=title,
+        category=document_category,
+        description=f"Skapat från mötet '{meeting.title}'",
+        content=content,
+        template=template,
+        source_type=DocumentSourceType.TEMPLATE,
+        uploaded_by=request.user,
+    )
+
+    log_document_activity(
+        document=document,
+        user=request.user,
+        action="created",
+        message=f"Dokument skapades från mötet '{meeting.title}'",
+    )
+
+    messages.success(request, f"Dokumentet '{document.title}' skapades.")
+    return redirect("portal:document_detail", pk=document.pk)
