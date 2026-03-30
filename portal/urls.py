@@ -35,4 +35,5 @@ urlpatterns = [
     path("documents/<int:pk>/reviewers/add/", document_views.add_document_reviewer, name="add_document_reviewer"),
     path("document-approvals/<int:pk>/approve/", document_views.approve_document, name="approve_document"),
     path("document-approvals/<int:pk>/changes/", document_views.request_document_changes, name="request_document_changes"),
+    path("document-approvals/<int:pk>/remove/", document_views.remove_document_reviewer, name="remove_document_reviewer"),
 ]

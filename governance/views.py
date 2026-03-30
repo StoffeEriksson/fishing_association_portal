@@ -6,10 +6,23 @@ from django.shortcuts import render, redirect, get_object_or_404
 from datetime import date
 
 from .forms import BoardMembershipForm, BoardMatterForm, MeetingForm
-from .models import BoardMembership, GovernanceActivityLog, BoardMatter, Meeting, MeetingMatter
+from .models import (
+    BoardMembership,
+    GovernanceActivityLog,
+    BoardMatter,
+    Meeting,
+    MeetingMatter,
+    MeetingStatus,
+)
+
 
 from django.utils import timezone
-from documents.models import Document, DocumentTemplate, DocumentSourceType
+from documents.models import (
+    Document,
+    DocumentTemplate,
+    DocumentSourceType,
+    DocumentWorkflowStatus,
+)
 from documents.utils import log_document_activity
 
 
@@ -514,6 +527,11 @@ def meeting_detail(request, pk):
 
     matters = [link.matter for link in meeting_matters]
 
+    protocol_document = meeting.documents.filter(
+        category="protocol",
+        is_deleted=False,
+    ).order_by("-created_at").first()
+
     return render(
         request,
         "governance/meeting_detail.html",
@@ -522,8 +540,84 @@ def meeting_detail(request, pk):
             "meeting": meeting,
             "matters": matters,
             "meeting_matters": meeting_matters,
+            "protocol_document": protocol_document,
         },
     )
+
+
+@login_required
+def close_meeting(request, pk):
+    membership = get_board_membership(request)
+
+    if not membership.can_manage_matters:
+        raise PermissionDenied("Du har inte behörighet att avsluta stämmor.")
+
+    meeting = get_object_or_404(
+        Meeting.objects.filter(org=request.org),
+        pk=pk,
+    )
+
+    if meeting.status == MeetingStatus.CLOSED:
+        messages.warning(request, "Mötet är redan avslutat.")
+        return redirect("governance:meeting_detail", pk=meeting.pk)
+
+    protocol_document = meeting.documents.filter(
+        category="protocol",
+        is_deleted=False,
+    ).order_by("-created_at").first()
+
+    if not protocol_document:
+        messages.error(request, "Det går inte att avsluta mötet eftersom något protokoll inte har skapats ännu.")
+        return redirect("governance:meeting_detail", pk=meeting.pk)
+
+    has_reviewers = protocol_document.approvals.exists()
+    is_locked = protocol_document.workflow_status in [
+        DocumentWorkflowStatus.LOCKED_FOR_REVIEW,
+        DocumentWorkflowStatus.UNDER_REVIEW,
+        DocumentWorkflowStatus.APPROVED,
+        DocumentWorkflowStatus.FINALIZED,
+    ]
+
+    if not has_reviewers and not is_locked:
+        messages.error(
+            request,
+            "Du måste först lägga till minst en justerare och låsa protokollet för justering innan mötet kan avslutas.",
+        )
+        return redirect("portal:document_detail", pk=protocol_document.pk)
+
+    if not has_reviewers:
+        messages.error(
+            request,
+            "Du måste lägga till minst en justerare innan mötet kan avslutas.",
+        )
+        return redirect("portal:document_detail", pk=protocol_document.pk)
+
+    if not is_locked:
+        messages.error(
+            request,
+            "Du måste låsa protokollet för justering innan mötet kan avslutas.",
+        )
+        return redirect("portal:document_detail", pk=protocol_document.pk)
+
+    meeting.status = MeetingStatus.CLOSED
+    meeting.save(update_fields=["status", "updated_at"])
+
+    log_governance_activity(
+        org=request.org,
+        user=request.user,
+        action="meeting_updated",
+        message=f"Mötet '{meeting.title}' avslutades.",
+    )
+
+    log_document_activity(
+        document=protocol_document,
+        user=request.user,
+        action="updated",
+        message=f"Mötet '{meeting.title}' avslutades. Protokollet väntar nu på justering.",
+    )
+
+    messages.success(request, "Mötet avslutades. Protokollet har skickats vidare till justering.")
+    return redirect("governance:protocol_review_list")
 
 
 def build_meeting_agenda_html(matters):
@@ -647,6 +741,8 @@ def create_document_from_meeting(request, pk, doc_type):
         template=template,
         source_type=DocumentSourceType.TEMPLATE,
         uploaded_by=request.user,
+        is_archived=False,
+        meeting=meeting,
     )
 
     log_document_activity(
@@ -682,3 +778,34 @@ def create_document_from_meeting(request, pk, doc_type):
 
     messages.success(request, f"Dokumentet '{document.title}' skapades.")
     return redirect("portal:document_detail", pk=document.pk)
+
+
+@login_required
+def protocol_review_list(request):
+    membership = get_board_membership(request)
+
+    protocols = (
+        Document.objects.filter(
+            org=request.org,
+            category="protocol",
+            is_deleted=False,
+            is_archived=False,
+            meeting__isnull=False,
+        )
+        .select_related("meeting", "uploaded_by")
+        .prefetch_related("approvals")
+        .order_by("-updated_at")
+    )
+
+    for doc in protocols:
+        doc.approved_count = doc.approvals.filter(status="approved").count()
+        doc.total_reviewers = doc.approvals.count()
+
+    return render(
+        request,
+        "governance/protocol_review_list.html",
+        {
+            "membership": membership,
+            "protocols": protocols,
+        },
+    )

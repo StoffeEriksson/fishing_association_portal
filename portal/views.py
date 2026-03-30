@@ -26,7 +26,7 @@ from documents.models import (
     DocumentSourceType,
     DocumentTemplate,
     DocumentVersion,
-    
+    DocumentWorkflowStatus,
 )
 from documents.utils import log_document_activity
 
@@ -242,7 +242,7 @@ def property_detail(request, pk):
 def document_list(request):
     org = request.org
 
-    qs = Document.objects.filter(org=org, is_deleted=False)
+    qs = Document.objects.filter(org=org, is_deleted=False, is_archived=True)
 
     category = request.GET.get("category")
     if category:
@@ -398,6 +398,10 @@ def document_edit(request, pk):
         Document.objects.filter(org=org, is_deleted=False),
         pk=pk,
     )
+
+    if document.workflow_status != DocumentWorkflowStatus.DRAFT:
+        messages.error(request, "Dokumentet kan inte redigeras eftersom det inte längre är i utkastläge.")
+        return redirect("portal:document_detail", pk=document.pk)
 
     if request.method == "POST":
         form = DocumentUpdateForm(request.POST, instance=document)

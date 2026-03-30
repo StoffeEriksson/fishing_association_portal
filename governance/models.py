@@ -157,6 +157,11 @@ class BoardMatter(OrgModel):
 
     def __str__(self):
         return self.title
+    
+
+class MeetingStatus(models.TextChoices):
+    ONGOING = "ongoing", "Pågående"
+    CLOSED = "closed", "Avslutat"
 
 
 class Meeting(OrgModel):
@@ -172,6 +177,12 @@ class Meeting(OrgModel):
     meeting_type = models.CharField(
         max_length=20,
         choices=MEETING_TYPE_CHOICES,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=MeetingStatus.choices,
+        default=MeetingStatus.ONGOING,
     )
 
     meeting_date = models.DateTimeField()

@@ -125,5 +125,28 @@
     </div>
   </div>
 
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-soft h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Protokoll för justering</h2>
+        <p class="text-muted mb-3">
+          Justera och signera dokument inför arkivering
+        </p>
+
+        <ul class="small text-muted ps-3 mb-0">
+          <li>Granska avslutade mötesprotokoll</li>
+          <li>Hantera justerare</li>
+          <li>Följ godkännande och signering</li>
+        </ul>
+      </div>
+
+      <div class="card-footer bg-white border-0 pt-0 px-4 pb-4">
+        <a href="{% url 'governance:protocol_review_list' %}" class="btn btn-dark">
+          Visa protokoll
+        </a>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

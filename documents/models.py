@@ -72,6 +72,14 @@ class Document(OrgModel):
         related_name="documents",
     )
 
+    meeting = models.ForeignKey(
+        "governance.Meeting",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="documents",
+    )
+
     workflow_status = models.CharField(
         max_length=30,
         choices=DocumentWorkflowStatus.choices,
@@ -97,7 +105,7 @@ class Document(OrgModel):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    is_archived = models.BooleanField(default=False)
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
     deleted_by = models.ForeignKey(

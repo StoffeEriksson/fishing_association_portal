@@ -26,5 +26,6 @@ urlpatterns = [
     views.create_document_from_meeting,
     name="create_document_from_meeting",
     ),
-    
+    path("meetings/<int:pk>/close/", views.close_meeting, name="close_meeting"),
+    path("protocols/review/", views.protocol_review_list, name="protocol_review_list"),
 ]

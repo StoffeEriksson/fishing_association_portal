@@ -17,14 +17,25 @@
   </a>
 
   {% if membership.can_manage_matters %}
-    <a href="{% url 'governance:create_document_from_meeting' meeting.pk 'notice' %}" class="btn btn-outline-dark">
-      Skapa kallelse
-    </a>
+  <a href="{% url 'governance:create_document_from_meeting' meeting.pk 'notice' %}" class="btn btn-outline-dark">
+    Skapa kallelse
+  </a>
 
+  {% if protocol_document %}
+    <a href="{% url 'portal:document_detail' protocol_document.pk %}" class="btn btn-dark">
+      Öppna protokoll
+    </a>
+  {% else %}
     <a href="{% url 'governance:create_document_from_meeting' meeting.pk 'protocol' %}" class="btn btn-dark">
       Skapa protokoll
     </a>
   {% endif %}
+  {% if membership.can_manage_matters and meeting.status == "ongoing" and protocol_document %}
+    <a href="{% url 'governance:close_meeting' meeting.pk %}" class="btn btn-danger">
+      Avsluta möte
+    </a>
+  {% endif %}
+{% endif %}
 </div>
 </div>
 
@@ -34,6 +45,11 @@
       <div class="col-md-3">
         <div class="small text-muted">Typ av möte</div>
         <div class="fw-semibold">{{ meeting.get_meeting_type_display }}</div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="small text-muted">Status</div>
+        <div class="fw-semibold">{{ meeting.get_status_display }}</div>
       </div>
 
       <div class="col-md-3">
