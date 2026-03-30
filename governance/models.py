@@ -52,6 +52,7 @@ class GovernanceActivityLog(OrgModel):
         ("matter_created", "Ärende skapat"),
         ("matter_updated", "Ärende uppdaterat"),
         ("matter_status_changed", "Ärendestatus ändrad"),
+        ("matter_handled_in_meeting", "Ärende behandlat i stämma"),
         ("meeting_created", "Stämma skapad"),
         ("meeting_updated", "Stämma uppdaterad"),
     ]
@@ -89,6 +90,7 @@ class MatterStatus(models.TextChoices):
     IN_PREPARATION = "in_preparation", "Under beredning"
     READY_FOR_PROPOSAL = "ready_for_proposal", "Klar för styrelseförslag"
     READY_FOR_MEETING = "ready_for_meeting", "Klar för stämma"
+    HANDLED_IN_MEETING = "handled_in_meeting", "Behandlad i stämma"
     DECIDED = "decided", "Beslutad"
     CLOSED = "closed", "Avslutad"
 
@@ -141,6 +143,9 @@ class BoardMatter(OrgModel):
 
     board_comment = models.TextField(blank=True)
     prepared_statement = models.TextField(blank=True)
+
+    meeting_decision = models.TextField(blank=True)
+    decision_date = models.DateField(null=True, blank=True)
 
     ready_for_meeting = models.BooleanField(default=False)
 

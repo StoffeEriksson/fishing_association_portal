@@ -46,6 +46,10 @@
           Klar för stämma
         </a>
 
+        <a href="{% url 'governance:matter_change_status' matter.pk 'handled_in_meeting' %}" class="btn btn-outline-secondary btn-sm">
+          Behandlad i stämma
+        </a>
+
         <a href="{% url 'governance:matter_change_status' matter.pk 'decided' %}" class="btn btn-outline-secondary btn-sm">
           Beslutad
         </a>
@@ -68,7 +72,25 @@
 
       <div class="col-md-6">
         <div class="small text-muted">Status</div>
-        <div class="fw-semibold">{{ matter.get_status_display }}</div>
+        <div class="fw-semibold">
+          {% if matter.status == "received" %}
+            <span class="badge text-bg-light border">Inkommen</span>
+          {% elif matter.status == "in_preparation" %}
+            <span class="badge text-bg-warning">Under beredning</span>
+          {% elif matter.status == "ready_for_proposal" %}
+            <span class="badge text-bg-info">Klar för styrelseförslag</span>
+          {% elif matter.status == "ready_for_meeting" %}
+            <span class="badge text-bg-primary">Klar för stämma</span>
+          {% elif matter.status == "handled_in_meeting" %}
+            <span class="badge text-bg-secondary">Behandlad i stämma</span>
+          {% elif matter.status == "decided" %}
+            <span class="badge text-bg-dark">Beslutad</span>
+          {% elif matter.status == "closed" %}
+            <span class="badge text-bg-success">Avslutad</span>
+          {% else %}
+            <span class="badge text-bg-light border">{{ matter.get_status_display }}</span>
+          {% endif %}
+        </div>
       </div>
 
       <div class="col-md-6">
@@ -96,7 +118,11 @@
       <div class="col-md-6">
         <div class="small text-muted">Klar för stämma</div>
         <div class="fw-semibold">
-          {% if matter.ready_for_meeting %}Ja{% else %}Nej{% endif %}
+          {% if matter.ready_for_meeting %}
+            <span class="badge text-bg-primary">Ja</span>
+          {% else %}
+            <span class="badge text-bg-light border">Nej</span>
+          {% endif %}
         </div>
       </div>
 
@@ -104,6 +130,13 @@
         <div class="small text-muted">Skapad</div>
         <div class="fw-semibold">{{ matter.created_at|date:"Y-m-d H:i" }}</div>
       </div>
+
+      {% if matter.decision_date %}
+        <div class="col-md-6">
+          <div class="small text-muted">Beslutsdatum</div>
+          <div class="fw-semibold">{{ matter.decision_date|date:"Y-m-d" }}</div>
+        </div>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -126,12 +159,34 @@
   </div>
 </div>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft mb-4">
   <div class="card-body">
     <h2 class="h5 mb-3">Beredning / yttrande</h2>
     <div class="text-muted">
       {{ matter.prepared_statement|default:"Ingen beredning ännu."|linebreaks }}
     </div>
+  </div>
+</div>
+
+<div class="card shadow-soft mt-4">
+  <div class="card-body">
+    <h2 class="h5 mb-3">Beslut</h2>
+
+    {% if matter.meeting_decision %}
+      <div class="text-muted">
+        {{ matter.meeting_decision|linebreaks }}
+      </div>
+
+      {% if matter.decision_date %}
+        <div class="small text-muted mt-3">
+          Beslutsdatum: {{ matter.decision_date|date:"Y-m-d" }}
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="text-muted">
+        Inget beslut registrerat ännu.
+      </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

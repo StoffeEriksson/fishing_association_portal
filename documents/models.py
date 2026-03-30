@@ -5,7 +5,6 @@ from core.tenancy import OrgModel
 
 
 class DocumentCategory(models.TextChoices):
-    MEETING = "meeting", "Stämmoprotokoll"
     PROTOCOL = "protocol", "Protokoll"
     BYLAWS = "bylaws", "Stadgar"
     NOTICE = "notice", "Kallelse"
@@ -17,6 +16,20 @@ class DocumentCategory(models.TextChoices):
 class DocumentSourceType(models.TextChoices):
     UPLOADED = "uploaded", "Uppladdat"
     TEMPLATE = "template", "Mallbaserat"
+
+
+class DocumentWorkflowStatus(models.TextChoices):
+    DRAFT = "draft", "Utkast"
+    LOCKED_FOR_REVIEW = "locked_for_review", "Låst för justering"
+    UNDER_REVIEW = "under_review", "Under justering"
+    APPROVED = "approved", "Godkänt"
+    FINALIZED = "finalized", "Avslutat"
+
+
+class DocumentApprovalStatus(models.TextChoices):
+    PENDING = "pending", "Väntar"
+    APPROVED = "approved", "Godkänd"
+    CHANGES_REQUESTED = "changes_requested", "Ändringar begärda"
 
 
 class DocumentTemplate(models.Model):
@@ -57,6 +70,22 @@ class Document(OrgModel):
         null=True,
         blank=True,
         related_name="documents",
+    )
+
+    workflow_status = models.CharField(
+        max_length=30,
+        choices=DocumentWorkflowStatus.choices,
+        default=DocumentWorkflowStatus.DRAFT,
+    )
+
+    locked_at = models.DateTimeField(null=True, blank=True)
+
+    locked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="locked_documents",
     )
 
     uploaded_by = models.ForeignKey(
@@ -144,3 +173,34 @@ class DocumentActivity(models.Model):
 
     def __str__(self):
         return f"{self.document} - {self.action} - {self.created_at}"
+
+
+class DocumentApproval(models.Model):
+    document = models.ForeignKey(
+        "Document",
+        on_delete=models.CASCADE,
+        related_name="approvals",
+    )
+
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="document_approvals",
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=DocumentApprovalStatus.choices,
+        default=DocumentApprovalStatus.PENDING,
+    )
+
+    comment = models.TextField(blank=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("document", "reviewer")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.document.title} - {self.reviewer} - {self.get_status_display()}"

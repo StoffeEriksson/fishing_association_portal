@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from documents import views as document_views
 
 app_name = "portal"
 
@@ -30,4 +31,8 @@ urlpatterns = [
     name="document_print",
     ),
     path("documents/create/blank/", views.create_blank_document, name="create_blank_document"),
+    path("documents/<int:pk>/lock/", document_views.lock_document_for_review, name="lock_document"),
+    path("documents/<int:pk>/reviewers/add/", document_views.add_document_reviewer, name="add_document_reviewer"),
+    path("document-approvals/<int:pk>/approve/", document_views.approve_document, name="approve_document"),
+    path("document-approvals/<int:pk>/changes/", document_views.request_document_changes, name="request_document_changes"),
 ]

@@ -3,7 +3,7 @@
 {% block title %}{{ doc.title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/document.css' %}?v=5">
+<link rel="stylesheet" href="{% static 'css/document.css' %}?v=7">
 {% endblock %}
 
 {% block content %}
@@ -13,9 +13,47 @@
     <div class="text-muted small">
       {{ doc.get_category_display }} · Senast uppdaterad {{ doc.updated_at|date:"Y-m-d" }}
     </div>
+
+    <div class="mt-2">
+      {% if doc.workflow_status == "draft" %}
+        <span class="badge text-bg-secondary">Utkast</span>
+      {% elif doc.workflow_status == "locked_for_review" %}
+        <span class="badge text-bg-warning">Låst för justering</span>
+      {% elif doc.workflow_status == "under_review" %}
+        <span class="badge text-bg-info">Under justering</span>
+      {% elif doc.workflow_status == "approved" %}
+        <span class="badge text-bg-primary">Godkänt</span>
+      {% elif doc.workflow_status == "finalized" %}
+        <span class="badge text-bg-success">Avslutat</span>
+      {% endif %}
+    </div>
+
+    {% if doc.locked_at %}
+      <div class="small text-muted mt-2">
+        Låst av
+        {% if doc.locked_by %}
+          {{ doc.locked_by.email|default:doc.locked_by.username }}
+        {% else %}
+          okänd användare
+        {% endif %}
+        den {{ doc.locked_at|date:"Y-m-d H:i" }}
+      </div>
+    {% endif %}
   </div>
 
   <div class="d-flex gap-2 flex-wrap">
+    {% if doc.workflow_status == "draft" %}
+      <a href="{% url 'portal:lock_document' doc.pk %}" class="btn btn-warning btn-sm">
+        🔒 Lås för justering
+      </a>
+    {% endif %}
+
+    {% if doc.workflow_status == "locked_for_review" or doc.workflow_status == "under_review" %}
+      <a href="{% url 'portal:add_document_reviewer' doc.pk %}" class="btn btn-outline-dark btn-sm">
+        + Lägg till justerare
+      </a>
+    {% endif %}
+
     <a href="{% url 'portal:document_upload_version' doc.pk %}" class="btn btn-dark btn-sm">
       + Ny version
     </a>
@@ -66,6 +104,29 @@
               {% endif %}
             </div>
           </div>
+
+          <div class="col-md-4">
+            <div class="small text-muted">Workflow-status</div>
+            <div class="fw-semibold">
+              {{ doc.get_workflow_status_display }}
+            </div>
+          </div>
+
+          {% if doc.locked_at %}
+            <div class="col-md-4">
+              <div class="small text-muted">Låst</div>
+              <div class="fw-semibold">{{ doc.locked_at|date:"Y-m-d H:i" }}</div>
+            </div>
+          {% endif %}
+
+          {% if doc.locked_by %}
+            <div class="col-md-4">
+              <div class="small text-muted">Låst av</div>
+              <div class="fw-semibold">
+                {{ doc.locked_by.email|default:doc.locked_by.username }}
+              </div>
+            </div>
+          {% endif %}
         </div>
 
         {% if doc.description %}
@@ -293,6 +354,57 @@
         {% endif %}
       </div>
     </div>
+
+    {% if doc.approvals.all %}
+      <div class="card shadow-soft mt-4">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Justering / godkännande</h2>
+
+          <div class="d-flex flex-column gap-3">
+            {% for approval in doc.approvals.all %}
+              <div class="border rounded p-3">
+                <div class="fw-semibold">
+                  {{ approval.reviewer.email|default:approval.reviewer.username }}
+                </div>
+
+                <div class="small mt-1">
+                  {% if approval.status == "pending" %}
+                    <span class="badge text-bg-warning">Väntar</span>
+                  {% elif approval.status == "approved" %}
+                    <span class="badge text-bg-success">Godkänd</span>
+                  {% elif approval.status == "changes_requested" %}
+                    <span class="badge text-bg-danger">Ändringar begärda</span>
+                  {% endif %}
+                </div>
+
+                {% if approval.comment %}
+                  <div class="small text-muted mt-2">
+                    {{ approval.comment }}
+                  </div>
+                {% endif %}
+
+                {% if approval.responded_at %}
+                  <div class="small text-muted mt-2">
+                    Svarade: {{ approval.responded_at|date:"Y-m-d H:i" }}
+                  </div>
+                {% endif %}
+
+                {% if request.user == approval.reviewer and approval.status == "pending" %}
+                  <div class="d-flex gap-2 mt-3">
+                    <a href="{% url 'portal:approve_document' approval.pk %}" class="btn btn-sm btn-dark">
+                      Godkänn
+                    </a>
+                    <a href="{% url 'portal:request_document_changes' approval.pk %}" class="btn btn-sm btn-outline-danger">
+                      Begär ändringar
+                    </a>
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
   </div>
 
 </div>

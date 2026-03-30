@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect, get_object_or_404
+from datetime import date
 
 from .forms import BoardMembershipForm, BoardMatterForm, MeetingForm
 from .models import BoardMembership, GovernanceActivityLog, BoardMatter, Meeting, MeetingMatter
@@ -402,6 +403,7 @@ def matter_change_status(request, pk, new_status):
         "in_preparation",
         "ready_for_proposal",
         "ready_for_meeting",
+        "handled_in_meeting",
         "decided",
         "closed",
     }
@@ -653,6 +655,30 @@ def create_document_from_meeting(request, pk, doc_type):
         action="created",
         message=f"Dokument skapades från mötet '{meeting.title}'",
     )
+
+    if doc_type == "protocol":
+        meeting_date_only = meeting.meeting_date.date()
+
+        for matter in matters:
+            previous_status = matter.status
+
+            matter.status = "handled_in_meeting"
+            matter.ready_for_meeting = False
+
+            if not matter.decision_date:
+                matter.decision_date = meeting_date_only
+
+            matter.save(update_fields=["status", "ready_for_meeting", "decision_date", "updated_at"])
+
+            log_governance_activity(
+                org=request.org,
+                user=request.user,
+                action="matter_handled_in_meeting",
+                message=(
+                    f"Ärendet '{matter.title}' markerades som behandlat i stämman "
+                    f"'{meeting.title}' (tidigare status: '{previous_status}')."
+                ),
+            )
 
     messages.success(request, f"Dokumentet '{document.title}' skapades.")
     return redirect("portal:document_detail", pk=document.pk)

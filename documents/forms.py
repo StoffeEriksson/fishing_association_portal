@@ -1,5 +1,8 @@
 from django import forms
-from .models import Document, DocumentVersion
+from .models import Document, DocumentVersion, DocumentApproval
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class DocumentCreateForm(forms.ModelForm):
@@ -65,6 +68,15 @@ class DocumentUpdateForm(forms.ModelForm):
                 "placeholder": "Skriv dokumentinnehåll här...",
                 "id": "id_content",
             }),
+        }
+
+
+class DocumentApprovalCreateForm(forms.ModelForm):
+    class Meta:
+        model = DocumentApproval
+        fields = ["reviewer"]
+        widgets = {
+            "reviewer": forms.Select(attrs={"class": "form-select"}),
         }
 
 

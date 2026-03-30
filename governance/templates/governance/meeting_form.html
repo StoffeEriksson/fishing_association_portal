@@ -174,9 +174,14 @@
                       </div>
                     {% endif %}
 
-                    {% if matter.meeting_links.exists %}
+                    {% if matter.meeting_links.all %}
                       <div class="small text-muted mt-2">
-                        Tidigare upptaget i minst en stämma.
+                        <span class="fw-semibold">Tidigare behandlat i:</span>
+                        {% for link in matter.meeting_links.all %}
+                          <span class="badge bg-light text-dark border me-1">
+                            {{ link.meeting.title }}
+                          </span>
+                        {% endfor %}
                       </div>
                     {% endif %}
                   </div>

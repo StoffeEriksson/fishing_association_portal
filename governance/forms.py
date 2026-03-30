@@ -34,6 +34,8 @@ class BoardMatterForm(forms.ModelForm):
             "assigned_to",
             "board_comment",
             "prepared_statement",
+            "meeting_decision",
+            "decision_date",
             "ready_for_meeting",
         ]
         widgets = {
@@ -58,6 +60,15 @@ class BoardMatterForm(forms.ModelForm):
                 "class": "form-control",
                 "rows": 5,
                 "placeholder": "Beredning / styrelsens yttrande",
+            }),
+            "meeting_decision": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 5,
+                "placeholder": "Ange beslut som fattades på stämman",
+            }),
+            "decision_date": forms.DateInput(attrs={
+                "class": "form-control",
+                "type": "date",
             }),
             "ready_for_meeting": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
@@ -104,15 +115,24 @@ class MeetingForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if org is not None:
-            self.fields["matters"].queryset = BoardMatter.objects.filter(
-                org=org,
-                ready_for_meeting=True,
-            ).exclude(
-                meeting_links__isnull=False,
-            ).distinct().order_by("created_at")
+            self.fields["matters"].queryset = (
+                BoardMatter.objects.filter(
+                    org=org,
+                    ready_for_meeting=True,
+                )
+                .exclude(meeting_links__isnull=False)
+                .prefetch_related("meeting_links__meeting")
+                .distinct()
+                .order_by("created_at")
+            )
 
-            self.fields["previous_matters"].queryset = BoardMatter.objects.filter(
-                org=org,
-                ready_for_meeting=True,
-                meeting_links__isnull=False,
-            ).distinct().order_by("created_at")
+            self.fields["previous_matters"].queryset = (
+                BoardMatter.objects.filter(
+                    org=org,
+                    ready_for_meeting=True,
+                    meeting_links__isnull=False,
+                )
+                .prefetch_related("meeting_links__meeting")
+                .distinct()
+                .order_by("created_at")
+            )
