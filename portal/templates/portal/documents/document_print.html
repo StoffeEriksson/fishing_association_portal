@@ -41,20 +41,88 @@
     </section>
 
     <section class="print-signatures">
+
         <div class="signature-block">
             <div class="signature-line"></div>
-            <div class="signature-label">Ordförande</div>
+            <div class="signature-role">Ordförande</div>
+
+            {% if chair_signatures %}
+                {% for sig in chair_signatures %}
+                    <div class="signature-name">
+                        {% if sig.user.get_full_name %}
+                            {{ sig.user.get_full_name }}
+                        {% else %}
+                            {{ sig.user.email }}
+                        {% endif %}
+                    </div>
+                    <div class="signature-date">
+                        Signerad {{ sig.signed_at|date:"Y-m-d" }}
+                    </div>
+                    <div class="signature-status signature-status-signed">
+                        Digitalt signerad via FVO Portal
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="signature-status signature-status-pending">
+                    Ej signerad
+                </div>
+            {% endif %}
         </div>
 
         <div class="signature-block">
             <div class="signature-line"></div>
-            <div class="signature-label">Sekreterare</div>
+            <div class="signature-role">Sekreterare</div>
+
+            {% if secretary_signatures %}
+                {% for sig in secretary_signatures %}
+                    <div class="signature-name">
+                        {% if sig.user.get_full_name %}
+                            {{ sig.user.get_full_name }}
+                        {% else %}
+                            {{ sig.user.email }}
+                        {% endif %}
+                    </div>
+                    <div class="signature-date">
+                        Signerad {{ sig.signed_at|date:"Y-m-d" }}
+                    </div>
+                    <div class="signature-status signature-status-signed">
+                        Digitalt signerad via FVO Portal
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="signature-status signature-status-pending">
+                    Ej signerad
+                </div>
+            {% endif %}
         </div>
 
         <div class="signature-block">
             <div class="signature-line"></div>
-            <div class="signature-label">Justerare</div>
+            <div class="signature-role">Justerare</div>
+
+            {% if adjuster_signatures %}
+                {% for sig in adjuster_signatures %}
+                    <div class="signature-name">
+                        {% if sig.user.get_full_name %}
+                            {{ sig.user.get_full_name }}
+                        {% else %}
+                            {{ sig.user.email }}
+                        {% endif %}
+                    </div>
+                    <div class="signature-date">
+                        Signerad {{ sig.signed_at|date:"Y-m-d" }}
+                    </div>
+                    <div class="signature-status signature-status-signed">
+                        Digitalt signerad via FVO Portal
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="signature-status signature-status-pending">
+                    Ej signerad
+                </div>
+            {% endif %}
         </div>
+
     </section>
 
     <footer class="print-footer">

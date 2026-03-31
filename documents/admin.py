@@ -5,6 +5,7 @@ from .models import (
     DocumentVersion,
     DocumentTemplate,
     DocumentApproval,
+    DocumentSignature,
 )
 
 
@@ -30,6 +31,13 @@ class DocumentApprovalInline(admin.TabularInline):
     ordering = ("created_at",)
 
 
+class DocumentSignatureInline(admin.TabularInline):
+    model = DocumentSignature
+    extra = 0
+    readonly_fields = ("created_at", "signed_at")
+    ordering = ("created_at",)
+
+
 @admin.register(Document)
 class DocumentAdmin(OrgAdminMixin, admin.ModelAdmin):
     list_display = (
@@ -43,7 +51,7 @@ class DocumentAdmin(OrgAdminMixin, admin.ModelAdmin):
     list_filter = ("category", "workflow_status", "updated_at")
     search_fields = ("title", "description")
     ordering = ("-updated_at",)
-    inlines = [DocumentVersionInline, DocumentApprovalInline]
+    inlines = [DocumentVersionInline, DocumentApprovalInline, DocumentSignatureInline]
 
 
 @admin.register(DocumentVersion)
@@ -57,4 +65,12 @@ class DocumentApprovalAdmin(admin.ModelAdmin):
     list_display = ("document", "reviewer", "status", "responded_at", "created_at")
     list_filter = ("status", "created_at", "responded_at")
     search_fields = ("document__title", "reviewer__email", "reviewer__username")
+    ordering = ("-created_at",)
+
+
+@admin.register(DocumentSignature)
+class DocumentSignatureAdmin(admin.ModelAdmin):
+    list_display = ("document", "user", "role", "status", "signed_at", "created_at")
+    list_filter = ("role", "status", "created_at", "signed_at")
+    search_fields = ("document__title", "user__email", "user__username")
     ordering = ("-created_at",)

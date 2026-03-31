@@ -32,6 +32,17 @@ class DocumentApprovalStatus(models.TextChoices):
     CHANGES_REQUESTED = "changes_requested", "Ändringar begärda"
 
 
+class DocumentSignatureRole(models.TextChoices):
+    CHAIR = "chair", "Ordförande"
+    SECRETARY = "secretary", "Sekreterare"
+    ADJUSTER = "adjuster", "Justerare"
+
+
+class DocumentSignatureStatus(models.TextChoices):
+    PENDING = "pending", "Väntar"
+    SIGNED = "signed", "Signerad"
+
+
 class DocumentTemplate(models.Model):
     name = models.CharField(max_length=255)
     category = models.CharField(
@@ -212,3 +223,38 @@ class DocumentApproval(models.Model):
 
     def __str__(self):
         return f"{self.document.title} - {self.reviewer} - {self.get_status_display()}"
+
+
+class DocumentSignature(models.Model):
+    document = models.ForeignKey(
+        "Document",
+        on_delete=models.CASCADE,
+        related_name="signatures",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="document_signatures",
+    )
+
+    role = models.CharField(
+        max_length=20,
+        choices=DocumentSignatureRole.choices,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=DocumentSignatureStatus.choices,
+        default=DocumentSignatureStatus.PENDING,
+    )
+
+    signed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("document", "user", "role")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.document.title} - {self.user} - {self.get_role_display()}"

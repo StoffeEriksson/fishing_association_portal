@@ -622,14 +622,26 @@ def create_from_template(request, template_id):
 @login_required
 def document_print_view(request, pk):
     doc = get_object_or_404(
-        Document.objects.filter(org=request.org, is_deleted=False),
+        Document.objects.filter(org=request.org, is_deleted=False)
+        .prefetch_related("signatures__user"),
         pk=pk,
     )
+
+    # 👉 HÄR lägger du in det
+    chair_signatures = doc.signatures.filter(role="chair", status="signed")
+    secretary_signatures = doc.signatures.filter(role="secretary", status="signed")
+    adjuster_signatures = doc.signatures.filter(role="adjuster", status="signed")
 
     return render(
         request,
         "portal/documents/document_print.html",
-        {"doc": doc, "org": request.org},
+        {
+            "doc": doc,
+            "org": request.org,
+            "chair_signatures": chair_signatures,
+            "secretary_signatures": secretary_signatures,
+            "adjuster_signatures": adjuster_signatures,
+        },
     )
 
 

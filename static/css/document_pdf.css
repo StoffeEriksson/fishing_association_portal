@@ -1,7 +1,25 @@
+/* =========================================================
+   A4 / PDF-GRUND
+   ========================================================= */
+
+/* Standardinställning för utskrift på A4 */
 @page {
     size: A4;
     margin: 18mm;
 }
+
+/* Sidnummer längst ner till höger i utskriftsläge */
+@page {
+    @bottom-right {
+        content: "Sida " counter(page);
+        font-size: 9pt;
+        color: #6b7280;
+    }
+}
+
+/* =========================================================
+   BAS / DOKUMENTKROPP
+   ========================================================= */
 
 html,
 body {
@@ -18,6 +36,7 @@ body {
     padding: 2rem 0;
 }
 
+/* Själva dokumentytan */
 .print-page {
     width: 210mm;
     min-height: 297mm;
@@ -27,6 +46,10 @@ body {
     padding: 20mm 18mm 18mm;
     box-sizing: border-box;
 }
+
+/* =========================================================
+   HEADER
+   ========================================================= */
 
 .print-header {
     border-bottom: 2px solid #d8dee8;
@@ -95,6 +118,10 @@ body {
     margin-bottom: 4px;
 }
 
+/* =========================================================
+   INNEHÅLL
+   ========================================================= */
+
 .print-content {
     font-size: 12pt;
     color: #111827;
@@ -115,8 +142,7 @@ body {
     margin-bottom: 8px;
     font-weight: 700;
     color: #0f172a;
-
-    border-bottom: 2px solid #d1d5db; /* tydligare linje */
+    border-bottom: 2px solid #d1d5db;
     padding-bottom: 4px;
 }
 
@@ -173,27 +199,98 @@ body {
     margin: 20px 0;
 }
 
+/* =========================================================
+   SIGNATURSEKTION
+   ========================================================= */
+
+/*
+  Tre jämna kolumner för:
+  - Ordförande
+  - Sekreterare
+  - Justerare
+
+  Målet här är att få ett prydligt, professionellt utseende
+  där varje signeringsblock får samma visuella vikt.
+*/
 .print-signatures {
-    margin-top: 48px;
+    margin-top: 40px;
+    margin-bottom: 32px;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 28px;
+    gap: 40px;
+    align-items: start;
 }
 
+/* Varje signeringskolumn */
 .signature-block {
     text-align: center;
+    min-width: 0;
 }
 
+/* Den visuella signaturraden */
 .signature-line {
-    border-top: 2px solid #111827;
-    margin-bottom: 6px;
-    height: 30px;
+    border-top: 2px solid #1f2a44;
+    width: 100%;
+    margin-bottom: 0 auto 10px;
 }
 
+/* Rollnamn, t.ex. Ordförande */
+.signature-role,
 .signature-label {
-    font-size: 10.5pt;
-    color: #4b5563;
+    font-size: 11pt;
+    font-weight: 600;
+    color: #1f2a44;
+    margin-bottom: 10px;
 }
+
+/*
+  Namn på den som signerat.
+  word-break gör att långa mailadresser inte spränger layouten.
+*/
+.signature-name {
+    font-size: 10pt;
+    font-weight: 500;
+    color: #111827;
+    line-height: 1.45;
+    word-break: break-word;
+    margin-bottom: 4px;
+    overflow-wrap: break-word;
+}
+
+/* Datum/tid för signering */
+.signature-date {
+    font-size: 9pt;
+    color: #4b5563;
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+
+/* Gemensam stil för statusrader */
+.signature-status,
+.signature-digital,
+.signature-pending {
+    font-size: 9pt;
+    line-height: 1.4;
+}
+
+/* När dokumentet faktiskt signerats */
+.signature-status-signed,
+.signature-digital {
+    color: #15803d;
+    font-weight: 600;
+}
+
+/* Om signering saknas */
+.signature-status-pending,
+.signature-pending {
+    color: #b91c1c;
+    font-style: italic;
+    margin-top: 6px;
+}
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
 
 .print-footer {
     margin-top: 36px;
@@ -206,37 +303,9 @@ body {
     gap: 1rem;
 }
 
-@media print {
-    html,
-    body {
-        background: #ffffff;
-    }
-
-    .print-body {
-        padding: 0;
-    }
-
-    .print-page {
-    width: 210mm;
-    min-height: 297mm;
-    margin: 0 auto;
-    background: #ffffff;
-    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
-    padding: 18mm 16mm 16mm; /* mindre padding */
-}
-
-    .print-signatures {
-        break-inside: avoid;
-    }
-}
-
-@page {
-    @bottom-right {
-        content: "Sida " counter(page);
-        font-size: 9pt;
-        color: #6b7280;
-    }
-}
+/* =========================================================
+   KNAPP FÖR UTSKRIFT
+   ========================================================= */
 
 .print-actions {
     display: flex;
@@ -259,8 +328,42 @@ body {
     background: #1f2937;
 }
 
+/* =========================================================
+   PRINT-LÄGE
+   ========================================================= */
+
 @media print {
+    html,
+    body {
+        background: #ffffff;
+    }
+
+    .print-body {
+        padding: 0;
+    }
+
+    .print-page {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        background: #ffffff;
+        box-shadow: none;
+        padding: 18mm 16mm 16mm;
+    }
+
+    /* Dölj knapp vid faktisk utskrift/PDF */
     .print-actions {
         display: none;
+    }
+
+    /* Undvik att signeringsdelen bryts konstigt mellan sidor */
+    .print-signatures {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .signature-block {
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
 }

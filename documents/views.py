@@ -10,8 +10,11 @@ from .models import (
     DocumentApproval,
     DocumentApprovalStatus,
     DocumentWorkflowStatus,
+    DocumentSignature,
+    DocumentSignatureRole,
+    DocumentSignatureStatus,
 )
-from governance.models import BoardMembership
+from governance.models import BoardMembership, BoardRole
 from .utils import log_document_activity
 
 
@@ -102,6 +105,8 @@ def add_document_reviewer(request, pk):
 
 @login_required
 def approve_document(request, pk):
+    from governance.models import BoardMembership, BoardRole
+
     approval = get_object_or_404(
         DocumentApproval.objects.select_related("document"),
         pk=pk,
@@ -122,6 +127,45 @@ def approve_document(request, pk):
         if all_approved:
             document.workflow_status = DocumentWorkflowStatus.APPROVED
             document.save(update_fields=["workflow_status", "updated_at"])
+
+            # Skapa signeringsposter för ordförande
+            chair_memberships = BoardMembership.objects.filter(
+                org=document.org,
+                is_active=True,
+                role=BoardRole.CHAIR,
+            ).select_related("user")
+
+            for membership in chair_memberships:
+                DocumentSignature.objects.get_or_create(
+                    document=document,
+                    user=membership.user,
+                    role=DocumentSignatureRole.CHAIR,
+                    defaults={"status": DocumentSignatureStatus.PENDING},
+                )
+
+            # Skapa signeringsposter för sekreterare
+            secretary_memberships = BoardMembership.objects.filter(
+                org=document.org,
+                is_active=True,
+                role=BoardRole.SECRETARY,
+            ).select_related("user")
+
+            for membership in secretary_memberships:
+                DocumentSignature.objects.get_or_create(
+                    document=document,
+                    user=membership.user,
+                    role=DocumentSignatureRole.SECRETARY,
+                    defaults={"status": DocumentSignatureStatus.PENDING},
+                )
+
+            # Skapa signeringsposter för alla justerare
+            for approval_obj in document.approvals.select_related("reviewer").all():
+                DocumentSignature.objects.get_or_create(
+                    document=document,
+                    user=approval_obj.reviewer,
+                    role=DocumentSignatureRole.ADJUSTER,
+                    defaults={"status": DocumentSignatureStatus.PENDING},
+                )
 
             log_document_activity(
                 document=document,
@@ -222,5 +266,63 @@ def remove_document_reviewer(request, pk):
         {
             "approval": approval,
             "document": document,
+        },
+    )
+
+
+@login_required
+def sign_document(request, pk):
+    signature = get_object_or_404(
+        DocumentSignature.objects.select_related("document", "user"),
+        pk=pk,
+        user=request.user,
+        document__org=request.org,
+    )
+
+    document = signature.document
+
+    if document.workflow_status != DocumentWorkflowStatus.APPROVED:
+        messages.error(request, "Dokumentet måste vara godkänt innan det kan signeras.")
+        return redirect("portal:document_detail", pk=document.pk)
+
+    if request.method == "POST":
+        if signature.status == DocumentSignatureStatus.SIGNED:
+            messages.warning(request, "Dokumentet är redan signerat av dig.")
+            return redirect("portal:document_detail", pk=document.pk)
+
+        signature.status = DocumentSignatureStatus.SIGNED
+        signature.signed_at = timezone.now()
+        signature.save(update_fields=["status", "signed_at"])
+
+        all_signed = not document.signatures.filter(
+            status=DocumentSignatureStatus.PENDING
+        ).exists()
+
+        if all_signed:
+            document.workflow_status = DocumentWorkflowStatus.FINALIZED
+            document.is_archived = True
+            document.save(update_fields=["workflow_status", "is_archived", "updated_at"])
+
+            log_document_activity(
+                document=document,
+                user=request.user,
+                action="updated",
+                message="Dokumentet är färdigsignerat, finaliserat och arkiverat.",
+            )
+
+            messages.success(
+                request,
+                "Dokumentet är nu färdigsignerat, finaliserat och arkiverat.",
+            )
+        else:
+            messages.success(request, "Dokumentet har signerats.")
+
+        return redirect("portal:document_detail", pk=document.pk)
+
+    return render(
+        request,
+        "portal/document_sign_confirm.html",
+        {
+            "signature": signature,
         },
     )
