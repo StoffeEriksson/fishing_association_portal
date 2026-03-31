@@ -1,6 +1,10 @@
 from django import forms
 from .models import BoardMembership, BoardMatter, Meeting
 
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 
 class BoardMembershipForm(forms.ModelForm):
     class Meta:
@@ -93,7 +97,14 @@ class MeetingForm(forms.ModelForm):
 
     class Meta:
         model = Meeting
-        fields = ["title", "location", "meeting_type", "meeting_date"]
+        fields = [
+            "title",
+            "location",
+            "meeting_type",
+            "meeting_date",
+            "matters",
+            "previous_matters",
+        ]
         widgets = {
             "title": forms.TextInput(attrs={
                 "class": "form-control",
@@ -136,3 +147,40 @@ class MeetingForm(forms.ModelForm):
                 .distinct()
                 .order_by("created_at")
             )
+
+
+class MeetingRolesForm(forms.ModelForm):
+    adjusters = forms.ModelMultipleChoiceField(
+        queryset=User.objects.none(),
+        required=False,
+        label="Justerare",
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    class Meta:
+        model = Meeting
+        fields = ["chairperson", "secretary"]
+        widgets = {
+            "chairperson": forms.Select(attrs={"class": "form-select"}),
+            "secretary": forms.Select(attrs={"class": "form-select"}),
+        }
+        labels = {
+            "chairperson": "Mötesordförande",
+            "secretary": "Sekreterare",
+        }
+
+    def __init__(self, *args, **kwargs):
+        org = kwargs.pop("org", None)
+        super().__init__(*args, **kwargs)
+
+        eligible_users = User.objects.filter(
+            board_memberships__org=org,
+            board_memberships__is_active=True,
+        ).distinct().order_by("email")
+
+        self.fields["chairperson"].queryset = eligible_users
+        self.fields["secretary"].queryset = eligible_users
+        self.fields["adjusters"].queryset = eligible_users
+
+        if self.instance.pk:
+            self.fields["adjusters"].initial = self.instance.adjusters.values_list("user_id", flat=True)

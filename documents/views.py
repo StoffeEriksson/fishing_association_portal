@@ -15,28 +15,71 @@ from .models import (
     DocumentSignatureStatus,
 )
 from governance.models import BoardMembership, BoardRole
-from .utils import log_document_activity
+from .utils import log_document_activity, build_document_hash
 
 
 @login_required
 def lock_document_for_review(request, pk):
     document = get_object_or_404(
-        Document.objects.filter(org=request.org),
+        Document.objects.select_related("meeting").filter(
+            org=request.org,
+            is_deleted=False,
+        ),
         pk=pk,
     )
 
-    # Bara tillåtet om dokument är i utkast
     if document.workflow_status != DocumentWorkflowStatus.DRAFT:
-        messages.error(request, "Dokumentet är redan låst eller hanteras.")
+        messages.error(request, "Endast dokument i utkastläge kan låsas för justering.")
         return redirect("portal:document_detail", pk=document.pk)
+
+    # Om dokumentet hör till ett möte måste mötesroller vara satta först
+    if document.meeting:
+        meeting = document.meeting
+        has_chairperson = bool(meeting.chairperson_id)
+        has_secretary = bool(meeting.secretary_id)
+        has_adjusters = meeting.adjusters.exists()
+
+        if not has_chairperson and not has_secretary and not has_adjusters:
+            messages.error(
+                request,
+                "Du måste först välja mötesordförande, sekreterare och minst en justerare innan protokollet kan låsas för justering.",
+            )
+            return redirect("portal:document_detail", pk=document.pk)
+
+        if not has_chairperson:
+            messages.error(
+                request,
+                "Du måste först välja mötesordförande innan protokollet kan låsas för justering.",
+            )
+            return redirect("portal:document_detail", pk=document.pk)
+
+        if not has_secretary:
+            messages.error(
+                request,
+                "Du måste först välja sekreterare innan protokollet kan låsas för justering.",
+            )
+            return redirect("portal:document_detail", pk=document.pk)
+
+        if not has_adjusters:
+            messages.error(
+                request,
+                "Du måste först välja minst en justerare innan protokollet kan låsas för justering.",
+            )
+            return redirect("portal:document_detail", pk=document.pk)
 
     document.workflow_status = DocumentWorkflowStatus.LOCKED_FOR_REVIEW
     document.locked_at = timezone.now()
     document.locked_by = request.user
     document.save(update_fields=["workflow_status", "locked_at", "locked_by", "updated_at"])
 
-    messages.success(request, "Dokumentet är nu låst för justering.")
+    log_document_activity(
+        document=document,
+        user=request.user,
+        action="updated",
+        message="Dokumentet låstes för justering.",
+    )
 
+    messages.success(request, "Dokumentet är nu låst för justering.")
     return redirect("portal:document_detail", pk=document.pk)
 
 
@@ -105,21 +148,25 @@ def add_document_reviewer(request, pk):
 
 @login_required
 def approve_document(request, pk):
-    from governance.models import BoardMembership, BoardRole
-
     approval = get_object_or_404(
-        DocumentApproval.objects.select_related("document"),
+        DocumentApproval.objects.select_related("document", "reviewer", "document__meeting"),
         pk=pk,
         reviewer=request.user,
     )
 
     document = approval.document
+    meeting = document.meeting
 
     if request.method == "POST":
+        if approval.status != DocumentApprovalStatus.PENDING:
+            messages.warning(request, "Den här justeringen har redan besvarats.")
+            return redirect("portal:document_detail", pk=document.pk)
+
         approval.status = DocumentApprovalStatus.APPROVED
         approval.responded_at = timezone.now()
         approval.save(update_fields=["status", "responded_at"])
 
+        # Kontrollera om alla justerare har godkänt
         all_approved = not document.approvals.filter(
             status=DocumentApprovalStatus.PENDING
         ).exists()
@@ -128,55 +175,47 @@ def approve_document(request, pk):
             document.workflow_status = DocumentWorkflowStatus.APPROVED
             document.save(update_fields=["workflow_status", "updated_at"])
 
-            # Skapa signeringsposter för ordförande
-            chair_memberships = BoardMembership.objects.filter(
-                org=document.org,
-                is_active=True,
-                role=BoardRole.CHAIR,
-            ).select_related("user")
+            # Rensa gamla signaturer innan vi skapar rätt uppsättning från mötesroller
+            document.signatures.all().delete()
 
-            for membership in chair_memberships:
-                DocumentSignature.objects.get_or_create(
-                    document=document,
-                    user=membership.user,
-                    role=DocumentSignatureRole.CHAIR,
-                    defaults={"status": DocumentSignatureStatus.PENDING},
-                )
+            if meeting:
+                # Mötesordförande
+                if meeting.chairperson:
+                    DocumentSignature.objects.get_or_create(
+                        document=document,
+                        user=meeting.chairperson,
+                        role=DocumentSignatureRole.CHAIR,
+                        defaults={"status": DocumentSignatureStatus.PENDING},
+                    )
 
-            # Skapa signeringsposter för sekreterare
-            secretary_memberships = BoardMembership.objects.filter(
-                org=document.org,
-                is_active=True,
-                role=BoardRole.SECRETARY,
-            ).select_related("user")
+                # Sekreterare
+                if meeting.secretary:
+                    DocumentSignature.objects.get_or_create(
+                        document=document,
+                        user=meeting.secretary,
+                        role=DocumentSignatureRole.SECRETARY,
+                        defaults={"status": DocumentSignatureStatus.PENDING},
+                    )
 
-            for membership in secretary_memberships:
-                DocumentSignature.objects.get_or_create(
-                    document=document,
-                    user=membership.user,
-                    role=DocumentSignatureRole.SECRETARY,
-                    defaults={"status": DocumentSignatureStatus.PENDING},
-                )
-
-            # Skapa signeringsposter för alla justerare
-            for approval_obj in document.approvals.select_related("reviewer").all():
-                DocumentSignature.objects.get_or_create(
-                    document=document,
-                    user=approval_obj.reviewer,
-                    role=DocumentSignatureRole.ADJUSTER,
-                    defaults={"status": DocumentSignatureStatus.PENDING},
-                )
+                # Justerare
+                for adjuster in meeting.adjusters.select_related("user").all():
+                    DocumentSignature.objects.get_or_create(
+                        document=document,
+                        user=adjuster.user,
+                        role=DocumentSignatureRole.ADJUSTER,
+                        defaults={"status": DocumentSignatureStatus.PENDING},
+                    )
 
             log_document_activity(
                 document=document,
                 user=request.user,
                 action="updated",
-                message="Alla justerare har godkänt dokumentet. Redo för signering.",
+                message="Alla justerare har godkänt dokumentet. Dokumentet är nu redo för signering.",
             )
 
             messages.success(
                 request,
-                "Dokumentet är nu godkänt av alla justerare och redo för signering.",
+                "Alla justerare har godkänt dokumentet. Dokumentet är nu redo för signering.",
             )
         else:
             messages.success(request, "Dokumentet har godkänts.")
@@ -301,13 +340,16 @@ def sign_document(request, pk):
         if all_signed:
             document.workflow_status = DocumentWorkflowStatus.FINALIZED
             document.is_archived = True
-            document.save(update_fields=["workflow_status", "is_archived", "updated_at"])
+            document.document_hash = build_document_hash(document)
+            document.save(
+                update_fields=["workflow_status", "is_archived", "document_hash", "updated_at"]
+            )
 
             log_document_activity(
                 document=document,
                 user=request.user,
                 action="updated",
-                message="Dokumentet är färdigsignerat, finaliserat och arkiverat.",
+                message="Dokumentet är färdigsignerat, finaliserat, hashat och arkiverat.",
             )
 
             messages.success(

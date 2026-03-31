@@ -3,7 +3,7 @@
 {% block title %}{{ doc.title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/document.css' %}?v=7">
+<link rel="stylesheet" href="{% static 'css/document.css' %}?v=8">
 {% endblock %}
 
 {% block content %}
@@ -46,9 +46,7 @@
 
     {% if doc.meeting %}
       <div class="small text-muted mt-2">
-        Kopplat möte:
-        {{ doc.meeting.title }}
-        · Status: {{ doc.meeting.get_status_display }}
+        Kopplat möte: {{ doc.meeting.title }} · Status: {{ doc.meeting.get_status_display }}
       </div>
     {% endif %}
   </div>
@@ -60,9 +58,9 @@
       </a>
     {% endif %}
 
-    {% if doc.workflow_status == "draft" or doc.workflow_status == "locked_for_review" or doc.workflow_status == "under_review" %}
-      <a href="{% url 'portal:add_document_reviewer' doc.pk %}" class="btn btn-outline-dark btn-sm">
-        + Lägg till justerare
+    {% if doc.meeting and not doc.is_archived %}
+      <a href="{% url 'governance:edit_meeting_roles_from_document' doc.pk %}" class="btn btn-outline-dark btn-sm">
+        Ange mötesroller
       </a>
     {% endif %}
 
@@ -371,45 +369,6 @@
       </div>
     </div>
 
-    <div class="card shadow-soft mt-4">
-      <div class="card-body">
-        <h2 class="h5 mb-3">Aktivitet</h2>
-
-        {% if activities %}
-          <div class="d-flex flex-column gap-3">
-            {% for act in activities %}
-              <div class="border rounded p-3">
-                <div class="fw-semibold">
-                  {{ act.get_action_display }}
-                </div>
-
-                {% if act.message %}
-                  <div class="small text-muted mt-1">
-                    {{ act.message }}
-                  </div>
-                {% endif %}
-
-                <div class="small mt-2">
-                  <span class="text-muted">Användare:</span>
-                  {% if act.user %}
-                    {{ act.user.email|default:act.user.username }}
-                  {% else %}
-                    —
-                  {% endif %}
-                </div>
-
-                <div class="small text-muted mt-1">
-                  {{ act.created_at|date:"Y-m-d H:i" }}
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="text-muted small">Ingen aktivitet ännu</div>
-        {% endif %}
-      </div>
-    </div>
-
     {% if doc.approvals.all %}
       <div class="card shadow-soft mt-4">
         <div class="card-body">
@@ -520,6 +479,92 @@
         </div>
       </div>
     {% endif %}
+
+    {% if doc.meeting %}
+      <div class="card shadow-soft mt-4">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Valda mötesroller</h2>
+
+          <div class="mb-3">
+            <div class="small text-muted">Mötesordförande</div>
+            <div class="fw-semibold">
+              {% if doc.meeting.chairperson %}
+                {{ doc.meeting.chairperson.get_full_name|default:doc.meeting.chairperson.username|default:doc.meeting.chairperson.email }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="small text-muted">Sekreterare</div>
+            <div class="fw-semibold">
+              {% if doc.meeting.secretary %}
+                {{ doc.meeting.secretary.get_full_name|default:doc.meeting.secretary.username|default:doc.meeting.secretary.email }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+          </div>
+
+          <div>
+            <div class="small text-muted">Justerare</div>
+            <div class="fw-semibold">
+              {% if doc.meeting.adjusters.all %}
+                <div class="d-flex flex-column gap-1">
+                  {% for adj in doc.meeting.adjusters.all %}
+                    <div>{{ adj.user.get_full_name|default:adj.user.username|default:adj.user.email }}</div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                —
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card shadow-soft mt-4">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Aktivitet</h2>
+
+        {% if activities %}
+          <div class="d-flex flex-column gap-3">
+            {% for act in activities %}
+              <div class="border rounded p-3">
+                <div class="fw-semibold">
+                  {{ act.get_action_display }}
+                </div>
+
+                {% if act.message %}
+                  <div class="small text-muted mt-1">
+                    {{ act.message }}
+                  </div>
+                {% endif %}
+
+                <div class="small mt-2">
+                  <span class="text-muted">Användare:</span>
+                  {% if act.user %}
+                    {{ act.user.email|default:act.user.username }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+
+                <div class="small text-muted mt-1">
+                  {{ act.created_at|date:"Y-m-d H:i" }}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted small">Ingen aktivitet ännu</div>
+        {% endif %}
+      </div>
+    </div>
+
+    
   </div>
 
 </div>

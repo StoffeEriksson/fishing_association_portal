@@ -22,6 +22,83 @@
   <div class="col-12 col-lg-6">
     <div class="card shadow-soft h-100">
       <div class="card-body">
+        <h2 class="h5 mb-3">Stämmor</h2>
+        <p class="text-muted mb-3">
+          Skapa stämmor och koppla automatiskt ärenden som är klara för stämma.
+        </p>
+
+        <ul class="small text-muted ps-3 mb-0">
+          <li>Årsstämma</li>
+          <li>Extra stämma</li>
+          <li>Automatisk dagordning</li>
+        </ul>
+      </div>
+
+      <div class="card-footer bg-white border-0 pt-0 px-4 pb-4 d-flex gap-2 flex-wrap">
+        {% if membership.can_manage_matters %}
+          <a href="{% url 'governance:meeting_create' %}" class="btn btn-dark">
+            Skapa stämma
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-soft h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Protokoll för justering</h2>
+        <p class="text-muted mb-3">
+          Justera och signera dokument inför arkivering
+        </p>
+
+        <ul class="small text-muted ps-3 mb-0">
+          <li>Granska avslutade mötesprotokoll</li>
+          <li>Hantera justerare</li>
+          <li>Följ godkännande och signering</li>
+        </ul>
+      </div>
+
+      <div class="card-footer bg-white border-0 pt-0 px-4 pb-4">
+        <a href="{% url 'governance:protocol_review_list' %}" class="btn btn-dark">
+          Visa protokoll
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-soft h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Ärenden</h2>
+        <p class="text-muted mb-3">
+          Hantera inkomna motioner, beredning och styrelseärenden inför stämma.
+        </p>
+
+        <ul class="small text-muted ps-3 mb-0">
+          <li>Motioner och ärenden</li>
+          <li>Statusflöde</li>
+          <li>Klar för stämma</li>
+        </ul>
+      </div>
+
+      <div class="card-footer bg-white border-0 pt-0 px-4 pb-4 d-flex gap-2 flex-wrap">
+        <a href="{% url 'governance:matter_list' %}" class="btn btn-dark">
+          Visa ärenden
+        </a>
+
+        {% if membership.can_manage_matters %}
+          <a href="{% url 'governance:matter_create' %}" class="btn btn-outline-dark">
+            Skapa ärende
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-soft h-100">
+      <div class="card-body">
         <h2 class="h5 mb-3">Styrelsemedlemmar</h2>
         <p class="text-muted mb-3">
           Se vilka som sitter i styrelsen, deras roller och aktuella behörigheter.
@@ -70,83 +147,5 @@
       </div>
     </div>
   </div>
-
-  <div class="col-12 col-lg-6">
-    <div class="card shadow-soft h-100">
-      <div class="card-body">
-        <h2 class="h5 mb-3">Ärenden</h2>
-        <p class="text-muted mb-3">
-          Hantera inkomna motioner, beredning och styrelseärenden inför stämma.
-        </p>
-
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Motioner och ärenden</li>
-          <li>Statusflöde</li>
-          <li>Klar för stämma</li>
-        </ul>
-      </div>
-
-      <div class="card-footer bg-white border-0 pt-0 px-4 pb-4 d-flex gap-2 flex-wrap">
-        <a href="{% url 'governance:matter_list' %}" class="btn btn-dark">
-          Visa ärenden
-        </a>
-
-        {% if membership.can_manage_matters %}
-          <a href="{% url 'governance:matter_create' %}" class="btn btn-outline-dark">
-            Skapa ärende
-          </a>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-lg-6">
-    <div class="card shadow-soft h-100">
-      <div class="card-body">
-        <h2 class="h5 mb-3">Stämmor</h2>
-        <p class="text-muted mb-3">
-          Skapa stämmor och koppla automatiskt ärenden som är klara för stämma.
-        </p>
-
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Årsstämma</li>
-          <li>Extra stämma</li>
-          <li>Automatisk dagordning</li>
-        </ul>
-      </div>
-
-      <div class="card-footer bg-white border-0 pt-0 px-4 pb-4 d-flex gap-2 flex-wrap">
-        {% if membership.can_manage_matters %}
-          <a href="{% url 'governance:meeting_create' %}" class="btn btn-dark">
-            Skapa stämma
-          </a>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-lg-6">
-    <div class="card shadow-soft h-100">
-      <div class="card-body">
-        <h2 class="h5 mb-3">Protokoll för justering</h2>
-        <p class="text-muted mb-3">
-          Justera och signera dokument inför arkivering
-        </p>
-
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Granska avslutade mötesprotokoll</li>
-          <li>Hantera justerare</li>
-          <li>Följ godkännande och signering</li>
-        </ul>
-      </div>
-
-      <div class="card-footer bg-white border-0 pt-0 px-4 pb-4">
-        <a href="{% url 'governance:protocol_review_list' %}" class="btn btn-dark">
-          Visa protokoll
-        </a>
-      </div>
-    </div>
-  </div>
-
 </div>
 {% endblock %}

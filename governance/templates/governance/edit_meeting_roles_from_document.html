@@ -1,0 +1,78 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Hantera mötesroller{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="page-title h2 mb-1">Hantera mötesroller</h1>
+    <div class="muted-label">
+      Dokument: {{ document.title }} · Möte: {{ meeting.title }}
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
+      Tillbaka
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body p-4">
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="row g-4">
+        <div class="col-md-6">
+          <label class="form-label">{{ form.chairperson.label }}</label>
+          {{ form.chairperson }}
+          {% if form.chairperson.errors %}
+            <div class="text-danger small mt-1">{{ form.chairperson.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">{{ form.secretary.label }}</label>
+          {{ form.secretary }}
+          {% if form.secretary.errors %}
+            <div class="text-danger small mt-1">{{ form.secretary.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12">
+          <label class="form-label d-block mb-2">{{ form.adjusters.label }}</label>
+
+          <div class="meeting-role-checkboxes">
+            {% for checkbox in form.adjusters %}
+              <label class="meeting-role-checkbox-item">
+                <span class="meeting-role-checkbox-input">{{ checkbox.tag }}</span>
+                <span class="meeting-role-checkbox-label">{{ checkbox.choice_label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+
+          <div class="form-text mt-2">
+            Välj en eller flera justerare för detta möte.
+          </div>
+
+          {% if form.adjusters.errors %}
+            <div class="text-danger small mt-1">
+              {{ form.adjusters.errors }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-dark">
+          Spara mötesroller
+        </button>
+        <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
+          Avbryt
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

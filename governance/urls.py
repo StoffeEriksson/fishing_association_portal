@@ -27,5 +27,10 @@ urlpatterns = [
     name="create_document_from_meeting",
     ),
     path("meetings/<int:pk>/close/", views.close_meeting, name="close_meeting"),
+    path(
+    "documents/<int:pk>/meeting-roles/",
+    views.edit_meeting_roles_from_document,
+    name="edit_meeting_roles_from_document",
+    ),
     path("protocols/review/", views.protocol_review_list, name="protocol_review_list"),
 ]

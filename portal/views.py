@@ -627,7 +627,6 @@ def document_print_view(request, pk):
         pk=pk,
     )
 
-    # 👉 HÄR lägger du in det
     chair_signatures = doc.signatures.filter(role="chair", status="signed")
     secretary_signatures = doc.signatures.filter(role="secretary", status="signed")
     adjuster_signatures = doc.signatures.filter(role="adjuster", status="signed")

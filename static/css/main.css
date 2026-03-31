@@ -157,6 +157,40 @@ body {
     text-decoration: underline;
 }
 
+.meeting-role-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.meeting-role-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #d8dee8;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.meeting-role-checkbox-item:hover {
+    border-color: #adb8c7;
+    background: #f8fafc;
+}
+
+.meeting-role-checkbox-input input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+.meeting-role-checkbox-label {
+    font-weight: 500;
+    color: #111827;
+}
+
 @media (max-width: 576px) {
     .auth-shell {
         max-width: 100%;

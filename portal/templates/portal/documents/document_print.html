@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>{{ doc.title }}</title>
-    <link rel="stylesheet" href="{% static 'css/document_pdf.css' %}?v=3">
+    <link rel="stylesheet" href="{% static 'css/document_pdf.css' %}?v=4">
 </head>
 <body class="print-body">
 
@@ -51,6 +51,8 @@
                     <div class="signature-name">
                         {% if sig.user.get_full_name %}
                             {{ sig.user.get_full_name }}
+                        {% elif sig.user.username %}
+                            {{ sig.user.username }}
                         {% else %}
                             {{ sig.user.email }}
                         {% endif %}
@@ -78,6 +80,8 @@
                     <div class="signature-name">
                         {% if sig.user.get_full_name %}
                             {{ sig.user.get_full_name }}
+                        {% elif sig.user.username %}
+                            {{ sig.user.username }}
                         {% else %}
                             {{ sig.user.email }}
                         {% endif %}
@@ -105,6 +109,8 @@
                     <div class="signature-name">
                         {% if sig.user.get_full_name %}
                             {{ sig.user.get_full_name }}
+                        {% elif sig.user.username %}
+                            {{ sig.user.username }}
                         {% else %}
                             {{ sig.user.email }}
                         {% endif %}
@@ -125,11 +131,33 @@
 
     </section>
 
+    <section class="print-verification">
+        <div class="verification-title">Verifiering</div>
+
+        <div class="verification-row">
+            <strong>Dokumentstatus:</strong>
+            {% if doc.workflow_status == "finalized" and doc.is_archived %}
+                Finaliserat och arkiverat
+            {% else %}
+                Ej slutligt verifierat
+            {% endif %}
+        </div>
+
+        {% if doc.document_hash %}
+            <div class="verification-row">
+                <strong>Dokumenthash:</strong>
+                <span class="verification-hash">{{ doc.document_hash }}</span>
+            </div>
+            <div class="verification-row verification-ok">
+                Digitalt verifierbart dokument från FVO Portal
+            </div>
+        {% endif %}
+    </section>
+
     <footer class="print-footer">
         <div>Genererad från FVO Portal</div>
         <div>{{ org.name }}</div>
     </footer>
-
 </div>
 
 <script>

@@ -5,7 +5,12 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect, get_object_or_404
 from datetime import date
 
-from .forms import BoardMembershipForm, BoardMatterForm, MeetingForm
+from .forms import (
+    BoardMembershipForm,
+    BoardMatterForm,
+    MeetingForm,
+    MeetingRolesForm,
+)
 from .models import (
     BoardMembership,
     GovernanceActivityLog,
@@ -13,6 +18,7 @@ from .models import (
     Meeting,
     MeetingMatter,
     MeetingStatus,
+    MeetingAdjuster,
 )
 
 
@@ -22,6 +28,8 @@ from documents.models import (
     DocumentTemplate,
     DocumentSourceType,
     DocumentWorkflowStatus,
+    DocumentApproval,
+    DocumentApprovalStatus,
 )
 from documents.utils import log_document_activity
 
@@ -467,6 +475,14 @@ def meeting_create(request):
             meeting.created_by = request.user
             meeting.save()
 
+            adjusters = form.cleaned_data.get("adjusters")
+            if adjusters:
+                for user in adjusters:
+                    MeetingAdjuster.objects.get_or_create(
+                        meeting=meeting,
+                        user=user,
+                    )
+
             selected_matters = form.cleaned_data["matters"]
             previous_matters = form.cleaned_data["previous_matters"]
 
@@ -532,6 +548,8 @@ def meeting_detail(request, pk):
         is_deleted=False,
     ).order_by("-created_at").first()
 
+    meeting_adjusters = meeting.adjusters.select_related("user").all()
+
     return render(
         request,
         "governance/meeting_detail.html",
@@ -541,6 +559,93 @@ def meeting_detail(request, pk):
             "matters": matters,
             "meeting_matters": meeting_matters,
             "protocol_document": protocol_document,
+            "meeting_adjusters": meeting_adjusters,
+        },
+    )
+
+
+@login_required
+def edit_meeting_roles_from_document(request, pk):
+    document = get_object_or_404(
+        Document.objects.select_related("meeting").filter(
+            org=request.org,
+            is_deleted=False,
+        ),
+        pk=pk,
+    )
+
+    if not document.meeting:
+        messages.error(request, "Dokumentet är inte kopplat till något möte.")
+        return redirect("portal:document_detail", pk=document.pk)
+
+    meeting = document.meeting
+    membership = get_board_membership(request)
+
+    if not membership.can_manage_matters:
+        raise PermissionDenied("Du har inte behörighet att hantera mötesroller.")
+
+    if request.method == "POST":
+        form = MeetingRolesForm(request.POST, instance=meeting, org=request.org)
+        if form.is_valid():
+            meeting = form.save()
+
+            selected_adjusters = form.cleaned_data["adjusters"]
+
+            # Ta bort gamla mötesjusterare som inte längre är valda
+            MeetingAdjuster.objects.filter(meeting=meeting).exclude(
+                user__in=selected_adjusters
+            ).delete()
+
+            # Lägg till nya mötesjusterare
+            for user in selected_adjusters:
+                MeetingAdjuster.objects.get_or_create(
+                    meeting=meeting,
+                    user=user,
+                )
+
+            # Synka ENBART justerare till dokumentets approval-flöde
+            # Ta bort pending approvals för användare som inte längre är justerare
+            DocumentApproval.objects.filter(
+                document=document,
+                status=DocumentApprovalStatus.PENDING,
+            ).exclude(
+                reviewer__in=selected_adjusters
+            ).delete()
+
+            # Lägg till approvals för nyvalda justerare
+            for user in selected_adjusters:
+                DocumentApproval.objects.get_or_create(
+                    document=document,
+                    reviewer=user,
+                    defaults={"status": DocumentApprovalStatus.PENDING},
+                )
+
+            log_governance_activity(
+                org=request.org,
+                user=request.user,
+                action="meeting_updated",
+                message=f"Mötesroller uppdaterades för mötet '{meeting.title}'.",
+            )
+
+            log_document_activity(
+                document=document,
+                user=request.user,
+                action="updated",
+                message=f"Mötesroller uppdaterades för dokumentet '{document.title}'.",
+            )
+
+            messages.success(request, "Mötesroller har uppdaterats.")
+            return redirect("portal:document_detail", pk=document.pk)
+    else:
+        form = MeetingRolesForm(instance=meeting, org=request.org)
+
+    return render(
+        request,
+        "governance/edit_meeting_roles_from_document.html",
+        {
+            "document": document,
+            "meeting": meeting,
+            "form": form,
         },
     )
 
@@ -553,7 +658,9 @@ def close_meeting(request, pk):
         raise PermissionDenied("Du har inte behörighet att avsluta stämmor.")
 
     meeting = get_object_or_404(
-        Meeting.objects.filter(org=request.org),
+        Meeting.objects.select_related("chairperson", "secretary")
+        .prefetch_related("adjusters")
+        .filter(org=request.org),
         pk=pk,
     )
 
@@ -567,10 +674,16 @@ def close_meeting(request, pk):
     ).order_by("-created_at").first()
 
     if not protocol_document:
-        messages.error(request, "Det går inte att avsluta mötet eftersom något protokoll inte har skapats ännu.")
+        messages.error(
+            request,
+            "Det går inte att avsluta mötet eftersom något protokoll inte har skapats ännu.",
+        )
         return redirect("governance:meeting_detail", pk=meeting.pk)
 
-    has_reviewers = protocol_document.approvals.exists()
+    has_chairperson = bool(meeting.chairperson_id)
+    has_secretary = bool(meeting.secretary_id)
+    has_adjusters = meeting.adjusters.exists()
+
     is_locked = protocol_document.workflow_status in [
         DocumentWorkflowStatus.LOCKED_FOR_REVIEW,
         DocumentWorkflowStatus.UNDER_REVIEW,
@@ -578,17 +691,31 @@ def close_meeting(request, pk):
         DocumentWorkflowStatus.FINALIZED,
     ]
 
-    if not has_reviewers and not is_locked:
+    if not has_chairperson and not has_secretary and not has_adjusters and not is_locked:
         messages.error(
             request,
-            "Du måste först lägga till minst en justerare och låsa protokollet för justering innan mötet kan avslutas.",
+            "Du måste först ange mötesordförande, sekreterare, minst en justerare och låsa protokollet för justering innan mötet kan avslutas.",
         )
         return redirect("portal:document_detail", pk=protocol_document.pk)
 
-    if not has_reviewers:
+    if not has_chairperson:
         messages.error(
             request,
-            "Du måste lägga till minst en justerare innan mötet kan avslutas.",
+            "Du måste först ange mötesordförande innan mötet kan avslutas.",
+        )
+        return redirect("portal:document_detail", pk=protocol_document.pk)
+
+    if not has_secretary:
+        messages.error(
+            request,
+            "Du måste först ange sekreterare innan mötet kan avslutas.",
+        )
+        return redirect("portal:document_detail", pk=protocol_document.pk)
+
+    if not has_adjusters:
+        messages.error(
+            request,
+            "Du måste först ange minst en justerare innan mötet kan avslutas.",
         )
         return redirect("portal:document_detail", pk=protocol_document.pk)
 
@@ -616,7 +743,10 @@ def close_meeting(request, pk):
         message=f"Mötet '{meeting.title}' avslutades. Protokollet väntar nu på justering.",
     )
 
-    messages.success(request, "Mötet avslutades. Protokollet har skickats vidare till justering.")
+    messages.success(
+        request,
+        "Mötet avslutades. Protokollet har skickats vidare till justering.",
+    )
     return redirect("governance:protocol_review_list")
 
 

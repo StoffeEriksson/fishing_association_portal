@@ -2,13 +2,11 @@
    A4 / PDF-GRUND
    ========================================================= */
 
-/* Standardinställning för utskrift på A4 */
 @page {
     size: A4;
     margin: 18mm;
 }
 
-/* Sidnummer längst ner till höger i utskriftsläge */
 @page {
     @bottom-right {
         content: "Sida " counter(page);
@@ -36,7 +34,6 @@ body {
     padding: 2rem 0;
 }
 
-/* Själva dokumentytan */
 .print-page {
     width: 210mm;
     min-height: 297mm;
@@ -200,18 +197,9 @@ body {
 }
 
 /* =========================================================
-   SIGNATURSEKTION
+   SIGNATURER
    ========================================================= */
 
-/*
-  Tre jämna kolumner för:
-  - Ordförande
-  - Sekreterare
-  - Justerare
-
-  Målet här är att få ett prydligt, professionellt utseende
-  där varje signeringsblock får samma visuella vikt.
-*/
 .print-signatures {
     margin-top: 40px;
     margin-bottom: 32px;
@@ -221,20 +209,17 @@ body {
     align-items: start;
 }
 
-/* Varje signeringskolumn */
 .signature-block {
     text-align: center;
     min-width: 0;
 }
 
-/* Den visuella signaturraden */
 .signature-line {
     border-top: 2px solid #1f2a44;
     width: 100%;
-    margin-bottom: 0 auto 10px;
+    margin-bottom: 10px;
 }
 
-/* Rollnamn, t.ex. Ordförande */
 .signature-role,
 .signature-label {
     font-size: 11pt;
@@ -243,29 +228,21 @@ body {
     margin-bottom: 10px;
 }
 
-/*
-  Namn på den som signerat.
-  word-break gör att långa mailadresser inte spränger layouten.
-*/
 .signature-name {
-    font-size: 10pt;
-    font-weight: 500;
+    font-size: 10.5pt;
+    font-weight: 600;
     color: #111827;
     line-height: 1.45;
-    word-break: break-word;
-    margin-bottom: 4px;
     overflow-wrap: break-word;
+    margin-bottom: 4px;
 }
 
-/* Datum/tid för signering */
 .signature-date {
     font-size: 9pt;
     color: #4b5563;
-    line-height: 1.4;
     margin-bottom: 4px;
 }
 
-/* Gemensam stil för statusrader */
 .signature-status,
 .signature-digital,
 .signature-pending {
@@ -273,19 +250,60 @@ body {
     line-height: 1.4;
 }
 
-/* När dokumentet faktiskt signerats */
 .signature-status-signed,
 .signature-digital {
     color: #15803d;
     font-weight: 600;
 }
 
-/* Om signering saknas */
 .signature-status-pending,
 .signature-pending {
     color: #b91c1c;
     font-style: italic;
+    font-weight: 600;
     margin-top: 6px;
+}
+
+/* =========================================================
+   VERIFIERING
+   ========================================================= */
+
+.print-verification {
+    margin-top: 28px;
+    margin-bottom: 18px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.verification-title {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #1f2a44;
+    margin-bottom: 8px;
+}
+
+.verification-row {
+    font-size: 9.5pt;
+    color: #374151;
+    margin-bottom: 4px;
+    line-height: 1.45;
+}
+
+.verification-hash {
+    display: block;
+    margin-top: 4px;
+    font-family: monospace;
+    font-size: 8pt;
+    color: #111827;
+    word-break: break-all;
+    background: #f3f4f6;
+    padding: 6px 8px;
+    border-radius: 4px;
+}
+
+.verification-ok {
+    color: #15803d;
+    font-weight: 600;
 }
 
 /* =========================================================
@@ -304,7 +322,7 @@ body {
 }
 
 /* =========================================================
-   KNAPP FÖR UTSKRIFT
+   KNAPP
    ========================================================= */
 
 .print-actions {
@@ -326,6 +344,14 @@ body {
 
 .print-btn:hover {
     background: #1f2937;
+}
+
+.print-verification {
+    margin-top: 28px;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-left: 4px solid #15803d;
+    background: #f9fafb;
 }
 
 /* =========================================================
@@ -351,12 +377,10 @@ body {
         padding: 18mm 16mm 16mm;
     }
 
-    /* Dölj knapp vid faktisk utskrift/PDF */
     .print-actions {
         display: none;
     }
 
-    /* Undvik att signeringsdelen bryts konstigt mellan sidor */
     .print-signatures {
         break-inside: avoid;
         page-break-inside: avoid;

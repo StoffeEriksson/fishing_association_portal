@@ -187,6 +187,22 @@ class Meeting(OrgModel):
 
     meeting_date = models.DateTimeField()
 
+    chairperson = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="chaired_meetings",
+    )
+
+    secretary = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="secretary_meetings",
+    )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -202,6 +218,27 @@ class Meeting(OrgModel):
 
     def __str__(self):
         return self.title
+
+
+class MeetingAdjuster(models.Model):
+    meeting = models.ForeignKey(
+        "Meeting",
+        on_delete=models.CASCADE,
+        related_name="adjusters",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="meeting_adjustments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("meeting", "user")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.meeting.title} - {self.user}"
 
 
 class MeetingMatter(models.Model):
