@@ -8,6 +8,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.http import HttpResponse
 from django.template.loader import render_to_string
+from django.urls import reverse
+import qrcode
+from io import BytesIO
+import base64
 
 from fishingrights.models import FishingRightShare, Property
 from documents.forms import (
@@ -631,6 +635,20 @@ def document_print_view(request, pk):
     secretary_signatures = doc.signatures.filter(role="secretary", status="signed")
     adjuster_signatures = doc.signatures.filter(role="adjuster", status="signed")
 
+    verification_url = ""
+    if doc.document_hash:
+        verification_url = request.build_absolute_uri(
+            reverse("portal:verify_document", args=[doc.document_hash])
+        )
+
+    qr_code = None
+
+    if verification_url:
+        qr = qrcode.make(verification_url)
+        buffer = BytesIO()
+        qr.save(buffer, format="PNG")
+        qr_code = base64.b64encode(buffer.getvalue()).decode()
+
     return render(
         request,
         "portal/documents/document_print.html",
@@ -640,6 +658,31 @@ def document_print_view(request, pk):
             "chair_signatures": chair_signatures,
             "secretary_signatures": secretary_signatures,
             "adjuster_signatures": adjuster_signatures,
+            "verification_url": verification_url,
+            "qr_code": qr_code,
+        },
+    )
+
+
+def verify_document(request, document_hash):
+    document = (
+        Document.objects.filter(
+            document_hash=document_hash,
+            is_deleted=False,
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+        )
+        .select_related("org")
+        .prefetch_related("signatures__user")
+        .first()
+    )
+
+    return render(
+        request,
+        "portal/documents/document_verify.html",
+        {
+            "document": document,
+            "document_hash": document_hash,
         },
     )
 

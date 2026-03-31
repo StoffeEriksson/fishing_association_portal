@@ -152,6 +152,29 @@
                 Digitalt verifierbart dokument från FVO Portal
             </div>
         {% endif %}
+        {% if verification_url or qr_code %}
+        <div class="verification-grid">
+
+            {% if verification_url %}
+            <div>
+                <strong>Verifieringsadress:</strong>
+                <div class="verification-hash mt-1">
+                    <a href="{{ verification_url }}">
+                        {{ verification_url }}
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if qr_code %}
+            <div class="qr-container">
+                <div class="small text-muted mb-1">QR-verifiering</div>
+                <img src="data:image/png;base64,{{ qr_code }}" width="110">
+            </div>
+            {% endif %}
+
+        </div>
+        {% endif %}
     </section>
 
     <footer class="print-footer">

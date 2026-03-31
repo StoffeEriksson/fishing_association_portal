@@ -1,0 +1,124 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Verifiera dokument{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="mb-4">
+    <h1 class="page-title h2 mb-2">Verifiera dokument</h1>
+    <div class="text-muted">
+      Kontrollera om dokumentet är ett giltigt, finaliserat och arkiverat dokument från FVO Portal.
+    </div>
+  </div>
+
+  {% if document %}
+    <div class="card shadow-soft border-success">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-2 mb-4">
+          <span class="badge text-bg-success">Verifierat</span>
+          <span class="fw-semibold">Dokumentet är giltigt</span>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="small text-muted">Titel</div>
+            <div class="fw-semibold">{{ document.title }}</div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="small text-muted">Organisation</div>
+            <div class="fw-semibold">{{ document.org.name }}</div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="small text-muted">Kategori</div>
+            <div class="fw-semibold">{{ document.get_category_display }}</div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="small text-muted">Status</div>
+            <div class="fw-semibold">{{ document.get_workflow_status_display }}</div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="small text-muted">Arkiverat</div>
+            <div class="fw-semibold">
+              {% if document.is_archived %}Ja{% else %}Nej{% endif %}
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="small text-muted">Senast uppdaterad</div>
+            <div class="fw-semibold">{{ document.updated_at|date:"Y-m-d H:i" }}</div>
+          </div>
+
+          <div class="col-12">
+            <div class="small text-muted">Dokumenthash</div>
+            <div class="border rounded p-3 bg-light font-monospace small text-break">
+              {{ document.document_hash }}
+            </div>
+          </div>
+        </div>
+
+        {% if document.signatures.all %}
+          <hr class="my-4">
+
+          <h2 class="h5 mb-3">Signeringar</h2>
+
+          <div class="d-flex flex-column gap-3">
+            {% for signature in document.signatures.all %}
+              <div class="border rounded p-3">
+                <div class="fw-semibold">
+                  {% if signature.user.get_full_name %}
+                    {{ signature.user.get_full_name }}
+                  {% elif signature.user.username %}
+                    {{ signature.user.username }}
+                  {% else %}
+                    {{ signature.user.email }}
+                  {% endif %}
+                </div>
+
+                <div class="small text-muted mt-1">
+                  {{ signature.get_role_display }}
+                </div>
+
+                <div class="small mt-2">
+                  {% if signature.status == "signed" %}
+                    <span class="badge text-bg-success">Signerad</span>
+                  {% else %}
+                    <span class="badge text-bg-warning">Ej färdig</span>
+                  {% endif %}
+                </div>
+
+                {% if signature.signed_at %}
+                  <div class="small text-muted mt-2">
+                    Signerad: {{ signature.signed_at|date:"Y-m-d H:i" }}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="card shadow-soft border-danger">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="badge text-bg-danger">Ogiltig</span>
+          <span class="fw-semibold">Dokumentet kunde inte verifieras</span>
+        </div>
+
+        <div class="text-muted mb-3">
+          Ingen matchning hittades för den angivna dokumenthashen, eller så är dokumentet inte finaliserat och arkiverat.
+        </div>
+
+        <div class="border rounded p-3 bg-light font-monospace small text-break">
+          {{ document_hash }}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

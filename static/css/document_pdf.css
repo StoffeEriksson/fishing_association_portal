@@ -292,18 +292,48 @@ body {
 .verification-hash {
     display: block;
     margin-top: 4px;
-    font-family: monospace;
-    font-size: 8pt;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 8.5pt;
     color: #111827;
     word-break: break-all;
     background: #f3f4f6;
     padding: 6px 8px;
     border-radius: 4px;
+    text-decoration: none;
+}
+
+.verification-hash:hover {
+    text-decoration: underline;
 }
 
 .verification-ok {
     color: #15803d;
     font-weight: 600;
+}
+
+.verification-row img {
+    border: 1px solid #d1d5db;
+    padding: 6px;
+    background: white;
+    border-radius: 6px;
+}
+
+.verification-grid {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.qr-container {
+    text-align: center;
+}
+
+.qr-container img {
+    border: 1px solid #d1d5db;
+    padding: 6px;
+    background: white;
+    border-radius: 6px;
 }
 
 /* =========================================================
