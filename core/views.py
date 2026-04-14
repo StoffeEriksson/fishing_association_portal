@@ -5,9 +5,10 @@ from .services import audit_log
 @login_required
 def home(request):
     # Om du i framtiden vill hantera "ingen org", gör det här.
-    if not request.org:
-        # Ex: redirecta till en sida där man väljer/skapar org
-        return redirect("account_login")  # eller en egen onboarding-sida
+    org = getattr(request, "org", None)
+
+    if org is None:
+        return redirect("account_login")
 
     audit_log(
         request,
