@@ -171,6 +171,10 @@ def generate_document_content(template, cleaned_data):
 def dashboard(request):
     org = request.org
 
+    if org is None:
+        messages.warning(request, "You need to join or create an organization.")
+        return redirect("account_login")
+
     recent_documents = Document.objects.filter(
         org=org,
         is_deleted=False,
