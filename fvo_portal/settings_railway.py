@@ -22,10 +22,11 @@ DATABASES = {
 }
 
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-    *MIDDLEWARE[1:],
+    mw for mw in MIDDLEWARE
+    if mw != "core.middleware.OrganizationMiddleware"
 ]
+
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
