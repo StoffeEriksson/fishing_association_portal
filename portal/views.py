@@ -1,4 +1,5 @@
 import os
+from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -9,6 +10,8 @@ from django.utils import timezone
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.urls import reverse
+from collections import OrderedDict
+from django.utils.translation import gettext_lazy as _
 import qrcode
 from io import BytesIO
 import base64
@@ -247,33 +250,148 @@ def property_detail(request, pk):
 
 
 @login_required
-def document_list(request):
+def document_overview(request):
     org = request.org
 
-    qs = Document.objects.filter(org=org, is_deleted=False, is_archived=True)
+    workspace_count = Document.objects.filter(
+        org=org,
+        is_deleted=False,
+    ).exclude(
+        is_archived=True,
+        workflow_status=DocumentWorkflowStatus.FINALIZED,
+    ).count()
 
-    category = request.GET.get("category")
-    if category:
-        qs = qs.filter(category=category)
+    archive_count = Document.objects.filter(
+        org=org,
+        is_deleted=False,
+        is_archived=True,
+        workflow_status=DocumentWorkflowStatus.FINALIZED,
+    ).count()
 
-    q = (request.GET.get("q") or "").strip()
-    if q:
-        qs = qs.filter(title__icontains=q)
-
-    qs = qs.order_by("-updated_at")
-
-    paginator = Paginator(qs, 25)
-    page_obj = paginator.get_page(request.GET.get("page"))
+    trash_count = Document.objects.filter(
+        org=org,
+        is_deleted=True,
+    ).count()
 
     return render(
         request,
-        "portal/document_list.html",
+        "portal/document_overview.html",
         {
-            "page_obj": page_obj,
-            "q": q,
-            "category": category,
+            "workspace_count": workspace_count,
+            "archive_count": archive_count,
+            "trash_count": trash_count,
         },
     )
+
+
+def render_document_collection(request, mode):
+    org = request.org
+    category = request.GET.get("category")
+    q = (request.GET.get("q") or "").strip()
+    from_date = (request.GET.get("from_date") or "").strip()
+    to_date = (request.GET.get("to_date") or "").strip()
+
+    qs = Document.objects.filter(
+        org=org,
+        is_deleted=False,
+    ).select_related("meeting", "template", "uploaded_by")
+
+    if mode == "archive":
+        qs = qs.filter(
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+        )
+        date_attr = "updated_at"
+        page_title = "Arkiv"
+        page_subtitle = "Finaliserade, signerade och arkiverade dokument."
+    else:
+        qs = qs.exclude(
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+        )
+        date_attr = "created_at"
+        page_title = "Arbetsdokument"
+        page_subtitle = "Utkast, dokument under justering och dokument redo för signering."
+
+    if category:
+        qs = qs.filter(category=category)
+
+    if from_date:
+        try:
+            parsed_from_date = date.fromisoformat(from_date)
+            qs = qs.filter(**{f"{date_attr}__date__gte": parsed_from_date})
+        except ValueError:
+            pass
+
+    if to_date:
+        try:
+            parsed_to_date = date.fromisoformat(to_date)
+            qs = qs.filter(**{f"{date_attr}__date__lte": parsed_to_date})
+        except ValueError:
+            pass
+
+    if q:
+        date_query = Q()
+
+        if len(q) == 10:
+            try:
+                parsed_exact_date = date.fromisoformat(q)
+                date_query = Q(**{f"{date_attr}__date": parsed_exact_date})
+            except ValueError:
+                pass
+        elif len(q) == 7:
+            try:
+                parsed_year_month = date.fromisoformat(f"{q}-01")
+                date_query = Q(
+                    **{
+                        f"{date_attr}__year": parsed_year_month.year,
+                        f"{date_attr}__month": parsed_year_month.month,
+                    }
+                )
+            except ValueError:
+                pass
+        elif len(q) == 4 and q.isdigit():
+            parsed_year = int(q)
+            date_query = Q(**{f"{date_attr}__year": parsed_year})
+
+        if date_query:
+            qs = qs.filter(Q(title__icontains=q) | date_query)
+        else:
+            qs = qs.filter(title__icontains=q)
+
+    qs = qs.order_by(f"-{date_attr}", "-created_at")
+
+    grouped_documents = group_documents_by_year_month(qs, date_attr=date_attr)
+
+    return render(
+        request,
+        "portal/document_collection.html",
+        {
+            "grouped_documents": grouped_documents,
+            "mode": mode,
+            "q": q,
+            "category": category,
+            "from_date": from_date,
+            "to_date": to_date,
+            "page_title": page_title,
+            "page_subtitle": page_subtitle,
+        },
+    )
+
+
+@login_required
+def document_workspace(request):
+    return render_document_collection(request, mode="workspace")
+
+
+@login_required
+def document_archive(request):
+    return render_document_collection(request, mode="archive")
+
+
+@login_required
+def document_list(request):
+    return redirect("portal:document_overview")
 
 
 @login_required
@@ -306,7 +424,7 @@ def document_upload(request):
             )
 
             messages.success(request, "Dokumentet har laddats upp.")
-            return redirect("portal:document_list")
+            return redirect("document_overview")
     else:
         form = DocumentCreateForm()
 
@@ -461,7 +579,7 @@ def document_delete(request, pk):
         )
 
         messages.success(request, f"Dokumentet '{document.title}' har tagits bort.")
-        return redirect("portal:document_list")
+        return redirect("portal:document_overview")
 
     return render(
         request,
@@ -736,3 +854,44 @@ def create_blank_document(request):
         "portal/documents/create_blank_document.html",
         {"form": form},
     )
+
+
+def group_documents_by_year_month(documents, date_attr="created_at"):
+    grouped = OrderedDict()
+
+    month_names = {
+        1: "Januari",
+        2: "Februari",
+        3: "Mars",
+        4: "April",
+        5: "Maj",
+        6: "Juni",
+        7: "Juli",
+        8: "Augusti",
+        9: "September",
+        10: "Oktober",
+        11: "November",
+        12: "December",
+    }
+
+    for doc in documents:
+        dt = getattr(doc, date_attr, None)
+        if not dt:
+            continue
+
+        year = dt.year
+        month_number = dt.month
+        month_label = month_names.get(month_number, str(month_number))
+
+        if year not in grouped:
+            grouped[year] = OrderedDict()
+
+        if month_number not in grouped[year]:
+            grouped[year][month_number] = {
+                "label": month_label,
+                "documents": [],
+            }
+
+        grouped[year][month_number]["documents"].append(doc)
+
+    return grouped

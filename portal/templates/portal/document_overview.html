@@ -1,0 +1,100 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Dokument{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/document.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="documents-page">
+
+    <div class="documents-header d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3 mb-4">
+        <div>
+            <h1 class="page-title mb-1">Dokument</h1>
+            <p class="documents-subtitle mb-0">
+                Välj om du vill arbeta med pågående dokument eller öppna det färdiga arkivet.
+            </p>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <a href="{% url 'portal:document_upload' %}" class="btn btn-dark btn-sm">
+                Ladda upp
+            </a>
+            <a href="{% url 'portal:create_blank_document' %}" class="btn btn-dark btn-sm">
+                + Skapa dokument
+            </a>
+            <a href="{% url 'portal:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                Tillbaka
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card shadow-soft h-100">
+                <div class="card-body d-flex flex-column">
+                    <h2 class="h4 mb-2">Arbetsdokument</h2>
+                    <p class="text-muted mb-3">
+                        Utkast, dokument under justering och dokument redo för signering.
+                    </p>
+
+                    <div class="mb-4">
+                        <span class="badge text-bg-dark">{{ workspace_count }} dokument</span>
+                    </div>
+
+                    <div class="mt-auto">
+                        <a href="{% url 'portal:document_workspace' %}" class="btn btn-dark w-100">
+                            Öppna arbetsdokument
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-soft h-100">
+                <div class="card-body d-flex flex-column">
+                    <h2 class="h4 mb-2">Arkiv</h2>
+                    <p class="text-muted mb-3">
+                        Finaliserade, signerade och arkiverade dokument.
+                    </p>
+
+                    <div class="mb-4">
+                        <span class="badge text-bg-success">{{ archive_count }} dokument</span>
+                    </div>
+
+                    <div class="mt-auto">
+                        <a href="{% url 'portal:document_archive' %}" class="btn btn-dark w-100">
+                            Öppna arkiv
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-soft h-100">
+                <div class="card-body d-flex flex-column">
+                    <h2 class="h4 mb-2">Papperskorg</h2>
+                    <p class="text-muted mb-3">
+                        Borttagna dokument som kan återställas.
+                    </p>
+
+                    <div class="mb-4">
+                        <span class="badge text-bg-secondary">{{ trash_count }} dokument</span>
+                    </div>
+
+                    <div class="mt-auto">
+                        <a href="{% url 'portal:document_trash' %}" class="btn btn-outline-dark w-100">
+                            Öppna papperskorg
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
