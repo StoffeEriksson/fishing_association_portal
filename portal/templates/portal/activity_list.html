@@ -1,0 +1,151 @@
+{% extends "portal/base.html" %}
+{% block title %}Senaste aktivitet{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="page-title h3 mb-1">Senaste aktivitet</h1>
+    <div class="text-muted small">Alla dokumenthändelser för aktiv organisation.</div>
+  </div>
+  <a href="{% url 'portal:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    Tillbaka
+  </a>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body">
+    <form method="get" class="row gy-2 gx-2 align-items-end mb-3">
+      <div class="col-12 col-lg-4">
+        <label for="id_q" class="form-label small text-muted mb-1">Sök</label>
+        <input
+          id="id_q"
+          type="search"
+          name="q"
+          value="{{ q }}"
+          class="form-control"
+          placeholder="Dokument, meddelande eller e-post"
+        >
+      </div>
+
+      <div class="col-12 col-lg-3">
+        <label for="id_action" class="form-label small text-muted mb-1">Händelse</label>
+        <select id="id_action" name="action" class="form-control">
+          <option value="">Alla händelser</option>
+          {% for value, label in action_choices %}
+            <option value="{{ value }}" {% if action == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-6 col-lg-2">
+        <label for="id_from_date" class="form-label small text-muted mb-1">Från datum</label>
+        <input
+          id="id_from_date"
+          type="date"
+          name="from_date"
+          value="{{ from_date }}"
+          class="form-control"
+        >
+      </div>
+
+      <div class="col-6 col-lg-2">
+        <label for="id_to_date" class="form-label small text-muted mb-1">Till datum</label>
+        <input
+          id="id_to_date"
+          type="date"
+          name="to_date"
+          value="{{ to_date }}"
+          class="form-control"
+        >
+      </div>
+
+      <div class="col-auto">
+        <button type="submit" class="btn btn-dark btn-sm">Filtrera</button>
+      </div>
+
+      {% if q or action or from_date or to_date %}
+        <div class="col-auto">
+          <a href="{% url 'portal:activity_list' %}" class="btn btn-outline-secondary btn-sm">
+            Rensa
+          </a>
+        </div>
+      {% endif %}
+    </form>
+
+    {% if q or action or from_date or to_date %}
+      <div class="small text-muted mb-3">
+        <span class="me-2">Aktiva filter:</span>
+        {% if q %}
+          <span class="badge text-bg-light border me-1">Sök: {{ q }}</span>
+        {% endif %}
+        {% if action %}
+          <span class="badge text-bg-light border me-1">Händelse: {{ action_label }}</span>
+        {% endif %}
+        {% if from_date %}
+          <span class="badge text-bg-light border me-1">Från: {{ from_date }}</span>
+        {% endif %}
+        {% if to_date %}
+          <span class="badge text-bg-light border">Till: {{ to_date }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if page_obj %}
+      <div class="d-flex flex-column">
+        {% for act in page_obj %}
+          <div class="py-2 border-bottom">
+            <div class="small text-muted mt-0">{{ act.get_action_display }}</div>
+
+            <div class="fw-semibold mt-0">
+              <a href="{% url 'portal:document_detail' act.document.pk %}" class="text-decoration-none">
+                {{ act.document.title }}
+              </a>
+            </div>
+
+            {% if act.message %}
+              <div class="small text-muted mt-0">
+                {{ act.message }}
+              </div>
+            {% endif %}
+
+            <div class="small text-muted mt-0">
+              {% if act.user %}
+                {{ act.user.email|default:act.user.username }}
+              {% else %}
+                —
+              {% endif %}
+              · {{ act.created_at|date:"Y-m-d H:i" }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      {% if page_obj.has_other_pages %}
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-2">
+          <div>
+            {% if page_obj.has_previous %}
+              <a href="?page={{ page_obj.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}" class="btn btn-sm btn-outline-secondary">
+                Föregående
+              </a>
+            {% endif %}
+          </div>
+
+          <div class="small text-muted">
+            Sida {{ page_obj.number }} av {{ page_obj.paginator.num_pages }}
+          </div>
+
+          <div>
+            {% if page_obj.has_next %}
+              <a href="?page={{ page_obj.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}" class="btn btn-sm btn-outline-secondary">
+                Nästa
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="text-muted small">Ingen aktivitet ännu.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

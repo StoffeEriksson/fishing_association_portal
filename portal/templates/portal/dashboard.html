@@ -117,6 +117,96 @@
       </div>
     </div>
   </div>
+
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card shadow-soft module-card h-100 opacity-75">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h2 class="h5 mb-1">Kalender</h2>
+            <div class="text-muted small">Möten, aktiviteter och viktiga datum</div>
+          </div>
+          <span class="badge text-bg-secondary">Kommande</span>
+        </div>
+
+        <p class="text-muted small mb-3">
+          Planera och följ föreningens kalender med översikt över kommande händelser.
+        </p>
+
+        <ul class="small text-muted ps-3 mb-0">
+          <li>Mötesöversikt</li>
+          <li>Aktiviteter</li>
+          <li>Påminnelser</li>
+        </ul>
+      </div>
+
+      <div class="card-footer pt-0 px-3 pb-3">
+        <button type="button" class="btn btn-outline-secondary w-100" disabled>
+          Kommer snart
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card shadow-soft module-card h-100 opacity-75">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h2 class="h5 mb-1">Kartvy</h2>
+            <div class="text-muted small">Geografisk vy av områden och gränser</div>
+          </div>
+          <span class="badge text-bg-secondary">Kommande</span>
+        </div>
+
+        <p class="text-muted small mb-3">
+          Visa fastigheter och relevanta områden i en samlad kartbaserad vy.
+        </p>
+
+        <ul class="small text-muted ps-3 mb-0">
+          <li>Områdesöversikt</li>
+          <li>Markeringar</li>
+          <li>Visuella lager</li>
+        </ul>
+      </div>
+
+      <div class="card-footer pt-0 px-3 pb-3">
+        <button type="button" class="btn btn-outline-secondary w-100" disabled>
+          Kommer snart
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card shadow-soft module-card h-100 opacity-75">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h2 class="h5 mb-1">Fiskevård</h2>
+            <div class="text-muted small">Åtgärder, planer och uppföljning</div>
+          </div>
+          <span class="badge text-bg-secondary">Kommande</span>
+        </div>
+
+        <p class="text-muted small mb-3">
+          Samla planerade och genomförda fiskevårdsinsatser i en gemensam modul.
+        </p>
+
+        <ul class="small text-muted ps-3 mb-0">
+          <li>Åtgärdsplaner</li>
+          <li>Genomförda insatser</li>
+          <li>Statusuppföljning</li>
+        </ul>
+      </div>
+
+      <div class="card-footer pt-0 px-3 pb-3">
+        <button type="button" class="btn btn-outline-secondary w-100" disabled>
+          Kommer snart
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="row g-4">
@@ -132,9 +222,9 @@
         </div>
 
         {% if recent_documents %}
-          <div class="d-flex flex-column gap-3">
+          <div class="d-flex flex-column" style="max-height: 320px; overflow-y: auto;">
             {% for doc in recent_documents %}
-              <div class="border rounded p-3">
+              <div class="py-1 border-bottom">
                 <div class="d-flex justify-content-between align-items-start gap-2">
                   <div>
                     <div class="fw-semibold">
@@ -154,7 +244,7 @@
                   {% endif %}
                 </div>
 
-                <div class="small text-muted mt-2">
+                <div class="small text-muted mt-0">
                   Senast uppdaterad {{ doc.updated_at|date:"Y-m-d H:i" }}
                 </div>
               </div>
@@ -170,27 +260,32 @@
   <div class="col-lg-6">
     <div class="card shadow-soft h-100">
       <div class="card-body">
-        <h2 class="h5 mb-3">Senaste aktivitet</h2>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h5 mb-0">Senaste aktivitet</h2>
+          <a href="{% url 'portal:activity_list' %}" class="btn btn-sm btn-outline-secondary">
+            Visa alla
+          </a>
+        </div>
 
         {% if recent_activities %}
-          <div class="d-flex flex-column gap-3">
+          <div class="d-flex flex-column" style="max-height: 320px; overflow-y: auto;">
             {% for act in recent_activities %}
-              <div class="border rounded p-3">
+              <div class="py-1 border-bottom">
                 <div class="fw-semibold">{{ act.get_action_display }}</div>
 
-                <div class="small mt-1">
+                <div class="small mt-0">
                   <a href="{% url 'portal:document_detail' act.document.pk %}" class="text-decoration-none">
                     {{ act.document.title }}
                   </a>
                 </div>
 
                 {% if act.message %}
-                  <div class="small text-muted mt-1">
-                    {{ act.message }}
+                  <div class="small text-muted mt-0">
+                    {{ act.message|truncatechars:90 }}
                   </div>
                 {% endif %}
 
-                <div class="small text-muted mt-2">
+                <div class="small text-muted mt-0">
                   {% if act.user %}
                     {{ act.user.email|default:act.user.username }}
                   {% else %}

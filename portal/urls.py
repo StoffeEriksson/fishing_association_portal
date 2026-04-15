@@ -11,6 +11,7 @@ urlpatterns = [
     path("properties/<int:pk>/", views.property_detail, name="property_detail"),
 
     path("documents/", views.document_overview, name="document_overview"),
+    path("documents/activity/", views.activity_list, name="activity_list"),
     path("documents/workspace/", views.document_workspace, name="document_workspace"),
     path("documents/archive/", views.document_archive, name="document_archive"),
     path("documents/list/", views.document_list, name="document_list"),

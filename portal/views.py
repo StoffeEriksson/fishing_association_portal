@@ -181,7 +181,7 @@ def dashboard(request):
     recent_documents = Document.objects.filter(
         org=org,
         is_deleted=False,
-    ).order_by("-updated_at")[:5]
+    ).order_by("-updated_at")[:3]
 
     recent_activities = DocumentActivity.objects.filter(
         document__org=org
@@ -193,6 +193,68 @@ def dashboard(request):
         {
             "recent_documents": recent_documents,
             "recent_activities": recent_activities,
+        },
+    )
+
+
+@login_required
+def activity_list(request):
+    q = (request.GET.get("q") or "").strip()
+    action = (request.GET.get("action") or "").strip()
+    from_date = (request.GET.get("from_date") or "").strip()
+    to_date = (request.GET.get("to_date") or "").strip()
+
+    activities_qs = (
+        DocumentActivity.objects.filter(document__org=request.org)
+        .select_related("document", "user")
+        .order_by("-created_at")
+    )
+
+    if q:
+        activities_qs = activities_qs.filter(
+            Q(document__title__icontains=q)
+            | Q(message__icontains=q)
+            | Q(user__email__icontains=q)
+        )
+
+    valid_actions = {choice[0] for choice in DocumentActivity.ACTION_CHOICES}
+    if action in valid_actions:
+        activities_qs = activities_qs.filter(action=action)
+
+    if from_date:
+        try:
+            parsed_from_date = date.fromisoformat(from_date)
+            activities_qs = activities_qs.filter(created_at__date__gte=parsed_from_date)
+        except ValueError:
+            pass
+
+    if to_date:
+        try:
+            parsed_to_date = date.fromisoformat(to_date)
+            activities_qs = activities_qs.filter(created_at__date__lte=parsed_to_date)
+        except ValueError:
+            pass
+
+    paginator = Paginator(activities_qs, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
+    query_string = query_params.urlencode()
+    action_label = dict(DocumentActivity.ACTION_CHOICES).get(action, "")
+
+    return render(
+        request,
+        "portal/activity_list.html",
+        {
+            "page_obj": page_obj,
+            "q": q,
+            "action": action,
+            "from_date": from_date,
+            "to_date": to_date,
+            "action_choices": DocumentActivity.ACTION_CHOICES,
+            "query_string": query_string,
+            "action_label": action_label,
         },
     )
 
