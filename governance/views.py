@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from datetime import date
 
 from .forms import (
@@ -53,6 +54,18 @@ def get_board_membership(request):
 @login_required
 def dashboard(request):
     membership = get_board_membership(request)
+    now = timezone.now()
+    upcoming_meetings = list(
+        Meeting.objects.filter(
+            org=request.org,
+            meeting_date__gte=now,
+        )
+        .order_by("meeting_date")[:2]
+    )
+    upcoming_meeting_count = Meeting.objects.filter(
+        org=request.org,
+        meeting_date__gte=now,
+    ).count()
 
     log_governance_activity(
         org=request.org,
@@ -66,6 +79,32 @@ def dashboard(request):
         "governance/dashboard.html",
         {
             "membership": membership,
+            "upcoming_meetings": upcoming_meetings,
+            "upcoming_meeting_count": upcoming_meeting_count,
+        },
+    )
+
+
+@login_required
+def upcoming_meetings(request):
+    membership = get_board_membership(request)
+    now = timezone.now()
+
+    meetings = (
+        Meeting.objects.filter(
+            org=request.org,
+            meeting_date__gte=now,
+        )
+        .exclude(status=MeetingStatus.CLOSED)
+        .order_by("meeting_date")
+    )
+
+    return render(
+        request,
+        "governance/upcoming_meetings.html",
+        {
+            "membership": membership,
+            "meetings": meetings,
         },
     )
 
@@ -462,8 +501,10 @@ def meeting_create(request):
 
     selected_matter_ids = []
     selected_previous_matter_ids = []
+    from_calendar = False
 
     if request.method == "POST":
+        from_calendar = request.POST.get("from_calendar") == "1"
         form = MeetingForm(request.POST, org=request.org)
 
         selected_matter_ids = [int(pk) for pk in request.POST.getlist("matters") if pk.isdigit()]
@@ -510,9 +551,30 @@ def meeting_create(request):
             )
 
             messages.success(request, "Stämman skapades och valda ärenden kopplades.")
+            if from_calendar:
+                return redirect(
+                    f"{reverse('calendarapp:list')}?highlight_date={meeting.meeting_date.date().isoformat()}"
+                )
             return redirect("governance:meeting_detail", pk=meeting.pk)
     else:
-        form = MeetingForm(org=request.org)
+        from_calendar = request.GET.get("from_calendar") == "1"
+        initial = {}
+        selected_date = (request.GET.get("date") or "").strip()
+        selected_type = (request.GET.get("type") or "").strip()
+        meeting_type_map = {
+            "meeting": "board",
+            "annual_meeting": "annual",
+        }
+        mapped_type = meeting_type_map.get(selected_type)
+        if mapped_type:
+            initial["meeting_type"] = mapped_type
+        try:
+            parsed_date = date.fromisoformat(selected_date)
+            initial["meeting_date"] = f"{parsed_date.isoformat()}T09:00"
+        except ValueError:
+            pass
+
+        form = MeetingForm(org=request.org, initial=initial)
 
     return render(
         request,
@@ -520,6 +582,7 @@ def meeting_create(request):
         {
             "membership": membership,
             "form": form,
+            "from_calendar": from_calendar,
             "selected_matter_ids": selected_matter_ids,
             "selected_previous_matter_ids": selected_previous_matter_ids,
         },

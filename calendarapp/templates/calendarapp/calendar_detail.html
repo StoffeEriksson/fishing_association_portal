@@ -1,0 +1,75 @@
+{% extends "portal/base.html" %}
+{% block title %}Kalenderhändelse{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="page-title h3 mb-1">{{ event.title }}</h1>
+    <div class="text-muted small">Detaljer för kalenderhändelse.</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'calendarapp:list' %}" class="btn btn-outline-secondary btn-sm">
+      Tillbaka
+    </a>
+    <a href="{% url 'calendarapp:edit' event.pk %}" class="btn btn-dark btn-sm">
+      Redigera
+    </a>
+    <a href="{% url 'calendarapp:delete' event.pk %}" class="btn btn-outline-danger btn-sm">
+      Ta bort
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="small text-muted">Typ</div>
+        <div class="fw-semibold">{{ event.get_event_type_display }}</div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Plats</div>
+        <div class="fw-semibold">{{ event.location|default:"—" }}</div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Start</div>
+        <div class="fw-semibold">{{ event.start_at|date:"Y-m-d H:i" }}</div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Slut</div>
+        <div class="fw-semibold">
+          {% if event.end_at %}
+            {{ event.end_at|date:"Y-m-d H:i" }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="small text-muted">Beskrivning</div>
+        <div class="fw-semibold">{{ event.description|default:"—" }}</div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Skapad av</div>
+        <div class="fw-semibold">
+          {% if event.created_by %}
+            {{ event.created_by.email|default:event.created_by.username }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="small text-muted">Skapad</div>
+        <div class="fw-semibold">{{ event.created_at|date:"Y-m-d H:i" }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

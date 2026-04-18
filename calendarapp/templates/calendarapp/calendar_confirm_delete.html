@@ -1,0 +1,31 @@
+{% extends "portal/base.html" %}
+{% block title %}Ta bort händelse{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="page-title h3 mb-1">Ta bort händelse</h1>
+    <div class="text-muted small">Bekräfta att du vill ta bort denna kalenderhändelse.</div>
+  </div>
+  <a href="{% url 'calendarapp:detail' event.pk %}" class="btn btn-outline-secondary btn-sm">
+    Tillbaka
+  </a>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body">
+    <p class="mb-3">
+      Är du säker på att du vill ta bort <strong>{{ event.title }}</strong>?
+    </p>
+    <p class="small text-muted mb-4">
+      Denna åtgärd kan inte ångras.
+    </p>
+
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Ta bort</button>
+      <a href="{% url 'calendarapp:detail' event.pk %}" class="btn btn-outline-secondary">Avbryt</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

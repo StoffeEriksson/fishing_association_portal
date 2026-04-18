@@ -1,0 +1,47 @@
+{% extends "portal/base.html" %}
+{% block title %}Boka möte{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="page-title h3 mb-1">{{ page_title }}</h1>
+    <div class="text-muted small">{{ page_subtitle }}</div>
+  </div>
+  <a href="{% url 'calendarapp:list' %}" class="btn btn-outline-secondary btn-sm">
+    Tillbaka
+  </a>
+</div>
+
+<div class="card shadow-soft">
+  <div class="card-body">
+    <form method="post" class="row g-3">
+      {% csrf_token %}
+
+      <div class="col-12">
+        <label class="form-label">Titel</label>
+        {{ form.title }}
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Mötestyp</label>
+        {{ form.meeting_type }}
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Datum och tid</label>
+        {{ form.meeting_date }}
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Plats</label>
+        {{ form.location }}
+      </div>
+
+      <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-dark">{{ submit_label }}</button>
+        <a href="{% url 'calendarapp:list' %}" class="btn btn-outline-secondary">Avbryt</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

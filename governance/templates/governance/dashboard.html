@@ -29,19 +29,38 @@
           </div>
           <span class="badge text-bg-success">Aktiv</span>
         </div>
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Årsstämma</li>
-          <li>Extra stämma</li>
-          <li>Styrelsemöten</li>
-          <li>Automatisk dagordning</li>
-        </ul>
+        <div class="mt-3">
+          <div class="small text-muted mb-1">Nästa möte</div>
+          {% if upcoming_meetings %}
+            {% with next_meeting=upcoming_meetings.0 %}
+              <div class="bg-white border rounded-3 shadow-sm p-3">
+                <div class="fw-semibold mb-1">
+                  <a href="{% url 'governance:meeting_detail' next_meeting.pk %}" class="text-decoration-none">
+                    {{ next_meeting.title }}
+                  </a>
+                </div>
+                <div class="small text-muted mb-1">
+                  {{ next_meeting.get_meeting_type_display }} · {{ next_meeting.meeting_date|date:"j F Y \k\l H:i" }}
+                </div>
+                <div class="small text-muted">
+                  Plats: <span class="fw-medium text-body">{{ next_meeting.location|default:"Ingen plats angiven" }}</span>
+                </div>
+              </div>
+            {% endwith %}
+            {% if upcoming_meeting_count > 1 %}
+              <div class="small text-muted mt-2">
+                {{ upcoming_meeting_count|add:"-1" }} fler kommande möten
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="small text-muted">Inga kommande möten.</div>
+          {% endif %}
+        </div>
       </div>
       <div class="card-footer pt-0 px-3 pb-3">
-        {% if membership.can_manage_matters %}
-        <a href="{% url 'governance:meeting_create' %}" class="btn btn-dark">
-          Skapa möte
+        <a href="{% url 'governance:upcoming_meetings' %}" class="btn btn-dark">
+          Se alla möten
         </a>
-        {% endif %}
       </div>
     </div>
   </div>

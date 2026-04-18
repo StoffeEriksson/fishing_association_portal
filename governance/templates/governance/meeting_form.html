@@ -22,6 +22,9 @@
   <div class="card-body p-4">
     <form method="post" class="row g-3">
       {% csrf_token %}
+      {% if from_calendar %}
+        <input type="hidden" name="from_calendar" value="1">
+      {% endif %}
 
       {% if form.non_field_errors %}
         <div class="col-12">

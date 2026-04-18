@@ -1,6 +1,125 @@
 {% extends "portal/base.html" %}
 {% block title %}Översikt{% endblock %}
 
+{% block extra_css %}
+<style>
+  .dashboard-calendar-widget {
+    font-size: 0.72rem;
+  }
+  .dashboard-cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+    text-align: center;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+  }
+  .dashboard-cal-weekdays span {
+    padding: 0.15rem 0.05rem;
+  }
+  .dashboard-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+    text-align: center;
+  }
+  .dashboard-cal-cell {
+    display: block;
+    min-height: 2.1rem;
+    padding: 0.15rem 0.05rem;
+    border-radius: 0.25rem;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color 0.12s ease;
+  }
+  .dashboard-cal-cell:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+  .dashboard-cal-cell:focus-visible {
+    outline: 2px solid rgba(13, 110, 253, 0.35);
+    outline-offset: 1px;
+  }
+  .dashboard-cal-cell.is-outside {
+    opacity: 0.45;
+  }
+  .dashboard-cal-cell.is-today .dashboard-cal-daynum {
+    display: inline-block;
+    min-width: 1.35rem;
+    padding: 0.05rem 0.25rem;
+    border-radius: 999px;
+    background-color: #0b5ed7;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.15);
+  }
+  .dashboard-cal-daynum {
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .dashboard-cal-dots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    min-height: 0.5rem;
+    margin-top: 1px;
+  }
+  .dashboard-cal-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dashboard-cal-dot.dot-meeting {
+    background-color: #0d6efd;
+  }
+  .dashboard-cal-dot.dot-annual {
+    background-color: #212529;
+  }
+  .dashboard-cal-dot.dot-other {
+    background-color: #6c757d;
+  }
+  .dashboard-cal-agenda {
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    padding-top: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .dashboard-cal-agenda-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.2rem;
+    line-height: 1.25;
+    min-width: 0;
+  }
+  .dashboard-cal-agenda-row.dashboard-agenda-item {
+    border-radius: 6px;
+  }
+  .dashboard-agenda-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  .dashboard-agenda-item:focus-visible {
+    outline: 2px solid rgba(13, 110, 253, 0.35);
+    outline-offset: 1px;
+  }
+  .dashboard-cal-agenda-row:last-child {
+    margin-bottom: 0;
+  }
+  .dashboard-cal-agenda-date {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .dashboard-cal-agenda-title {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
@@ -119,31 +238,67 @@
   </div>
 
   <div class="col-12 col-md-6 col-xl-4">
-    <div class="card shadow-soft module-card h-100 opacity-75">
+    <div class="card shadow-soft module-card h-100">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-3">
           <div>
             <h2 class="h5 mb-1">Kalender</h2>
             <div class="text-muted small">Möten, aktiviteter och viktiga datum</div>
           </div>
-          <span class="badge text-bg-secondary">Kommande</span>
+          <span class="badge text-bg-success">Aktiv</span>
         </div>
 
-        <p class="text-muted small mb-3">
-          Planera och följ föreningens kalender med översikt över kommande händelser.
-        </p>
-
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Mötesöversikt</li>
-          <li>Aktiviteter</li>
-          <li>Påminnelser</li>
-        </ul>
+        {% if calendar_widget %}
+          <div class="dashboard-calendar-widget mb-3">
+            <div class="fw-semibold small mb-2">
+              {{ calendar_widget.month_start|date:"F Y"|capfirst }}
+            </div>
+            <div class="dashboard-cal-weekdays">
+              <span>Mån</span><span>Tis</span><span>Ons</span><span>Tor</span><span>Fre</span><span>Lör</span><span>Sön</span>
+            </div>
+            <div class="dashboard-cal-grid">
+              {% for week in calendar_widget.weeks %}
+                {% for day in week %}
+                  <a
+                    class="dashboard-cal-cell text-decoration-none{% if not day.is_current_month %} is-outside{% endif %}{% if day.is_today %} is-today{% endif %}"
+                    href="{% url 'calendarapp:list' %}?year={{ day.date.year }}&month={{ day.date.month }}&highlight_date={{ day.date|date:'Y-m-d' }}"
+                    aria-label="Öppna kalender {{ day.date|date:'Y-m-d' }}"
+                  >
+                    <span class="dashboard-cal-daynum">{{ day.date.day }}</span>
+                    <span class="dashboard-cal-dots">
+                      {% for dot in day.dots %}
+                        <span class="dashboard-cal-dot {{ dot.class }}" aria-hidden="true"></span>
+                      {% endfor %}
+                    </span>
+                  </a>
+                {% endfor %}
+              {% endfor %}
+            </div>
+            <div class="dashboard-cal-agenda">
+              {% if calendar_widget.upcoming %}
+                {% for item in calendar_widget.upcoming %}
+                  <a
+                    href="{% url 'calendarapp:list' %}?highlight_date={{ item.start_at|date:'Y-m-d' }}"
+                    class="dashboard-cal-agenda-row dashboard-agenda-item text-decoration-none text-reset text-muted"
+                    aria-label="Öppna kalender {{ item.start_at|date:'Y-m-d' }}"
+                  >
+                    <span class="dashboard-cal-dot {{ item.dot_class }} flex-shrink-0" aria-hidden="true"></span>
+                    <span class="dashboard-cal-agenda-date">{{ item.start_at|date:"j b" }}</span>
+                    <span class="dashboard-cal-agenda-title" title="{{ item.title }}">{{ item.title }}</span>
+                  </a>
+                {% endfor %}
+              {% else %}
+                <div class="small text-muted mb-0">Inga kommande händelser.</div>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
       </div>
 
       <div class="card-footer pt-0 px-3 pb-3">
-        <button type="button" class="btn btn-outline-secondary w-100" disabled>
-          Kommer snart
-        </button>
+        <a href="{% url 'calendarapp:list' %}" class="btn btn-dark w-100">
+          Öppna modul
+        </a>
       </div>
     </div>
   </div>

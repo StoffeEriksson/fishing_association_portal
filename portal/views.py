@@ -16,6 +16,7 @@ import qrcode
 from io import BytesIO
 import base64
 
+from calendarapp.calendar_widget import build_dashboard_calendar_widget
 from fishingrights.models import FishingRightShare, Property
 from documents.forms import (
     DocumentCreateForm,
@@ -187,12 +188,15 @@ def dashboard(request):
         document__org=org
     ).select_related("document", "user").order_by("-created_at")[:5]
 
+    calendar_widget = build_dashboard_calendar_widget(org)
+
     return render(
         request,
         "portal/dashboard.html",
         {
             "recent_documents": recent_documents,
             "recent_activities": recent_activities,
+            "calendar_widget": calendar_widget,
         },
     )
 

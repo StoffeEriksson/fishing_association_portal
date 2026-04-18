@@ -5,6 +5,7 @@ app_name = "governance"
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("meetings/upcoming/", views.upcoming_meetings, name="upcoming_meetings"),
     
     path("members/", views.board_member_list, name="board_member_list"),
     path("members/create/", views.board_member_create, name="board_member_create"),
