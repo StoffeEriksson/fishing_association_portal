@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from datetime import date
@@ -900,7 +901,20 @@ def create_document_from_meeting(request, pk, doc_type):
         document_category = "notice"
 
     elif doc_type == "protocol":
-        template = get_object_or_404(DocumentTemplate, category="meeting")
+        if meeting.meeting_type == "board":
+            protocol_template_name = "Styrelseprotokoll"
+            protocol_title_prefix = "Styrelseprotokoll"
+        elif meeting.meeting_type in ("annual", "extra"):
+            protocol_template_name = "Stämmoprotokoll"
+            protocol_title_prefix = "Stämmoprotokoll"
+        else:
+            raise Http404("Ingen protokollmall kunde väljas för denna mötestyp.")
+
+        template = get_object_or_404(
+            DocumentTemplate,
+            category="protocol",
+            name=protocol_template_name,
+        )
 
         motions = [matter for matter in matters if matter.type == "motion"]
         other_matters = [matter for matter in matters if matter.type != "motion"]
@@ -919,7 +933,7 @@ def create_document_from_meeting(request, pk, doc_type):
         content = content.replace("{{ motions_html }}", motions_html)
         content = content.replace("{{ other_matters_html }}", other_matters_html)
 
-        title = f"Stämmoprotokoll - {meeting.title}"
+        title = f"{protocol_title_prefix} - {meeting.title}"
         document_category = "protocol"
 
     else:
