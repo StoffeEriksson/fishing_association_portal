@@ -1,0 +1,65 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Ny åtgärd{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h3 mb-1">Ny åtgärd</h1>
+      <div class="text-muted small">Skapa en ny fiskevårdsåtgärd.</div>
+    </div>
+    <a href="{% url 'fisheries:action_list' %}" class="btn btn-outline-secondary btn-sm">
+      Tillbaka till lista
+    </a>
+  </div>
+
+  <div class="card shadow-soft">
+    <div class="card-body">
+      {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+      {% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="id_name" class="form-label">Namn</label>
+          <input id="id_name" name="name" type="text" class="form-control" value="{{ form_data.name|default:'' }}" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="id_description" class="form-label">Beskrivning</label>
+          <textarea id="id_description" name="description" class="form-control" rows="4">{{ form_data.description|default:'' }}</textarea>
+        </div>
+
+        <div class="mb-3">
+          <label for="id_water_body" class="form-label">Vatten</label>
+          <select id="id_water_body" name="water_body" class="form-select">
+            <option value="">—</option>
+            {% for water in water_bodies %}
+              <option value="{{ water.pk }}" {% if form_data.water_body == water.pk|stringformat:"s" %}selected{% endif %}>
+                {{ water.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="id_priority" class="form-label">Prioritet</label>
+          <select id="id_priority" name="priority" class="form-select">
+            {% for value, label in priority_choices %}
+              <option value="{{ value }}" {% if form_data.priority == value %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="id_deadline" class="form-label">Deadline</label>
+          <input id="id_deadline" name="deadline" type="date" class="form-control" value="{{ form_data.deadline|default:'' }}">
+        </div>
+
+        <button type="submit" class="btn btn-dark">Skapa åtgärd</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

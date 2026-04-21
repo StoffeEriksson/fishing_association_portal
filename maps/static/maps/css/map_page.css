@@ -1,0 +1,20 @@
+#map-page-map {
+  height: 520px;
+  width: 100%;
+  border-radius: 12px;
+}
+
+.map-layer-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.map-action-status-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+

@@ -1,0 +1,115 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Fiskevårdsåtgärder{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">Fiskevårdsåtgärder</h1>
+      <div class="text-muted small">Aktiva åtgärdsområden för vald organisation.</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'fisheries:action_board' %}" class="btn btn-outline-secondary btn-sm">
+        Kanban-vy
+      </a>
+      <a href="{% url 'fisheries:action_create' %}" class="btn btn-dark btn-sm">
+        Ny åtgärd
+      </a>
+    </div>
+  </div>
+  <form method="get" class="d-flex gap-2 align-items-center mb-2 flex-wrap">
+    {% if selected_status %}
+      <input type="hidden" name="status" value="{{ selected_status }}">
+    {% endif %}
+    <label for="id_action_q" class="visually-hidden">Sök</label>
+    <input
+      id="id_action_q"
+      type="text"
+      name="q"
+      class="form-control form-control-sm"
+      placeholder="Sök i namn eller beskrivning..."
+      value="{{ search_query }}"
+    >
+    <label for="id_action_sort" class="visually-hidden">Sortering</label>
+    <select id="id_action_sort" name="sort" class="form-select form-select-sm">
+      <option value="created_desc" {% if selected_sort == "created_desc" %}selected{% endif %}>Nyast först</option>
+      <option value="created_asc" {% if selected_sort == "created_asc" %}selected{% endif %}>Äldst först</option>
+      <option value="deadline_asc" {% if selected_sort == "deadline_asc" %}selected{% endif %}>Deadline (tidigast först)</option>
+      <option value="priority" {% if selected_sort == "priority" %}selected{% endif %}>Prioritet</option>
+      <option value="status" {% if selected_sort == "status" %}selected{% endif %}>Status</option>
+    </select>
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Sök</button>
+  </form>
+  {% if selected_status %}
+    <div class="small text-muted mb-2">Filtrerad på status: {{ selected_status }}</div>
+  {% endif %}
+  {% if search_query %}
+    <div class="small text-muted mb-2">Sökning: {{ search_query }}</div>
+  {% endif %}
+  <div class="small text-muted mb-2">Sortering: {{ selected_sort }}</div>
+
+  {% if actions %}
+    <div class="card shadow-soft">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Namn</th>
+                <th>Status</th>
+                <th>Skapad av</th>
+                <th>Uppdaterad av</th>
+                <th>Skapad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for action in actions %}
+                <tr>
+                  <td>
+                    <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
+                      {{ action.name }}
+                    </a>
+                  </td>
+                  <td>
+                    <form method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="action_type" value="update_status_inline">
+                      <input type="hidden" name="action_id" value="{{ action.pk }}">
+                      <select name="status" onchange="this.form.submit()" class="form-select form-select-sm">
+                        {% for value, label in status_choices %}
+                          <option value="{{ value }}" {% if value == action.status %}selected{% endif %}>
+                            {{ label }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    </form>
+                  </td>
+                  <td>
+                    {% if action.created_by %}
+                      {{ action.created_by.email|default:action.created_by.username }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if action.updated_by %}
+                      {{ action.updated_by.email|default:action.updated_by.username }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td>{{ action.created_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-secondary mb-0" role="status">
+      Inga aktiva fiskevårdsåtgärder att visa ännu.
+    </div>
+  {% endif %}
+{% endblock %}
+

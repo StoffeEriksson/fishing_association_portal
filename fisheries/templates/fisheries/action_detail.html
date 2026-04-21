@@ -1,0 +1,240 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Åtgärdsdetalj{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ action.name }}</h1>
+      <div class="text-muted small">Detaljvy för fiskevårdsåtgärd.</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'maps:map_page' %}?action_id={{ action.pk }}" class="btn btn-outline-secondary btn-sm">
+        Visa på karta
+      </a>
+      <a href="{% url 'fisheries:action_list' %}" class="btn btn-outline-secondary btn-sm">
+        Tillbaka till lista
+      </a>
+    </div>
+  </div>
+
+  <div class="card shadow-soft mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="small text-muted">Status</div>
+          <div class="fw-semibold">{{ action.get_status_display }}</div>
+          <form method="post" class="mt-2 d-flex gap-2 align-items-center flex-wrap">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="change_status">
+            <label for="id_status" class="visually-hidden">Status</label>
+            <select id="id_status" name="status" class="form-select form-select-sm">
+              {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if value == action.status %}selected{% endif %}>
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Uppdatera status</button>
+          </form>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Skapad</div>
+          <div class="fw-semibold">{{ action.created_at|date:"Y-m-d H:i" }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Skapad av</div>
+          <div class="fw-semibold">
+            {% if action.created_by %}
+              {{ action.created_by.email|default:action.created_by.username }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Uppdaterad</div>
+          <div class="fw-semibold">{{ action.updated_at|date:"Y-m-d H:i" }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Vatten</div>
+          <div class="fw-semibold">
+            {% if action.water_body %}
+              {{ action.water_body.name }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Ansvarig</div>
+          <div class="fw-semibold">
+            {% if action.responsible_user %}
+              {{ action.responsible_user.email|default:action.responsible_user.username }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Prioritet</div>
+          <div class="fw-semibold">{{ action.get_priority_display }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Deadline</div>
+          <div class="fw-semibold">
+            {% if action.deadline %}
+              {{ action.deadline|date:"Y-m-d" }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Budget</div>
+          <div class="fw-semibold">
+            {% if action.estimated_cost %}
+              {{ action.estimated_cost|floatformat:2 }} kr
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Utfall</div>
+          <div class="fw-semibold">
+            {% if action.actual_cost %}
+              {{ action.actual_cost|floatformat:2 }} kr
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="small text-muted">Uppdaterad av</div>
+          <div class="fw-semibold">
+            {% if action.updated_by %}
+              {{ action.updated_by.email|default:action.updated_by.username }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="small text-muted">Beskrivning</div>
+          <div class="fw-normal">{{ action.description|default:"Ingen beskrivning angiven." }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-soft">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Kommentarer</h2>
+      <form method="post" class="mb-3">
+        {% csrf_token %}
+        <input type="hidden" name="action_type" value="add_comment">
+        <div class="mb-2">
+          <label for="id_body" class="form-label small text-muted mb-1">Ny kommentar</label>
+          <textarea id="id_body" name="body" class="form-control" rows="3" placeholder="Skriv en kommentar..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-dark btn-sm">Lägg till kommentar</button>
+      </form>
+      {% if comments %}
+        <div class="list-group list-group-flush">
+          {% for comment in comments %}
+            <div class="list-group-item px-0">
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <div class="fw-semibold">
+                    {% if comment.user %}
+                      {{ comment.user.email|default:comment.user.username }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="small text-muted">{{ comment.created_at|date:"Y-m-d H:i" }}</div>
+                </div>
+              </div>
+              <div class="mt-2">{{ comment.body }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary mb-0" role="status">
+          Inga kommentarer ännu.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-soft mt-4">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Redigera åtgärd</h2>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action_type" value="update_fields">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="id_responsible_user" class="form-label small text-muted mb-1">Ansvarig</label>
+            <select id="id_responsible_user" name="responsible_user" class="form-select form-select-sm">
+              <option value="">—</option>
+              {% for user in responsible_users %}
+                <option value="{{ user.pk }}" {% if action.responsible_user and action.responsible_user.pk == user.pk %}selected{% endif %}>
+                  {{ user.email|default:user.username }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="id_priority" class="form-label small text-muted mb-1">Prioritet</label>
+            <select id="id_priority" name="priority" class="form-select form-select-sm">
+              {% for value, label in priority_choices %}
+                <option value="{{ value }}" {% if value == action.priority %}selected{% endif %}>
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="id_deadline" class="form-label small text-muted mb-1">Deadline</label>
+            <input id="id_deadline" name="deadline" type="date" class="form-control form-control-sm" value="{{ action.deadline|date:'Y-m-d' }}">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-dark btn-sm mt-3">Spara ändringar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-soft mt-4">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Historik</h2>
+      {% if logs %}
+        <div class="list-group list-group-flush">
+          {% for log in logs %}
+            <div class="list-group-item px-0">
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <div class="fw-semibold">
+                    {% if log.user %}
+                      {{ log.user.email|default:log.user.username }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  <div class="small text-muted">{{ log.created_at|date:"Y-m-d H:i" }}</div>
+                </div>
+              </div>
+              <div class="mt-2">{{ log.message|default:"—" }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary mb-0" role="status">
+          Ingen historik ännu.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+

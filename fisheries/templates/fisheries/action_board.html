@@ -1,0 +1,117 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Åtgärder – Kanban-vy{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">Åtgärder – Kanban-vy</h1>
+      <div class="text-muted small">Statusbaserad överblick av åtgärder.</div>
+    </div>
+    <a href="{% url 'fisheries:action_list' %}" class="btn btn-outline-secondary btn-sm">
+      Till lista
+    </a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col">
+      <h6>Urgent</h6>
+      {% for action in urgent_actions %}
+        <div class="card mb-2 p-2">
+          <div class="fw-semibold">
+            <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
+              {{ action.name }}
+            </a>
+          </div>
+          <div class="small text-muted">{{ action.water_body.name|default:"—" }}</div>
+          <div class="small">{{ action.get_priority_display }}</div>
+          {% if action.deadline %}
+            <div class="small text-danger">{{ action.deadline }}</div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="text-muted small">Inga åtgärder</div>
+      {% endfor %}
+    </div>
+
+    <div class="col">
+      <h6>Needs action</h6>
+      {% for action in needs_action_actions %}
+        <div class="card mb-2 p-2">
+          <div class="fw-semibold">
+            <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
+              {{ action.name }}
+            </a>
+          </div>
+          <div class="small text-muted">{{ action.water_body.name|default:"—" }}</div>
+          <div class="small">{{ action.get_priority_display }}</div>
+          {% if action.deadline %}
+            <div class="small text-danger">{{ action.deadline }}</div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="text-muted small">Inga åtgärder</div>
+      {% endfor %}
+    </div>
+
+    <div class="col">
+      <h6>Planned</h6>
+      {% for action in planned_actions %}
+        <div class="card mb-2 p-2">
+          <div class="fw-semibold">
+            <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
+              {{ action.name }}
+            </a>
+          </div>
+          <div class="small text-muted">{{ action.water_body.name|default:"—" }}</div>
+          <div class="small">{{ action.get_priority_display }}</div>
+          {% if action.deadline %}
+            <div class="small text-danger">{{ action.deadline }}</div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="text-muted small">Inga åtgärder</div>
+      {% endfor %}
+    </div>
+
+    <div class="col">
+      <h6>In progress</h6>
+      {% for action in in_progress_actions %}
+        <div class="card mb-2 p-2">
+          <div class="fw-semibold">
+            <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
+              {{ action.name }}
+            </a>
+          </div>
+          <div class="small text-muted">{{ action.water_body.name|default:"—" }}</div>
+          <div class="small">{{ action.get_priority_display }}</div>
+          {% if action.deadline %}
+            <div class="small text-danger">{{ action.deadline }}</div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="text-muted small">Inga åtgärder</div>
+      {% endfor %}
+    </div>
+
+    <div class="col">
+      <h6>Completed</h6>
+      {% for action in completed_actions %}
+        <div class="card mb-2 p-2">
+          <div class="fw-semibold">
+            <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
+              {{ action.name }}
+            </a>
+          </div>
+          <div class="small text-muted">{{ action.water_body.name|default:"—" }}</div>
+          <div class="small">{{ action.get_priority_display }}</div>
+          {% if action.deadline %}
+            <div class="small text-danger">{{ action.deadline }}</div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="text-muted small">Inga åtgärder</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

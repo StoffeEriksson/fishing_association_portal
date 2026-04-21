@@ -126,3 +126,35 @@
 .dashboard-equal-height-cards .dashboard-module-cards-row .module-card {
   min-height: 26rem;
 }
+
+/* Kartvy card preview (scoped only to Kartvy) */
+.dashboard-equal-height-cards .dashboard-map-card .card-body {
+  padding-top: 1rem;
+}
+
+.dashboard-equal-height-cards .dashboard-map-card .dashboard-map-preview {
+  position: relative;
+  height: 156px;
+  margin-bottom: 1rem;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  background-image: url("/static/images/map-topo-natural.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+}
+
+.dashboard-equal-height-cards .dashboard-map-card .dashboard-map-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 15, 28, 0.08) 0%,
+    rgba(8, 15, 28, 0.14) 60%,
+    rgba(8, 15, 28, 0.2) 100%
+  );
+}

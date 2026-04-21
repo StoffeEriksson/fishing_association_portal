@@ -8,6 +8,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("portal/", include("portal.urls")),
     path("calendar/", include("calendarapp.urls")),
+    path("maps/", include("maps.urls")),
+    path("fisheries/", include("fisheries.urls")),
     path("", include("core.urls")),
     path("governance/", include("governance.urls")),
 ]

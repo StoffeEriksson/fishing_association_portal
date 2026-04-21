@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     "governance",
     "portal",
     "calendarapp",
+    "maps",
+    "fisheries",
 
 ]
 
