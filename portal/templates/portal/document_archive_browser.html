@@ -1,0 +1,145 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Dokumentarkiv{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/document.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="documents-page archive-browser">
+
+    <header class="archive-header">
+        <div class="archive-header-main">
+            <h1 class="archive-header-title">Dokumentarkiv</h1>
+            <p class="archive-header-subtitle">
+                Bläddra bland mappar och finaliserade dokument.
+            </p>
+        </div>
+        <div class="archive-header-actions" role="toolbar" aria-label="Arkivåtgärder">
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled title="Kommer snart">
+                <i class="fa-solid fa-folder-plus me-1" aria-hidden="true"></i>
+                Ny mapp
+            </button>
+            <a href="{% url 'portal:document_upload' %}" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-arrow-up-from-bracket me-1" aria-hidden="true"></i>
+                Ladda upp dokument
+            </a>
+            <a href="{% url 'portal:document_overview' %}" class="btn btn-outline-secondary btn-sm">
+                Tillbaka
+            </a>
+        </div>
+    </header>
+
+    <nav class="archive-breadcrumb" aria-label="Arkivsökväg">
+        <ol class="archive-breadcrumb-list mb-0">
+            <li class="archive-breadcrumb-item">
+                {% if breadcrumbs %}
+                    {% if breadcrumbs|length == 1 and breadcrumbs.0.name == "Arkiv" %}
+                        <span class="archive-breadcrumb-current" aria-current="page">Arkiv</span>
+                    {% else %}
+                        <a href="{% url 'portal:document_archive' %}">Arkiv</a>
+                    {% endif %}
+                {% else %}
+                    <span class="archive-breadcrumb-current" aria-current="page">Arkiv</span>
+                {% endif %}
+            </li>
+            {% for crumb in breadcrumbs %}
+                {% if not forloop.first or crumb.name != "Arkiv" %}
+                    <li class="archive-breadcrumb-separator" aria-hidden="true">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </li>
+                    <li class="archive-breadcrumb-item">
+                        {% if forloop.last %}
+                            <span class="archive-breadcrumb-current" aria-current="page">{{ crumb.name }}</span>
+                        {% else %}
+                            <a href="{{ crumb.url }}">{{ crumb.name }}</a>
+                        {% endif %}
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+
+    <div class="archive-grid">
+
+        {% if folders %}
+            <section class="archive-section" aria-labelledby="archive-folders-heading">
+                <h2 id="archive-folders-heading" class="archive-section-title">Mappar</h2>
+                <div class="archive-folder-grid">
+                    {% for folder in folders %}
+                        <a href="{% url 'portal:document_archive' %}?folder={{ folder.pk }}"
+                           class="archive-folder-tile">
+                            <span class="archive-folder-icon" aria-hidden="true">
+                                <i class="fa-solid fa-folder"></i>
+                            </span>
+                            <span class="archive-folder-meta">
+                                <span class="archive-folder-name">{{ folder.name }}</span>
+                                {% if folder.is_system_folder %}
+                                    <span class="archive-badge archive-badge-system">System</span>
+                                {% else %}
+                                    <span class="archive-badge archive-badge-custom">Anpassad</span>
+                                {% endif %}
+                            </span>
+                            <span class="archive-folder-chevron" aria-hidden="true">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+        {% if documents %}
+            <section class="archive-section" aria-labelledby="archive-documents-heading">
+                <h2 id="archive-documents-heading" class="archive-section-title">Dokument</h2>
+                <div class="archive-document-list">
+                    {% for document in documents %}
+                        <a href="{% url 'portal:document_detail' document.pk %}"
+                           class="archive-document-row">
+                            <span class="archive-document-icon" aria-hidden="true">
+                                <i class="fa-solid fa-file-lines"></i>
+                            </span>
+                            <span class="archive-document-main">
+                                <span class="archive-document-title">{{ document.title }}</span>
+                                <span class="archive-document-meta">
+                                    {{ document.get_category_display }}
+                                    <span class="archive-document-meta-sep">·</span>
+                                    {{ document.updated_at|date:"Y-m-d H:i" }}
+                                </span>
+                            </span>
+                            <span class="archive-document-status">
+                                <span class="archive-badge archive-badge-status">Finaliserad</span>
+                                <span class="archive-badge archive-badge-archived">Arkiverad</span>
+                            </span>
+                            <span class="archive-document-open" aria-hidden="true">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+        {% if not folders and not documents %}
+            <div class="archive-empty-state">
+                <span class="archive-empty-icon" aria-hidden="true">
+                    <i class="fa-regular fa-folder-open"></i>
+                </span>
+                {% if current_folder %}
+                    <p class="archive-empty-title mb-1">Den här mappen är tom.</p>
+                    <p class="archive-empty-text mb-0">Det finns inga undermappar eller dokument här.</p>
+                {% else %}
+                    <p class="archive-empty-title mb-1">Arkivstrukturen har inte skapats ännu.</p>
+                    <p class="archive-empty-text mb-0">
+                        Finaliserade dokument utan mapp visas här tills de placeras i arkivet.
+                    </p>
+                {% endif %}
+            </div>
+        {% endif %}
+
+    </div>
+
+</div>
+{% endblock %}
