@@ -6,345 +6,493 @@
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 {% endblock %}
 
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Översikt</div>
+{% endblock %}
+
 {% block content %}
 
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-  <div>
-    <h1 class="page-title h2 mb-1">Basportal</h1>
-    <div class="muted-label">
-      Administrativ portal för fiskerätt, dokument och styrelsearbete.
-    </div>
-  </div>
-
-  <div class="text-md-end">
-    <div class="muted-label">Aktiv organisation</div>
-    <div class="fw-semibold">
-      {% if request.org %}
-        {{ request.org.name }}
+<div class="dashboard-shell">
+  <div class="dashboard-overview-header mb-3 mb-md-4">
+    <h1 class="page-title h3 mb-1 section-title">
+      {% if request.user.first_name %}
+        Välkommen tillbaka, {{ request.user.first_name }}
       {% else %}
-        Ingen organisation vald
+        Välkommen tillbaka, {{ request.user.username }}
       {% endif %}
+    </h1>
+    <div class="muted-label">
+      Här har du en översikt över det som är viktigt.
     </div>
   </div>
-</div>
 
-<div class="dashboard-equal-height-cards">
-<div class="row g-4 mb-4 dashboard-module-cards-row">
-
-  <div class="col-12 col-md-6 col-xl-4 d-flex">
-    <div class="card shadow-soft module-card flex-fill w-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <h2 class="h5 mb-1">Styrelse</h2>
-            <div class="text-muted small">Roller, spårbarhet och process</div>
+  <div class="dashboard-kpi-grid mb-3 mb-md-4">
+    <div class="card shadow-soft dashboard-kpi-card dashboard-kpi-card--live kpi-card">
+      <div class="card-body dashboard-kpi-card-inner">
+        <div class="dashboard-kpi-icon-wrap" aria-hidden="true"><i class="fa-solid fa-calendar-days"></i></div>
+        <div class="dashboard-kpi-text">
+          <div class="dashboard-kpi-label text-muted">Kommande möten</div>
+          <div class="dashboard-kpi-hint">
+            {% if upcoming_meetings_count %}
+              nästa 30 dagar
+            {% else %}
+              Inga planerade möten
+            {% endif %}
           </div>
-          <span class="badge text-bg-success">Aktiv</span>
+          <div class="dashboard-kpi-value" aria-label="{% if upcoming_meetings_count %}Kommande möten, nästa 30 dagar{% else %}Inga planerade möten{% endif %}">{{ upcoming_meetings_count }}</div>
         </div>
-
-        <p class="text-muted small mb-3">
-          Få stöd för struktur, ansvar och spårbarhet i styrelsearbetet.
-        </p>
-
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Roller och ansvar</li>
-          <li>Auditlogg i UI</li>
-          <li>Historik</li>
-        </ul>
-      </div>
-
-      <div class="card-footer pt-0 px-3 pb-3">
-        <a href="{% url 'governance:dashboard' %}" class="btn btn-dark w-100">
-          Öppna modul
-        </a>
       </div>
     </div>
-  </div>
-  
-
-  <div class="col-12 col-md-6 col-xl-4 d-flex">
-    <div class="card shadow-soft module-card flex-fill w-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <h2 class="h5 mb-1">Dokument arkiv</h2>
-            <div class="text-muted small">Protokoll, beslut och arkiv</div>
-          </div>
-          <span class="badge text-bg-success">Aktiv</span>
+    <div class="card shadow-soft dashboard-kpi-card dashboard-kpi-card--live kpi-card">
+      <div class="card-body dashboard-kpi-card-inner">
+        <div class="dashboard-kpi-icon-wrap" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></div>
+        <div class="dashboard-kpi-text">
+          <div class="dashboard-kpi-label text-muted">Dokument</div>
+          <div class="dashboard-kpi-hint">Totalt i organisationen</div>
+          <div class="dashboard-kpi-value">{{ document_count }}</div>
         </div>
-
-        <p class="text-muted small mb-3">
-          Hantera föreningens dokument, versioner och historik i portalen.
-        </p>
-
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Dokumentlista</li>
-          <li>Versionshantering</li>
-          <li>PDF-visning</li>
-          <li>Auditlogg</li>
-        </ul>
       </div>
-
-      <div class="card-footer pt-0 px-3 pb-3">
-        <a href="{% url 'portal:document_overview' %}" class="btn btn-dark w-100">
-          Öppna modul
-        </a>
+    </div>
+    <div class="card shadow-soft dashboard-kpi-card dashboard-kpi-card--live kpi-card">
+      <div class="card-body dashboard-kpi-card-inner">
+        <div class="dashboard-kpi-icon-wrap" aria-hidden="true"><i class="fa-solid fa-clipboard-check"></i></div>
+        <div class="dashboard-kpi-text">
+          <div class="dashboard-kpi-label text-muted">Beslut att följa upp</div>
+          <div class="dashboard-kpi-hint">Kräver uppmärksamhet</div>
+          <div class="dashboard-kpi-value" aria-label="Beslut att följa upp, platshållare">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="card shadow-soft dashboard-kpi-card dashboard-kpi-card--live kpi-card">
+      <div class="card-body dashboard-kpi-card-inner">
+        <div class="dashboard-kpi-icon-wrap" aria-hidden="true"><i class="fa-solid fa-inbox"></i></div>
+        <div class="dashboard-kpi-text">
+          <div class="dashboard-kpi-label text-muted">Olästa meddelanden</div>
+          <div class="dashboard-kpi-hint">Att hantera</div>
+          <div class="dashboard-kpi-value" aria-label="Olästa meddelanden, platshållare">3</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="col-12 col-md-6 col-xl-4 d-flex">
-    <div class="card shadow-soft module-card flex-fill w-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <h2 class="h5 mb-1">Fiskerätt</h2>
-            <div class="text-muted small">Fastigheter, ägare och andelstal</div>
-          </div>
-          <span class="badge text-bg-success">Aktiv</span>
-        </div>
-
-        <p class="text-muted small mb-3">
-          Hantera fiskerättsförteckning med fastighetslista, detaljvy och kontroll av andelssummor.
-        </p>
-
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Fastighetslista</li>
-          <li>Fastighetsdetalj</li>
-          <li>Ägare och andelar</li>
-          <li>Kontrollsumma</li>
-        </ul>
-      </div>
-
-      <div class="card-footer pt-0 px-3 pb-3">
-        <a href="{% url 'portal:property_list' %}" class="btn btn-dark w-100">
-          Öppna modul
-        </a>
-      </div>
+  <section class="dashboard-section command-center-section">
+    <div class="dashboard-section-header command-center-section-header mb-3">
+      <h2 class="h4 mb-1 d-flex align-items-center gap-2 flex-wrap section-title">
+        <span class="cc-heading-icon" aria-hidden="true"><i class="fa-solid fa-compass"></i></span>
+        <span>Command Center / Viktiga åtgärder</span>
+      </h2>
+      <p class="text-muted small mb-0">Det som kräver din uppmärksamhet just nu</p>
     </div>
-  </div>
 
-  <div class="col-12 col-md-6 col-xl-4 d-flex">
-    <div class="card shadow-soft module-card flex-fill w-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <h2 class="h5 mb-1">Kalender</h2>
-            <div class="text-muted small">Möten, aktiviteter och viktiga datum</div>
-          </div>
-          <span class="badge text-bg-success">Aktiv</span>
-        </div>
-
-        {% if calendar_widget %}
-          <div class="dashboard-calendar-widget mb-3">
-            <div class="fw-semibold small mb-2">
-              {{ calendar_widget.month_start|date:"F Y"|capfirst }}
-            </div>
-            <div class="dashboard-cal-weekdays">
-              <span>Mån</span><span>Tis</span><span>Ons</span><span>Tor</span><span>Fre</span><span>Lör</span><span>Sön</span>
-            </div>
-            <div class="dashboard-cal-grid">
-              {% for week in calendar_widget.weeks %}
-                {% for day in week %}
-                  <a
-                    class="dashboard-cal-cell text-decoration-none{% if not day.is_current_month %} is-outside{% endif %}{% if day.is_today %} is-today{% endif %}"
-                    href="{% url 'calendarapp:list' %}?year={{ day.date.year }}&month={{ day.date.month }}&highlight_date={{ day.date|date:'Y-m-d' }}"
-                    aria-label="Öppna kalender {{ day.date|date:'Y-m-d' }}"
-                  >
-                    <span class="dashboard-cal-daynum">{{ day.date.day }}</span>
-                    <span class="dashboard-cal-dots">
-                      {% for dot in day.dots %}
-                        <span class="dashboard-cal-dot {{ dot.class }}" aria-hidden="true"></span>
-                      {% endfor %}
-                    </span>
-                  </a>
-                {% endfor %}
-              {% endfor %}
-            </div>
-            <div class="dashboard-cal-agenda">
-              {% if calendar_widget.upcoming %}
-                {% for item in calendar_widget.upcoming %}
-                  <a
-                    href="{% url 'calendarapp:list' %}?highlight_date={{ item.start_at|date:'Y-m-d' }}"
-                    class="dashboard-cal-agenda-row dashboard-agenda-item text-decoration-none text-reset text-muted"
-                    aria-label="Öppna kalender {{ item.start_at|date:'Y-m-d' }}"
-                  >
-                    <span class="dashboard-cal-dot {{ item.dot_class }} flex-shrink-0" aria-hidden="true"></span>
-                    <span class="dashboard-cal-agenda-date">{{ item.start_at|date:"j b" }}</span>
-                    <span class="dashboard-cal-agenda-title" title="{{ item.title }}">{{ item.title }}</span>
-                  </a>
-                {% endfor %}
+    <div class="command-center-workspace">
+      <div class="cc-workspace-main">
+      <div class="cc-column cc-column-primary">
+        <div class="command-center-item command-center-item-actions d-flex">
+          <div class="card card-important shadow-soft flex-fill w-100 command-center-primary-card cc-work-card">
+            <div class="card-body d-flex flex-column">
+              <div class="cc-card-head d-flex justify-content-between align-items-center gap-2 mb-3">
+                <h2 class="h6 mb-0 d-flex align-items-center gap-2">
+                  <span class="cc-card-head-icon" aria-hidden="true"><i class="fa-solid fa-list-check"></i></span>
+                  <span>Viktiga åtgärder</span>
+                </h2>
+                <span class="cc-pill cc-pill--neutral">{{ important_actions|length }} öppna</span>
+              </div>
+              {% if important_actions %}
+                <div class="cc-actions-scroll flex-grow-1">
+                  <div class="cc-action-list">
+                    {% for item in important_actions %}
+                      <a
+                        href="{{ item.url }}"
+                        class="cc-action-row task-item {% if item.label == 'Förfallen fiskevårdsåtgärd' %}cc-action-row--overdue{% elif item.priority == 'critical' %}cc-action-row--critical{% elif item.priority == 'high' %}cc-action-row--high{% elif item.due_at %}cc-action-row--deadline{% elif item.source == 'documents' %}cc-action-row--document{% endif %}"
+                      >
+                        <span class="cc-action-severity-icon" aria-hidden="true">
+                          {% if item.label == 'Förfallen fiskevårdsåtgärd' %}
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                          {% elif item.priority == 'critical' %}
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                          {% elif item.priority == 'high' %}
+                            <i class="fa-solid fa-flag"></i>
+                          {% elif item.due_at %}
+                            <i class="fa-solid fa-clock"></i>
+                          {% elif item.source == 'documents' %}
+                            <i class="fa-solid fa-pen-nib"></i>
+                          {% else %}
+                            <i class="fa-solid fa-angle-right"></i>
+                          {% endif %}
+                        </span>
+                        <span class="cc-action-body">
+                          <span class="cc-action-label">{{ item.label }}</span>
+                          <span class="cc-action-title">{{ item.title }}</span>
+                          {% if item.label == 'Förfallen fiskevårdsåtgärd' or item.due_at or item.priority == 'critical' or item.priority == 'high' or item.source %}
+                            <span class="cc-action-meta d-flex flex-wrap align-items-center gap-1 mt-1">
+                              {% if item.label == 'Förfallen fiskevårdsåtgärd' %}
+                                <span class="cc-pill cc-pill--danger">Förfallen</span>
+                              {% endif %}
+                              {% if item.due_at %}
+                                <span class="cc-pill cc-pill--warning">Deadline {{ item.due_at|date:"Y-m-d" }}</span>
+                              {% endif %}
+                              {% if item.priority == 'critical' %}
+                                <span class="cc-pill cc-pill--danger">Kritisk</span>
+                              {% elif item.priority == 'high' %}
+                                <span class="cc-pill cc-pill--warning">Hög prioritet</span>
+                              {% endif %}
+                              {% if item.source == 'documents' %}
+                                <span class="cc-pill cc-pill--blue">Dokument</span>
+                              {% elif item.source == 'fisheries' %}
+                                <span class="cc-pill cc-pill--neutral">Fiskevård</span>
+                              {% endif %}
+                            </span>
+                          {% endif %}
+                        </span>
+                        <span class="cc-action-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+                      </a>
+                    {% endfor %}
+                  </div>
+                </div>
+                <p class="cc-actions-footnote text-muted small mb-0 mt-2">Visar de mest akuta åtgärderna</p>
               {% else %}
-                <div class="small text-muted mb-0">Inga kommande händelser.</div>
+                <div class="cc-empty-state">
+                  <span class="cc-empty-icon" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
+                  <p class="cc-empty-title mb-1">Inga viktiga åtgärder just nu</p>
+                  <p class="cc-empty-lead small mb-0">Du är ikapp. Nya uppgifter visas här när något kräver din uppmärksamhet.</p>
+                </div>
               {% endif %}
             </div>
           </div>
-        {% endif %}
+        </div>
       </div>
 
-      <div class="card-footer pt-0 px-3 pb-3">
-        <a href="{% url 'calendarapp:list' %}" class="btn btn-dark w-100">
-          Öppna modul
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-md-6 col-xl-4 d-flex">
-    <div class="card shadow-soft module-card dashboard-map-card flex-fill w-100 opacity-75">
-      <div class="card-body">
-        <div class="dashboard-map-preview" aria-hidden="true"></div>
-        <div class="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <h2 class="h5 mb-1">Kartvy</h2>
-            <div class="text-muted small">Geografisk vy av områden och gränser</div>
+      <div class="cc-column cc-column-mid">
+        <div class="command-center-item command-center-item-events d-flex">
+          <div class="card card-default shadow-soft flex-fill w-100 cc-work-card">
+            <div class="card-body d-flex flex-column">
+              <div class="cc-card-head d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="h6 mb-0 d-flex align-items-center gap-2">
+                  <span class="cc-card-head-icon" aria-hidden="true"><i class="fa-solid fa-bolt"></i></span>
+                  <span>Kommande händelser</span>
+                </h2>
+                <span class="cc-pill cc-pill--sky">Nästa 14 dagar</span>
+              </div>
+              <p class="text-muted small mb-3 cc-card-lead">Planerade aktiviteter och milstolpar.</p>
+              {% if upcoming_events %}
+                <div class="cc-feed-list cc-feed-list--events">
+                  {% for event in upcoming_events %}
+                    <a href="{% url 'calendarapp:detail' event.pk %}" class="cc-feed-row text-decoration-none text-reset">
+                      <span class="cc-feed-dot" aria-hidden="true"><i class="fa-solid fa-calendar-day"></i></span>
+                      <div class="cc-feed-main">
+                        <div class="cc-feed-line">
+                          <span class="cc-feed-text">{{ event.title }}</span>
+                          <span class="cc-pill cc-pill--sky">{{ event.get_event_type_display }}</span>
+                        </div>
+                        <div class="small text-muted mt-1">{{ event.start_at|date:"Y-m-d H:i" }}</div>
+                      </div>
+                    </a>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <p class="text-muted small mb-0">Inga kommande händelser de närmaste 14 dagarna.</p>
+              {% endif %}
+            </div>
           </div>
-          <span class="badge text-bg-secondary">Kommande</span>
         </div>
 
-        <p class="text-muted small mb-3">
-          Visa fastigheter och relevanta områden i en samlad kartbaserad vy.
-        </p>
-
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Områdesöversikt</li>
-          <li>Markeringar</li>
-          <li>Visuella lager</li>
-        </ul>
-      </div>
-
-      <div class="card-footer pt-0 px-3 pb-3">
-        <a href="{% url 'maps:map_page' %}" class="btn btn-outline-secondary w-100">
-          Öppna kartvy
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-md-6 col-xl-4 d-flex">
-    <div class="card shadow-soft module-card flex-fill w-100 opacity-75">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <h2 class="h5 mb-1">Fiskevård</h2>
-            <div class="text-muted small">Åtgärder, planer och uppföljning</div>
+        <div class="command-center-item command-center-item-calendar d-flex">
+          <div class="card card-default shadow-soft flex-fill w-100 cc-work-card">
+            <div class="card-body d-flex flex-column">
+              <div class="cc-card-head d-flex justify-content-between align-items-center gap-2 mb-2 flex-wrap">
+                <h2 class="h6 mb-0 d-flex align-items-center gap-2">
+                  <span class="cc-card-head-icon" aria-hidden="true"><i class="fa-solid fa-calendar-week"></i></span>
+                  <span>Kalender och aktuella datum</span>
+                </h2>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <a href="{% url 'calendarapp:list' %}" class="cc-cal-open-link">
+                    <span class="me-1" aria-hidden="true"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+                    Öppna kalender
+                  </a>
+                  <span class="cc-pill cc-pill--sky">Denna vecka</span>
+                </div>
+              </div>
+              <p class="text-muted small mb-3 cc-card-lead">Snabb överblick över viktiga datum.</p>
+              {% if calendar_widget %}
+                <div class="dashboard-calendar-widget cc-cal-widget small text-muted mb-3">
+                  <div class="fw-semibold text-body mb-2">{{ calendar_widget.month_start|date:"F Y" }}</div>
+                  <div class="d-flex flex-column gap-1 cc-cal-weeks">
+                    {% for week in calendar_widget.weeks %}
+                      <div class="d-flex gap-1 justify-content-between cc-cal-week">
+                        {% for day in week %}
+                          <a
+                            href="{% url 'calendarapp:list' %}?year={{ day.date.year }}&month={{ day.date.month }}&highlight_date={{ day.date|date:'Y-m-d' }}"
+                            class="cc-cal-day flex-fill text-center text-decoration-none {% if day.is_today %}cc-cal-day--today{% endif %}{% if day.dots %} cc-cal-day--has-events{% endif %}{% if not day.is_current_month %} cc-cal-day--outside{% endif %}"
+                            title="Öppna i kalendern — {{ day.date|date:'Y-m-d' }}"
+                          >
+                            <span class="cc-cal-day-num">{{ day.date|date:"j" }}</span>
+                            <span class="cc-cal-dots" aria-hidden="true">
+                              {% for dot in day.dots %}
+                                <span class="cc-cal-dot {{ dot.class }}"></span>
+                              {% endfor %}
+                            </span>
+                          </a>
+                        {% endfor %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% if calendar_widget.upcoming %}
+                  <div class="cc-cal-upcoming">
+                    <div class="cc-cal-upcoming-label text-muted">Kommande händelser</div>
+                    <div class="cc-feed-list cc-feed-list--events cc-cal-upcoming-list">
+                      {% for ev in calendar_widget.upcoming %}
+                        <a
+                          href="{% url 'calendarapp:list' %}?year={{ ev.start_at|date:'Y' }}&month={{ ev.start_at|date:'n' }}&highlight_date={{ ev.start_at|date:'Y-m-d' }}"
+                          class="cc-feed-row cc-feed-row--compact cc-cal-upcoming-row text-decoration-none text-reset"
+                        >
+                          <span class="cc-feed-dot cc-cal-upcoming-icon cc-cal-upcoming-icon--{{ ev.dot_class }}" aria-hidden="true">
+                            {% if ev.dot_class == 'dot-annual' %}
+                              <i class="fa-solid fa-flag"></i>
+                            {% elif ev.dot_class == 'dot-meeting' %}
+                              <i class="fa-solid fa-handshake"></i>
+                            {% else %}
+                              <i class="fa-solid fa-calendar-day"></i>
+                            {% endif %}
+                          </span>
+                          <div class="cc-feed-main">
+                            <div class="cc-feed-line cc-cal-upcoming-line">
+                              <span class="cc-feed-text cc-cal-upcoming-title">{{ ev.title }}</span>
+                              <span class="cc-pill cc-pill--sky cc-cal-upcoming-pill">{{ ev.start_at|date:"Y-m-d H:i" }}</span>
+                            </div>
+                          </div>
+                        </a>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% else %}
+                  <p class="text-muted small mb-0">Inga kommande kalenderhändelser.</p>
+                {% endif %}
+              {% else %}
+                <p class="text-muted small mb-0">Kalenderdata kunde inte laddas.</p>
+              {% endif %}
+            </div>
           </div>
-          <span class="badge text-bg-secondary">Kommande</span>
         </div>
-
-        <p class="text-muted small mb-3">
-          Samla planerade och genomförda fiskevårdsinsatser i en gemensam modul.
-        </p>
-
-        <ul class="small text-muted ps-3 mb-0">
-          <li>Åtgärdsplaner</li>
-          <li>Genomförda insatser</li>
-          <li>Statusuppföljning</li>
-        </ul>
       </div>
 
-      <div class="card-footer pt-0 px-3 pb-3">
-        <a href="{% url 'fisheries:overview' %}" class="btn btn-outline-secondary w-100">
-          Öppna modul
-        </a>
+      <div class="cc-column cc-column-aside">
+        <div class="command-center-item command-center-item-news d-flex command-center-news-col">
+          <div class="card card-muted shadow-soft flex-fill w-100 cc-work-card">
+            <div class="card-body d-flex flex-column">
+              <div class="cc-card-head d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="h6 mb-0 d-flex align-items-center gap-2">
+                  <span class="cc-card-head-icon" aria-hidden="true"><i class="fa-solid fa-newspaper"></i></span>
+                  <span>Nyhetsflöde</span>
+                </h2>
+                <span class="cc-pill cc-pill--green">Senaste nytt</span>
+              </div>
+              <p class="text-muted small mb-3 cc-card-lead">Uppdateringar som är relevanta för föreningen.</p>
+              {% if news_feed %}
+                <div class="cc-feed-scroll cc-news-scroll">
+                  <div class="cc-feed-list">
+                    {% for activity in news_feed %}
+                      <div class="cc-feed-row">
+                        <span class="cc-feed-dot">
+                          <i class="fa-solid fa-bolt"></i>
+                        </span>
+                        <div class="cc-feed-main">
+                          <div class="cc-feed-line">
+                            <span class="cc-feed-text">
+                              {{ activity.message|default:"Aktivitet" }}
+                            </span>
+                          </div>
+                          <div class="small text-muted mt-1">
+                            {{ activity.created_at|date:"Y-m-d H:i" }}
+                            {% if activity.user %}
+                              · {{ activity.user }}
+                            {% endif %}
+                          </div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% else %}
+                <p class="text-muted small mb-0">Ingen aktivitet ännu.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="card card-default shadow-soft cc-work-card cc-quick-access">
+          <div class="card-body">
+            <h2 class="h6 mb-3 d-flex align-items-center gap-2">
+              <span class="cc-card-head-icon" aria-hidden="true"><i class="fa-solid fa-rocket"></i></span>
+              <span>Snabbåtkomst</span>
+            </h2>
+            <div class="cc-quick-grid">
+              <a href="{% url 'governance:meeting_create' %}" class="cc-quick-tile quick-action">
+                <span class="cc-quick-icon" aria-hidden="true"><i class="fa-solid fa-calendar-plus"></i></span>
+                <span class="cc-quick-label">Skapa möte</span>
+              </a>
+              <a href="{% url 'portal:document_archive' %}" class="cc-quick-tile quick-action">
+                <span class="cc-quick-icon" aria-hidden="true"><i class="fa-solid fa-box-archive"></i></span>
+                <span class="cc-quick-label">Dokumentarkiv</span>
+              </a>
+              <a href="{% url 'fisheries:overview' %}" class="cc-quick-tile quick-action">
+                <span class="cc-quick-icon" aria-hidden="true"><i class="fa-solid fa-fish"></i></span>
+                <span class="cc-quick-label">Fiskevård</span>
+              </a>
+              <a href="{% url 'calendarapp:list' %}" class="cc-quick-tile quick-action">
+                <span class="cc-quick-icon" aria-hidden="true"><i class="fa-solid fa-calendar-days"></i></span>
+                <span class="cc-quick-label">Kalender</span>
+              </a>
+              <a href="{% url 'maps:map_page' %}" class="cc-quick-tile quick-action">
+                <span class="cc-quick-icon" aria-hidden="true"><i class="fa-solid fa-map-location-dot"></i></span>
+                <span class="cc-quick-label">Karta</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="cc-workspace-foot">
+        <div class="command-center-item command-center-item-dialogs d-flex">
+          <div class="card card-dialog shadow-soft flex-fill w-100 cc-work-card cc-dialogs-panel">
+            <div class="card-body d-flex flex-column">
+              <div class="cc-card-head d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="h6 mb-0 d-flex align-items-center gap-2">
+                  <span class="cc-card-head-icon" aria-hidden="true"><i class="fa-solid fa-comments"></i></span>
+                  <span>Dialoger och frågor</span>
+                </h2>
+                <span class="cc-pill cc-pill--amber cc-pill--action-required">Behöver svar</span>
+              </div>
+              <p class="text-muted small mb-3 cc-card-lead">Frågor som väntar på återkoppling.</p>
+              <div class="cc-feed-list cc-feed-list--dialogs-wide">
+                <div class="cc-feed-row cc-dialog-pill">
+                  <span class="cc-feed-dot" aria-hidden="true"><i class="fa-solid fa-fish"></i></span>
+                  <div class="cc-feed-main">
+                    <div class="cc-feed-line">
+                      <span class="cc-feed-text">Medlemsfråga om fiskevårdsinsats</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="cc-feed-row cc-dialog-pill">
+                  <span class="cc-feed-dot" aria-hidden="true"><i class="fa-solid fa-file-pen"></i></span>
+                  <div class="cc-feed-main">
+                    <div class="cc-feed-line">
+                      <span class="cc-feed-text">Kommentar på dokumentutkast</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="cc-feed-row cc-dialog-pill">
+                  <span class="cc-feed-dot" aria-hidden="true"><i class="fa-solid fa-user-group"></i></span>
+                  <div class="cc-feed-main">
+                    <div class="cc-feed-line">
+                      <span class="cc-feed-text">Intern fråga om ansvarsfördelning</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
+  </section>
 
-<div class="row g-4">
+  <section class="dashboard-section activity-stream-section">
+    <div class="row g-4">
 
-  <div class="col-lg-6 d-flex">
-    <div class="card shadow-soft flex-fill w-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h2 class="h5 mb-0">Senaste dokument</h2>
-          <a href="{% url 'portal:document_list' %}" class="btn btn-sm btn-outline-secondary">
-            Visa alla
-          </a>
+      <div class="col-lg-6 d-flex">
+        <div class="card shadow-soft flex-fill w-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h2 class="h5 mb-0 section-title">Senaste dokument</h2>
+              <a href="{% url 'portal:document_list' %}" class="btn btn-sm btn-outline-secondary">
+                Visa alla
+              </a>
+            </div>
+
+            {% if recent_documents %}
+              <div class="d-flex flex-column dashboard-scroll-list">
+                {% for doc in recent_documents %}
+                  <div class="py-1 border-bottom">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                      <div>
+                        <div class="fw-semibold">
+                          <a href="{% url 'portal:document_detail' doc.pk %}" class="text-decoration-none">
+                            {{ doc.title }}
+                          </a>
+                        </div>
+                        <div class="small text-muted">
+                          {{ doc.get_category_display }}
+                        </div>
+                      </div>
+
+                      {% if doc.current_version %}
+                        <span class="badge text-bg-light border">
+                          v{{ doc.current_version.version_number }}
+                        </span>
+                      {% endif %}
+                    </div>
+
+                    <div class="small text-muted mt-0">
+                      Senast uppdaterad {{ doc.updated_at|date:"Y-m-d H:i" }}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="text-muted small">Inga dokument ännu.</div>
+            {% endif %}
+          </div>
         </div>
+      </div>
 
-        {% if recent_documents %}
-          <div class="d-flex flex-column" style="max-height: 320px; overflow-y: auto;">
-            {% for doc in recent_documents %}
-              <div class="py-1 border-bottom">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                  <div>
-                    <div class="fw-semibold">
-                      <a href="{% url 'portal:document_detail' doc.pk %}" class="text-decoration-none">
-                        {{ doc.title }}
+      <div class="col-lg-6 d-flex">
+        <div class="card shadow-soft flex-fill w-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h2 class="h5 mb-0 section-title">Senaste aktivitet</h2>
+              <a href="{% url 'portal:activity_list' %}" class="btn btn-sm btn-outline-secondary">
+                Visa alla
+              </a>
+            </div>
+
+            {% if recent_activities %}
+              <div class="d-flex flex-column dashboard-scroll-list">
+                {% for act in recent_activities %}
+                  <div class="py-1 border-bottom">
+                    <div class="fw-semibold">{{ act.get_action_display }}</div>
+
+                    <div class="small mt-0">
+                      <a href="{% url 'portal:document_detail' act.document.pk %}" class="text-decoration-none">
+                        {{ act.document.title }}
                       </a>
                     </div>
-                    <div class="small text-muted">
-                      {{ doc.get_category_display }}
+
+                    {% if act.message %}
+                      <div class="small text-muted mt-0">
+                        {{ act.message|truncatechars:90 }}
+                      </div>
+                    {% endif %}
+
+                    <div class="small text-muted mt-0">
+                      {% if act.user %}
+                        {{ act.user.email|default:act.user.username }}
+                      {% else %}
+                        —
+                      {% endif %}
+                      · {{ act.created_at|date:"Y-m-d H:i" }}
                     </div>
                   </div>
-
-                  {% if doc.current_version %}
-                    <span class="badge text-bg-light border">
-                      v{{ doc.current_version.version_number }}
-                    </span>
-                  {% endif %}
-                </div>
-
-                <div class="small text-muted mt-0">
-                  Senast uppdaterad {{ doc.updated_at|date:"Y-m-d H:i" }}
-                </div>
+                {% endfor %}
               </div>
-            {% endfor %}
+            {% else %}
+              <div class="text-muted small">Ingen aktivitet ännu.</div>
+            {% endif %}
           </div>
-        {% else %}
-          <div class="text-muted small">Inga dokument ännu.</div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <div class="col-lg-6 d-flex">
-    <div class="card shadow-soft flex-fill w-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h2 class="h5 mb-0">Senaste aktivitet</h2>
-          <a href="{% url 'portal:activity_list' %}" class="btn btn-sm btn-outline-secondary">
-            Visa alla
-          </a>
         </div>
-
-        {% if recent_activities %}
-          <div class="d-flex flex-column" style="max-height: 320px; overflow-y: auto;">
-            {% for act in recent_activities %}
-              <div class="py-1 border-bottom">
-                <div class="fw-semibold">{{ act.get_action_display }}</div>
-
-                <div class="small mt-0">
-                  <a href="{% url 'portal:document_detail' act.document.pk %}" class="text-decoration-none">
-                    {{ act.document.title }}
-                  </a>
-                </div>
-
-                {% if act.message %}
-                  <div class="small text-muted mt-0">
-                    {{ act.message|truncatechars:90 }}
-                  </div>
-                {% endif %}
-
-                <div class="small text-muted mt-0">
-                  {% if act.user %}
-                    {{ act.user.email|default:act.user.username }}
-                  {% else %}
-                    —
-                  {% endif %}
-                  · {{ act.created_at|date:"Y-m-d H:i" }}
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="text-muted small">Ingen aktivitet ännu.</div>
-        {% endif %}
       </div>
     </div>
-  </div>
-</div>
+  </section>
 </div>
 {% endblock %}

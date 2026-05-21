@@ -1,5 +1,5 @@
 import os
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -17,6 +17,8 @@ from io import BytesIO
 import base64
 
 from calendarapp.calendar_widget import build_dashboard_calendar_widget
+from calendarapp.models import CalendarEvent
+from fisheries.models import ActionArea, ActionPriority, ActionStatus
 from fishingrights.models import FishingRightShare, Property
 from documents.forms import (
     DocumentCreateForm,
@@ -30,7 +32,11 @@ from documents.forms import (
 )
 from documents.models import (
     Document,
+    DocumentApproval,
+    DocumentApprovalStatus,
     DocumentActivity,
+    DocumentSignature,
+    DocumentSignatureStatus,
     DocumentSourceType,
     DocumentTemplate,
     DocumentVersion,
@@ -188,6 +194,148 @@ def dashboard(request):
         document__org=org
     ).select_related("document", "user").order_by("-created_at")[:5]
 
+    pending_approvals = (
+        DocumentApproval.objects.filter(
+            document__org=org,
+            document__is_deleted=False,
+            reviewer=request.user,
+            status=DocumentApprovalStatus.PENDING,
+        )
+        .select_related("document")
+        .order_by("-created_at")
+    )
+
+    pending_signatures = (
+        DocumentSignature.objects.filter(
+            document__org=org,
+            document__is_deleted=False,
+            user=request.user,
+            status=DocumentSignatureStatus.PENDING,
+        )
+        .select_related("document")
+        .order_by("-created_at")
+    )
+
+    important_actions = []
+
+    for approval in pending_approvals:
+        important_actions.append(
+            {
+                "label": "Väntar på din justering",
+                "title": approval.document.title,
+                "url": reverse("portal:document_detail", args=[approval.document.pk]),
+                "source": "documents",
+                "due_at": None,
+                "priority": "normal",
+                "created_at": approval.created_at,
+            }
+        )
+
+    for signature in pending_signatures:
+        important_actions.append(
+            {
+                "label": "Väntar på din signering",
+                "title": signature.document.title,
+                "url": reverse("portal:document_detail", args=[signature.document.pk]),
+                "source": "documents",
+                "due_at": None,
+                "priority": "normal",
+                "created_at": signature.created_at,
+            }
+        )
+
+    today = timezone.localdate()
+    fisheries_relevant = (
+        Q(deadline__isnull=False)
+        | Q(priority__in=[ActionPriority.HIGH, ActionPriority.CRITICAL])
+        | Q(status__in=[ActionStatus.URGENT, ActionStatus.NEEDS_ACTION])
+        | Q(responsible_user__isnull=True)
+    )
+    fisheries_actions = (
+        ActionArea.objects.filter(org=org, is_active=True)
+        .filter(fisheries_relevant)
+        .exclude(status=ActionStatus.COMPLETED)
+        .order_by("created_at")
+    )
+
+    for action in fisheries_actions:
+        dl = action.deadline
+        if dl and dl < today:
+            label = "Förfallen fiskevårdsåtgärd"
+        elif dl and dl <= today + timedelta(days=14):
+            label = "Fiskevårdsåtgärd med deadline"
+        elif action.responsible_user_id is None:
+            label = "Fiskevårdsåtgärd saknar ansvarig"
+        else:
+            label = "Viktig fiskevårdsåtgärd"
+
+        important_actions.append(
+            {
+                "label": label,
+                "title": action.name,
+                "url": reverse("fisheries:action_detail", args=[action.pk]),
+                "source": "fisheries",
+                "due_at": dl,
+                "priority": action.priority,
+                "created_at": action.created_at,
+            }
+        )
+
+    priority_rank = {
+        "critical": 0,
+        "high": 1,
+        "medium": 2,
+        "low": 3,
+        "normal": 4,
+    }
+
+    def important_actions_sort_key(item):
+        due = item.get("due_at")
+        pr = item.get("priority") or "normal"
+        pr_i = priority_rank.get(pr, 4)
+        created = item["created_at"]
+        created_ts = created.timestamp() if hasattr(created, "timestamp") else 0
+
+        if due:
+            due_ord = due.toordinal()
+            if due < today:
+                return (0, due_ord, pr_i, created_ts)
+            return (1, due_ord, pr_i, created_ts)
+        return (2, 0, pr_i, created_ts)
+
+    important_actions = sorted(important_actions, key=important_actions_sort_key)[:6]
+
+    document_count = Document.objects.filter(
+        org=org,
+        is_deleted=False,
+    ).count()
+
+    now = timezone.now()
+    upcoming_events = (
+        CalendarEvent.objects.filter(
+            org=org,
+            start_at__gte=now,
+            start_at__lte=now + timedelta(days=14),
+        )
+        .order_by("start_at", "title")[:5]
+    )
+
+    upcoming_meetings_count = CalendarEvent.objects.filter(
+        org=org,
+        start_at__gte=now,
+        start_at__lte=now + timedelta(days=30),
+        event_type="meeting",
+    ).count()
+
+    news_feed = (
+        DocumentActivity.objects.filter(
+            document__org=org,
+            document__is_deleted=False,
+        )
+        .select_related("document", "user")
+        .order_by("-created_at")[:5]
+    )
+
     calendar_widget = build_dashboard_calendar_widget(org)
 
     return render(
@@ -196,6 +344,11 @@ def dashboard(request):
         {
             "recent_documents": recent_documents,
             "recent_activities": recent_activities,
+            "important_actions": important_actions,
+            "document_count": document_count,
+            "upcoming_events": upcoming_events,
+            "upcoming_meetings_count": upcoming_meetings_count,
+            "news_feed": news_feed,
             "calendar_widget": calendar_widget,
         },
     )

@@ -2,11 +2,29 @@ from django.contrib import admin
 from core.admin import OrgAdminMixin
 from .models import (
     Document,
+    DocumentFolder,
     DocumentVersion,
     DocumentTemplate,
     DocumentApproval,
     DocumentSignature,
 )
+
+
+@admin.register(DocumentFolder)
+class DocumentFolderAdmin(OrgAdminMixin, admin.ModelAdmin):
+    list_display = (
+        "name",
+        "org",
+        "parent",
+        "folder_type",
+        "is_system_folder",
+        "year",
+        "month",
+        "created_at",
+    )
+    list_filter = ("org", "folder_type", "is_system_folder", "year", "month")
+    search_fields = ("name", "system_key")
+    ordering = ("name",)
 
 
 @admin.register(DocumentTemplate)
@@ -45,6 +63,8 @@ class DocumentAdmin(OrgAdminMixin, admin.ModelAdmin):
         "category",
         "workflow_status",
         "org",
+        "folder",
+        "folder_auto_assigned",
         "uploaded_by",
         "updated_at",
     )

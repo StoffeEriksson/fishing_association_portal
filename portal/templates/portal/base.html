@@ -5,6 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}FVO Portal{% endblock %}</title>
+  <meta name="description" content="FVO Portal är en digital plattform för fastighetsägare och bostadsrättsföreningar att hantera sina fastigheter, dokument och styrelsearbete på ett smidigt sätt.">
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -14,104 +15,167 @@
   {% block extra_css %}{% endblock %}
 
   <!-- Min JS -->
-   
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   
 </head>
 
-<body>
+<body class="portal-app-body">
 
-<nav class="navbar navbar-expand-lg navbar-dark portal-navbar">
-  <div class="container-fluid content-wrapper">
-
-    <!-- Logo -->
-    <a class="navbar-brand portal-brand" href="{% url 'portal:dashboard' %}">
-      FVO Portal
-    </a>
-
-    <!-- Mobil toggle -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#portalNav">
-      <span class="navbar-toggler-icon"></span>
+<div class="portal-layout" id="portal-layout">
+<script>
+(function () {
+  var el = document.getElementById('portal-layout');
+  if (!el) return;
+  try {
+    if (window.matchMedia('(min-width: 992px)').matches && localStorage.getItem('portalSidebarCollapsed') === '1') {
+      el.classList.add('sidebar-collapsed');
+    }
+  } catch (e) {}
+})();
+</script>
+  <aside class="portal-sidebar sidebar d-flex flex-column" aria-label="Huvudnavigering">
+    <button type="button" class="sidebar-toggle-tab" aria-label="Stäng meny" aria-expanded="true">
+      <span class="sidebar-toggle-tab-icons" aria-hidden="true">
+        <i class="fa-solid fa-chevron-left sidebar-toggle-tab-icon sidebar-toggle-tab-icon-expanded"></i>
+        <i class="fa-solid fa-chevron-right sidebar-toggle-tab-icon sidebar-toggle-tab-icon-collapsed"></i>
+      </span>
     </button>
+    <div class="portal-sidebar-top d-flex flex-column flex-grow-1 min-vh-0">
+      <div class="sidebar-header flex-shrink-0">
+        <a class="portal-sidebar-logo" href="{% url 'portal:dashboard' %}">
+          <img src="{% static 'images/windify-navbar-logo-cropped.png' %}" alt="Windify" class="sidebar-logo" decoding="async">
+          <span class="sidebar-title sidebar-label">Portal</span>
+        </a>
+      </div>
 
-    <!-- Meny -->
-    <div class="collapse navbar-collapse" id="portalNav">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-
-        <li class="nav-item">
-          <a class="nav-link activeish" href="{% url 'portal:dashboard' %}">
-            Översikt
-          </a>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'portal:property_list' %}">
-            Fastigheter
-          </a>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'portal:document_overview' %}">
-            Dokument
-          </a>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'governance:dashboard' %}">
-            Styrelse
-          </a>
-        </li>
-
-      </ul>
-
-      <!-- Höger del -->
-      <div class="d-flex align-items-center gap-3">
-
-        {% if request.org %}
-          <span class="badge org-badge px-3 py-2">
-            {{ request.org.name }}
-          </span>
-        {% else %}
-          <span class="badge text-bg-warning px-3 py-2">
-            Ingen organisation
-          </span>
-        {% endif %}
-
-        <div class="text-end top-meta">
-          <div>Inloggad som</div>
-          <div class="fw-semibold text-white">
-            {{ request.user.email|default:request.user.username }}
+      <nav class="portal-side-nav d-flex flex-column flex-grow-1 overflow-y-auto">
+        {% with ns=request.resolver_match.namespace un=request.resolver_match.url_name %}
+        <a class="portal-sidebar-link portal-sidebar-link-overview sidebar-link {% if ns == 'portal' and un == 'dashboard' %}active{% endif %}" href="{% url 'portal:dashboard' %}"{% if ns == 'portal' and un == 'dashboard' %} aria-current="page"{% endif %}>
+          <span class="portal-sidebar-ico" aria-hidden="true"><i class="fa-solid fa-house"></i></span>
+          <span class="sidebar-label">Översikt</span>
+        </a>
+        <div class="portal-sidebar-group">
+          <button class="portal-sidebar-toggle sidebar-link {% if ns == 'governance' %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-nav-styrelse" aria-expanded="{% if ns == 'governance' %}true{% else %}false{% endif %}" aria-controls="sidebar-nav-styrelse">
+            <span class="portal-sidebar-ico" aria-hidden="true"><i class="fa-solid fa-users"></i></span>
+            <span class="portal-sidebar-toggle-label sidebar-label">Styrelse</span>
+            <span class="portal-sidebar-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+          </button>
+          <div id="sidebar-nav-styrelse" class="collapse portal-sidebar-collapse sidebar-submenu {% if ns == 'governance' %}show{% endif %}">
+            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'board_member_list' or ns == 'governance' and un == 'board_member_create' or ns == 'governance' and un == 'board_member_update' or ns == 'governance' and un == 'board_member_deactivate' %}active{% endif %}" href="{% url 'governance:board_member_list' %}"{% if ns == 'governance' and un == 'board_member_list' or ns == 'governance' and un == 'board_member_create' or ns == 'governance' and un == 'board_member_update' or ns == 'governance' and un == 'board_member_deactivate' %} aria-current="page"{% endif %}>Styrelsemedlemmar</a>
+            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_create' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' %}active{% endif %}" href="{% url 'governance:upcoming_meetings' %}"{% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_create' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' %} aria-current="page"{% endif %}>Möten</a>
+            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'protocol_review_list' %}active{% endif %}" href="{% url 'governance:protocol_review_list' %}"{% if ns == 'governance' and un == 'protocol_review_list' %} aria-current="page"{% endif %}>Protokoll för justering</a>
+            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'matter_list' or ns == 'governance' and un == 'matter_create' or ns == 'governance' and un == 'matter_detail' or ns == 'governance' and un == 'matter_update' or ns == 'governance' and un == 'matter_change_status' %}active{% endif %}" href="{% url 'governance:matter_list' %}"{% if ns == 'governance' and un == 'matter_list' or ns == 'governance' and un == 'matter_create' or ns == 'governance' and un == 'matter_detail' or ns == 'governance' and un == 'matter_update' or ns == 'governance' and un == 'matter_change_status' %} aria-current="page"{% endif %}>Ärenden</a>
+            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'activity_log_list' %}active{% endif %}" href="{% url 'governance:activity_log_list' %}"{% if ns == 'governance' and un == 'activity_log_list' %} aria-current="page"{% endif %}>Auditlogg</a>
           </div>
         </div>
 
-        <a class="btn btn-outline-light btn-sm" href="{% url 'account_logout' %}">
-          Logga ut
+        <div class="portal-sidebar-group">
+          <button class="portal-sidebar-toggle sidebar-link {% if ns == 'portal' and un != 'dashboard' and un != 'property_list' and un != 'property_detail' %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-nav-dokument" aria-expanded="{% if ns == 'portal' and un != 'dashboard' and un != 'property_list' and un != 'property_detail' %}true{% else %}false{% endif %}" aria-controls="sidebar-nav-dokument">
+            <span class="portal-sidebar-ico" aria-hidden="true"><i class="fa-solid fa-folder-open"></i></span>
+            <span class="portal-sidebar-toggle-label sidebar-label">Dokument</span>
+            <span class="portal-sidebar-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+          </button>
+          <div id="sidebar-nav-dokument" class="collapse portal-sidebar-collapse sidebar-submenu {% if ns == 'portal' and un != 'dashboard' and un != 'property_list' and un != 'property_detail' %}show{% endif %}">
+            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'portal' and un == 'document_archive' %}active{% endif %}" href="{% url 'portal:document_archive' %}"{% if ns == 'portal' and un == 'document_archive' %} aria-current="page"{% endif %}>Arkiv</a>
+            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'portal' and un == 'document_workspace' %}active{% endif %}" href="{% url 'portal:document_workspace' %}"{% if ns == 'portal' and un == 'document_workspace' %} aria-current="page"{% endif %}>Arbetsdokument</a>
+            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'portal' and un == 'document_trash' %}active{% endif %}" href="{% url 'portal:document_trash' %}"{% if ns == 'portal' and un == 'document_trash' %} aria-current="page"{% endif %}>Papperskorgen</a>
+          </div>
+        </div>
+
+        <a class="portal-sidebar-link sidebar-link {% if ns == 'portal' and un == 'property_list' or ns == 'portal' and un == 'property_detail' %}active{% endif %}" href="{% url 'portal:property_list' %}"{% if ns == 'portal' and un == 'property_list' or ns == 'portal' and un == 'property_detail' %} aria-current="page"{% endif %}>
+          <span class="portal-sidebar-ico" aria-hidden="true"><i class="fa-solid fa-building"></i></span>
+          <span class="sidebar-label">Fastigheter</span>
         </a>
-
-      </div>
+        <a class="portal-sidebar-link sidebar-link {% if ns == 'calendarapp' %}active{% endif %}" href="{% url 'calendarapp:list' %}"{% if ns == 'calendarapp' %} aria-current="page"{% endif %}>
+          <span class="portal-sidebar-ico" aria-hidden="true"><i class="fa-solid fa-calendar-days"></i></span>
+          <span class="sidebar-label">Kalender</span>
+        </a>
+        <a class="portal-sidebar-link sidebar-link {% if ns == 'fisheries' %}active{% endif %}" href="{% url 'fisheries:overview' %}"{% if ns == 'fisheries' %} aria-current="page"{% endif %}>
+          <span class="portal-sidebar-ico" aria-hidden="true"><i class="fa-solid fa-fish"></i></span>
+          <span class="sidebar-label">Fiskevård</span>
+        </a>
+        <a class="portal-sidebar-link sidebar-link {% if ns == 'maps' and un == 'map_page' %}active{% endif %}" href="{% url 'maps:map_page' %}"{% if ns == 'maps' and un == 'map_page' %} aria-current="page"{% endif %}>
+          <span class="portal-sidebar-ico" aria-hidden="true"><i class="fa-solid fa-map-location-dot"></i></span>
+          <span class="sidebar-label">Karta</span>
+        </a>
+        {% endwith %}
+      </nav>
     </div>
-  </div>
-</nav>
 
-<!-- Innehåll -->
-<main class="container-fluid content-wrapper py-4">
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert 
-          {% if message.tags == 'error' %}alert-danger
-          {% elif message.tags == 'warning' %}alert-warning
-          {% elif message.tags == 'success' %}alert-success
-          {% else %}alert-info
+    <div class="portal-sidebar-footer portal-sidebar-bottom mt-auto flex-shrink-0">
+      <!-- TODO: Byt href="#" till riktig url med befintlig url-tag när inställningsroute finns i projektet. -->
+      <a class="portal-sidebar-settings" href="#" aria-label="Inställningar (kommer snart)">
+        <span class="portal-sidebar-ico" aria-hidden="true"><i class="fa-solid fa-gear"></i></span>
+        <span class="sidebar-label">Inställningar</span>
+      </a>
+    </div>
+  </aside>
+
+  <div class="portal-main">
+    <header class="portal-topbar">
+      <div class="portal-topbar-inner content-wrapper">
+        <div class="portal-topbar-start">
+          {% block portal_topbar_start %}{% endblock %}
+        </div>
+
+        <div class="portal-topbar-search" role="search">
+          <label class="visually-hidden" for="portal-topbar-search-input">Sök i portalen</label>
+          <i class="fa-solid fa-magnifying-glass portal-topbar-search-icon" aria-hidden="true"></i>
+          <input id="portal-topbar-search-input" class="portal-topbar-search-input" type="search" placeholder="Sök…" autocomplete="off" disabled>
+        </div>
+
+        <div class="portal-topbar-end">
+          {% if request.org %}
+            <span class="badge org-badge px-2 py-1 portal-topbar-org-badge">
+              {{ request.org.name }}
+            </span>
+          {% else %}
+            <span class="badge text-bg-warning px-2 py-1">
+              Ingen organisation
+            </span>
           {% endif %}
-          alert-dismissible fade show" role="alert">
 
-        {{ message }}
+          <div class="text-end portal-topbar-user top-meta">
+            <div>Inloggad som</div>
+            <div class="fw-semibold portal-topbar-user-email">
+              {{ request.user.email|default:request.user.username }}
+            </div>
+          </div>
 
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          <a class="btn btn-outline-secondary btn-sm portal-topbar-logout" href="{% url 'account_logout' %}" title="Logga ut">
+            <span class="d-none d-sm-inline">Logga ut</span>
+            <i class="fa-solid fa-right-from-bracket d-sm-none" aria-hidden="true"></i>
+            <span class="visually-hidden d-sm-none">Logga ut</span>
+          </a>
+        </div>
       </div>
-    {% endfor %}
-  {% endif %}
-  {% block content %}{% endblock %}
-</main>
+    </header>
+
+    <main class="portal-main-scroll">
+      <div class="portal-main-inner content-wrapper portal-content">
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert 
+                {% if message.tags == 'error' %}alert-danger
+                {% elif message.tags == 'warning' %}alert-warning
+                {% elif message.tags == 'success' %}alert-success
+                {% else %}alert-info
+                {% endif %}
+                alert-dismissible fade show" role="alert">
+
+              {{ message }}
+
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+</div>
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

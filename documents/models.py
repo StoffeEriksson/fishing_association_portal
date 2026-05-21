@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 
 from core.tenancy import OrgModel
 
@@ -58,6 +60,84 @@ class DocumentTemplate(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class DocumentFolderType(models.TextChoices):
+    ARCHIVE_ROOT = "archive_root", "Arkiv"
+    YEAR = "year", "År"
+    MONTH = "month", "Månad"
+    MEETING_GROUP = "meeting_group", "Möteskategori"
+    STATIC = "static", "Systemmapp"
+    CUSTOM = "custom", "Anpassad"
+
+
+class DocumentFolder(OrgModel):
+    name = models.CharField(max_length=255)
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="document_folders_created",
+    )
+    is_system_folder = models.BooleanField(default=False)
+    folder_type = models.CharField(
+        max_length=40,
+        choices=DocumentFolderType.choices,
+        default=DocumentFolderType.CUSTOM,
+    )
+    system_key = models.CharField(max_length=160, blank=True, db_index=True)
+    year = models.PositiveSmallIntegerField(null=True, blank=True)
+    month = models.PositiveSmallIntegerField(null=True, blank=True)
+    meeting_type = models.CharField(max_length=20, blank=True)
+    related_meeting = models.ForeignKey(
+        "governance.Meeting",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="document_folders",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["org", "parent"]),
+            models.Index(fields=["org", "folder_type"]),
+            models.Index(fields=["org", "system_key"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["org", "system_key"],
+                condition=Q(is_system_folder=True),
+                name="uniq_document_folder_system_key_per_org",
+            ),
+            models.UniqueConstraint(
+                fields=["org", "parent", "name"],
+                condition=Q(is_system_folder=False),
+                name="uniq_document_folder_name_per_parent_org",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        super().clean()
+
+        if self.parent_id and self.parent.org_id != self.org_id:
+            raise ValidationError({"parent": "Överordnad mapp måste tillhöra samma organisation."})
+
+        if self.related_meeting_id and self.related_meeting.org_id != self.org_id:
+            raise ValidationError(
+                {"related_meeting": "Kopplat möte måste tillhöra samma organisation."}
+            )
 
 
 class Document(OrgModel):
@@ -131,6 +211,14 @@ class Document(OrgModel):
         blank=True,
         related_name="deleted_documents",
     )
+    folder = models.ForeignKey(
+        "DocumentFolder",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="documents",
+    )
+    folder_auto_assigned = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-updated_at"]
