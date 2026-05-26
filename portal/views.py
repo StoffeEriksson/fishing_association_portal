@@ -604,7 +604,122 @@ def render_document_collection(request, mode):
 
 @login_required
 def document_workspace(request):
-    return render_document_collection(request, mode="workspace")
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+    workspace_root = _ensure_workspace_root(org)
+    folder_id = (request.GET.get("folder") or "").strip()
+    scope = _workspace_folder_scope(org)
+    workspace_folders = scope["workspace_folders"]
+    workspace_ids = scope["workspace_ids"]
+    folder_in_archive = scope["folder_in_archive"]
+
+    if folder_id:
+        current_folder = get_object_or_404(
+            DocumentFolder.objects.select_related("parent"),
+            pk=folder_id,
+            org=org,
+        )
+        if folder_in_archive.get(current_folder.pk, False):
+            raise Http404("Mappen finns inte i arbetsdokument.")
+    else:
+        current_folder = workspace_root
+
+    folders = [
+        f for f in workspace_folders
+        if current_folder is not None and f.parent_id == current_folder.pk
+    ]
+    folders.sort(key=lambda f: (f.folder_type, f.name.lower(), f.pk))
+
+    docs_qs = (
+        Document.objects.filter(
+            org=org,
+            is_deleted=False,
+        )
+        .exclude(
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+        )
+        .select_related("meeting", "folder")
+        .prefetch_related("signatures")
+    )
+
+    if current_folder is not None:
+        if current_folder.pk == workspace_root.pk:
+            docs_qs = docs_qs.filter(
+                Q(folder=current_folder) | Q(folder__isnull=True)
+            )
+        else:
+            docs_qs = docs_qs.filter(folder=current_folder)
+    else:
+        docs_qs = docs_qs.filter(folder__isnull=True)
+
+    documents = []
+    for d in docs_qs.order_by("-created_at"):
+        if d.folder_id and folder_in_archive.get(d.folder_id, False):
+            continue
+        d.has_pending_signatures = (
+            d.workflow_status == DocumentWorkflowStatus.APPROVED
+            and any(
+                s.status == DocumentSignatureStatus.PENDING
+                for s in d.signatures.all()
+            )
+        )
+        documents.append(d)
+
+    breadcrumbs = _build_workspace_breadcrumbs(current_folder) if current_folder else []
+    expanded_folder_ids = _collect_expanded_folder_ids(current_folder)
+    folder_document_counts = _workspace_folder_document_counts(org, workspace_ids)
+
+    for f in folders:
+        f.workspace_doc_count = folder_document_counts.get(f.pk, 0)
+    for crumb in breadcrumbs:
+        crumb["folder"].workspace_doc_count = folder_document_counts.get(
+            crumb["folder"].pk, 0
+        )
+
+    tree_children_by_parent = {}
+    for f in workspace_folders:
+        pid = f.parent_id
+        if pid is None:
+            continue
+        tree_children_by_parent.setdefault(pid, []).append(f)
+    for pid in tree_children_by_parent:
+        tree_children_by_parent[pid].sort(
+            key=lambda f: (f.folder_type, f.name.lower(), f.pk)
+        )
+
+    tree_nodes = []
+
+    def append_tree(folder, depth):
+        tree_nodes.append({
+            "folder": folder,
+            "depth": depth,
+            "doc_count": folder_document_counts.get(folder.pk, 0),
+        })
+        for child in tree_children_by_parent.get(folder.pk, []):
+            append_tree(child, depth + 1)
+
+    for child in tree_children_by_parent.get(workspace_root.pk, []):
+        append_tree(child, 1)
+
+    return render(
+        request,
+        "portal/document_workspace_browser.html",
+        {
+            "workspace_root": workspace_root,
+            "current_folder": current_folder,
+            "folders": folders,
+            "documents": documents,
+            "breadcrumbs": breadcrumbs,
+            "expanded_folder_ids": expanded_folder_ids,
+            "folder_document_counts": folder_document_counts,
+            "tree_nodes": tree_nodes,
+            "workspace_root_missing": False,
+        },
+    )
 
 
 def _collect_expanded_folder_ids(current_folder):
@@ -691,6 +806,220 @@ def _build_archive_breadcrumbs(current_folder):
         folder = folder.parent
     crumbs.reverse()
     return crumbs
+
+
+def _is_archive_system_key(system_key):
+    key = (system_key or "").strip().lower()
+    return key == "archive" or key.startswith("archive/")
+
+
+def _workspace_folder_scope(org):
+    """
+    Return all org folders outside the archive subtree.
+    Also returns maps for fast lookups and archive-subtree checks.
+    """
+    folders = list(
+        DocumentFolder.objects.filter(org=org).select_related("parent")
+    )
+    by_id = {f.pk: f for f in folders}
+    archive_memo = {}
+
+    def is_archive_folder(folder):
+        if folder is None:
+            return False
+        cached = archive_memo.get(folder.pk)
+        if cached is not None:
+            return cached
+        if _is_archive_system_key(folder.system_key):
+            archive_memo[folder.pk] = True
+            return True
+        if folder.parent_id is None:
+            archive_memo[folder.pk] = False
+            return False
+        parent = by_id.get(folder.parent_id)
+        in_archive = is_archive_folder(parent)
+        archive_memo[folder.pk] = in_archive
+        return in_archive
+
+    folder_in_archive = {}
+    workspace_folders = []
+    for f in folders:
+        in_archive = is_archive_folder(f)
+        folder_in_archive[f.pk] = in_archive
+        if not in_archive:
+            workspace_folders.append(f)
+
+    workspace_ids = {f.pk for f in workspace_folders}
+    return {
+        "workspace_folders": workspace_folders,
+        "workspace_ids": workspace_ids,
+        "folder_in_archive": folder_in_archive,
+    }
+
+
+def _build_workspace_breadcrumbs(current_folder):
+    crumbs = []
+    folder = current_folder
+    while folder is not None:
+        crumbs.append({
+            "folder": folder,
+            "name": folder.name,
+            "url": f"{reverse('portal:document_workspace')}?folder={folder.pk}",
+        })
+        folder = folder.parent
+    crumbs.reverse()
+    return crumbs
+
+
+def _workspace_folder_document_counts(org, workspace_folder_ids):
+    rows = (
+        Document.objects.filter(
+            org=org,
+            is_deleted=False,
+            folder_id__in=workspace_folder_ids,
+        )
+        .exclude(
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+        )
+        .values("folder_id")
+        .annotate(c=Count("id"))
+    )
+    return {row["folder_id"]: row["c"] for row in rows}
+
+
+def _ensure_workspace_root(org):
+    """Create workspace system root on demand (tenant-scoped, no migration)."""
+    folder, _created = DocumentFolder.objects.get_or_create(
+        org=org,
+        system_key="workspace",
+        is_system_folder=True,
+        defaults={
+            "name": "Arbetsdokument",
+            "parent": None,
+            "folder_type": DocumentFolderType.STATIC,
+        },
+    )
+
+    orphans = DocumentFolder.objects.filter(
+        org=org,
+        parent__isnull=True,
+        is_system_folder=False,
+    ).exclude(pk=folder.pk)
+
+    for orphan in orphans:
+        if _is_archive_system_key(orphan.system_key):
+            continue
+        orphan.parent = folder
+        orphan.save(update_fields=["parent"])
+
+    return folder
+
+
+def _folder_is_valid_workspace_parent(parent, workspace_root, by_id, folder_in_archive):
+    """Parent must be workspace-root or a descendant under it, never under archive."""
+    if parent is None or workspace_root is None:
+        return False
+    if folder_in_archive.get(parent.pk, False):
+        return False
+    if parent.pk == workspace_root.pk:
+        return True
+    node = parent
+    seen = set()
+    while node is not None and node.pk not in seen:
+        seen.add(node.pk)
+        if node.pk == workspace_root.pk:
+            return True
+        if folder_in_archive.get(node.pk, False):
+            return False
+        pid = node.parent_id
+        node = by_id.get(pid) if pid else None
+    return False
+
+
+def _workspace_redirect_url(parent):
+    url = reverse("portal:document_workspace")
+    if parent is not None:
+        return f"{url}?folder={parent.pk}"
+    return url
+
+
+def _workspace_redirect_url_for_post(org, parent_id):
+    """Redirect target when validation fails before parent is resolved."""
+    if parent_id:
+        parent = DocumentFolder.objects.filter(pk=parent_id, org=org).first()
+        if parent:
+            return _workspace_redirect_url(parent)
+    workspace_root = DocumentFolder.objects.filter(
+        org=org,
+        system_key="workspace",
+        is_system_folder=True,
+    ).first()
+    return _workspace_redirect_url(workspace_root)
+
+
+@login_required
+@require_POST
+def document_workspace_folder_create(request):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+    name = (request.POST.get("name") or "").strip()
+    parent_id = (request.POST.get("parent_id") or "").strip()
+
+    if not name:
+        messages.error(request, "Ange ett mappnamn.")
+        return redirect(_workspace_redirect_url_for_post(org, parent_id))
+
+    if len(name) > 255:
+        messages.error(request, "Mappnamnet får vara högst 255 tecken.")
+        return redirect(_workspace_redirect_url_for_post(org, parent_id))
+
+    scope = _workspace_folder_scope(org)
+    by_id = {
+        f.pk: f
+        for f in DocumentFolder.objects.filter(org=org).select_related("parent")
+    }
+    folder_in_archive = scope["folder_in_archive"]
+    workspace_root = _ensure_workspace_root(org)
+
+    if parent_id:
+        parent = get_object_or_404(DocumentFolder, pk=parent_id, org=org)
+        if not _folder_is_valid_workspace_parent(
+            parent, workspace_root, by_id, folder_in_archive
+        ):
+            raise Http404("Mappen finns inte i arbetsdokument.")
+    else:
+        parent = workspace_root
+
+    duplicate_exists = DocumentFolder.objects.filter(
+        org=org,
+        parent=parent,
+        name=name,
+        is_system_folder=False,
+    ).exists()
+    if duplicate_exists:
+        messages.error(request, "Det finns redan en mapp med det namnet på den här platsen.")
+        return redirect(_workspace_redirect_url(parent))
+
+    try:
+        DocumentFolder.objects.create(
+            org=org,
+            name=name,
+            parent=parent,
+            created_by=request.user,
+            is_system_folder=False,
+            folder_type=DocumentFolderType.CUSTOM,
+            system_key="",
+        )
+    except IntegrityError:
+        messages.error(request, "Det finns redan en mapp med det namnet på den här platsen.")
+        return redirect(_workspace_redirect_url(parent))
+
+    messages.success(request, "Mappen skapades.")
+    return redirect(_workspace_redirect_url(parent))
 
 
 @login_required
