@@ -1,0 +1,228 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Arbetsdokument{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/document.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="documents-page archive-browser workspace-browser">
+    <header class="archive-header">
+        <div class="archive-header-main">
+            <h1 class="archive-header-title">Arbetsdokument</h1>
+            <p class="archive-header-subtitle">
+                Arbeta med dokument som ännu inte är finaliserade.
+            </p>
+        </div>
+        <div class="archive-header-actions" role="toolbar" aria-label="Arbetsdokumentåtgärder">
+            <a href="{% url 'portal:document_overview' %}" class="btn btn-outline-secondary btn-sm">
+                Tillbaka
+            </a>
+        </div>
+    </header>
+
+    <div class="archive-layout">
+        <aside class="archive-tree-panel" aria-label="Mappträd för arbetsdokument">
+            <div class="archive-tree-panel-head">Mappar</div>
+            <nav class="archive-tree">
+                <ul class="archive-tree-list mb-0">
+                    <li class="archive-tree-node archive-tree-node--depth-0 archive-tree-node--expanded">
+                        {% if workspace_root %}
+                            <a href="{% url 'portal:document_workspace' %}?folder={{ workspace_root.pk }}"
+                               class="archive-tree-link{% if current_folder and current_folder.pk == workspace_root.pk %} is-active{% endif %}">
+                        {% else %}
+                            <a href="{% url 'portal:document_workspace' %}"
+                               class="archive-tree-link{% if not current_folder %} is-active{% endif %}">
+                        {% endif %}
+                            <span class="archive-tree-chevron" aria-hidden="true">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </span>
+                            <span class="archive-tree-folder-icon archive-tree-folder-icon--root" aria-hidden="true">
+                                <i class="fa-solid fa-folder-tree"></i>
+                            </span>
+                            <span class="archive-tree-label">
+                                {% if workspace_root %}
+                                    Arbetsdokument
+                                {% else %}
+                                    Oklassificerat arbetsmaterial
+                                {% endif %}
+                            </span>
+                        </a>
+                    </li>
+
+                    {% for node in tree_nodes %}
+                        <li class="archive-tree-node archive-tree-node--depth-{{ node.depth }}">
+                            <a href="{% url 'portal:document_workspace' %}?folder={{ node.folder.pk }}"
+                               class="archive-tree-link{% if current_folder and node.folder.pk == current_folder.pk %} is-active{% endif %}">
+                                <span class="archive-tree-chevron archive-tree-chevron--muted" aria-hidden="true">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </span>
+                                <span class="archive-tree-folder-icon{% if node.folder.is_system_folder %} archive-tree-folder-icon--system archive-tree-folder-icon--{{ node.folder.folder_type }}{% else %} archive-tree-folder-icon--custom{% endif %}" aria-hidden="true">
+                                    <i class="fa-solid fa-folder"></i>
+                                </span>
+                                <span class="archive-tree-label">
+                                    {{ node.folder.name }}
+                                    {% if node.doc_count %}
+                                        <span class="archive-tree-count">({{ node.doc_count }})</span>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="archive-main-panel">
+            <nav class="archive-breadcrumb" aria-label="Sökväg arbetsdokument">
+                <ol class="archive-breadcrumb-list mb-0">
+                    <li class="archive-breadcrumb-item">
+                        {% if workspace_root %}
+                            <a href="{% url 'portal:document_workspace' %}?folder={{ workspace_root.pk }}">Arbetsdokument</a>
+                        {% else %}
+                            <span class="archive-breadcrumb-current" aria-current="page">Arbetsdokument</span>
+                        {% endif %}
+                    </li>
+                    {% for crumb in breadcrumbs %}
+                        {% if not forloop.first %}
+                            <li class="archive-breadcrumb-separator" aria-hidden="true">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </li>
+                            <li class="archive-breadcrumb-item">
+                                {% if forloop.last %}
+                                    <span class="archive-breadcrumb-current" aria-current="page">{{ crumb.name }}</span>
+                                {% else %}
+                                    <a href="{{ crumb.url }}">{{ crumb.name }}</a>
+                                {% endif %}
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+
+            <div class="archive-content-header">
+                <h2 class="archive-content-title">
+                    {% if current_folder %}
+                        {{ current_folder.name }}
+                    {% else %}
+                        Rotnivå
+                    {% endif %}
+                </h2>
+                <p class="archive-content-subtitle mb-0">
+                    Detta är arbetsmaterial och inte officiellt arkiv.
+                </p>
+            </div>
+
+            <div class="archive-content-body">
+                {% if folders %}
+                    <section class="archive-section" aria-labelledby="workspace-folders-heading">
+                        <h3 id="workspace-folders-heading" class="archive-section-title">Mappar</h3>
+                        <div class="archive-content-folder-list">
+                            {% for folder in folders %}
+                                <a href="{% url 'portal:document_workspace' %}?folder={{ folder.pk }}"
+                                   class="archive-content-folder-row">
+                                    <span class="archive-folder-icon archive-folder-icon--custom" aria-hidden="true">
+                                        <i class="fa-solid fa-folder"></i>
+                                    </span>
+                                    <span class="archive-folder-meta">
+                                        <span class="archive-folder-name">
+                                            {{ folder.name }}
+                                            {% if folder.workspace_doc_count %}
+                                                <span class="archive-folder-count">({{ folder.workspace_doc_count }})</span>
+                                            {% endif %}
+                                        </span>
+                                        {% if folder.is_system_folder %}
+                                            <span class="archive-badge archive-badge-system">System</span>
+                                        {% else %}
+                                            <span class="archive-badge archive-badge-custom">Anpassad</span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="archive-folder-chevron" aria-hidden="true">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                {% if documents %}
+                    <section class="archive-section" aria-labelledby="workspace-documents-heading">
+                        <h3 id="workspace-documents-heading" class="archive-section-title">Dokument</h3>
+                        <div class="archive-document-list">
+                            {% for document in documents %}
+                                <a href="{% url 'portal:document_detail' document.pk %}"
+                                   class="archive-document-row workspace-document-row">
+                                    <span class="workspace-document-primary">
+                                        <span class="archive-document-icon" aria-hidden="true">
+                                            <i class="fa-solid fa-file-lines"></i>
+                                        </span>
+                                        <span class="archive-document-main workspace-document-main">
+                                            <span class="archive-document-title">{{ document.title }}</span>
+                                            <span class="archive-document-meta">
+                                                {% if document.category == "protocol" and not document.meeting %}
+                                                    Protokollutkast
+                                                {% else %}
+                                                    {{ document.get_category_display }}
+                                                {% endif %}
+                                                <span class="archive-document-meta-sep">·</span>
+                                                {{ document.created_at|date:"Y-m-d H:i" }}
+                                                {% if document.meeting %}
+                                                    <span class="archive-document-meta-sep">·</span>
+                                                    Möte: {{ document.meeting.title }}
+                                                {% endif %}
+                                            </span>
+                                        </span>
+                                    </span>
+                                    <span class="workspace-document-badges workspace-document-badges--workflow" aria-label="Workflowstatus">
+                                        {% if document.workflow_status == "draft" %}
+                                            <span class="workspace-document-badge workspace-document-badge--workflow">Utkast</span>
+                                        {% elif document.workflow_status == "locked_for_review" %}
+                                            <span class="workspace-document-badge workspace-document-badge--workflow">Låst</span>
+                                        {% elif document.workflow_status == "under_review" %}
+                                            <span class="workspace-document-badge workspace-document-badge--workflow">Under granskning</span>
+                                        {% elif document.workflow_status == "approved" %}
+                                            <span class="workspace-document-badge workspace-document-badge--workflow">Godkänd</span>
+                                            {% if document.has_pending_signatures %}
+                                                <span class="workspace-document-badge workspace-document-badge--workflow">Väntar på signering</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </span>
+                                    <span class="workspace-document-badges workspace-document-badges--safety" aria-label="Säkerhetsstatus">
+                                        {% if document.meeting %}
+                                            <span class="workspace-document-badge workspace-document-badge--meeting">Möteskopplat</span>
+                                        {% else %}
+                                            <span class="workspace-document-badge workspace-document-badge--draft">Arbetsdokument</span>
+                                            <span class="workspace-document-badge workspace-document-badge--draft">Ej möteskopplat</span>
+                                            {% if document.category == "protocol" %}
+                                                <span class="workspace-document-badge workspace-document-badge--warning">Protokollutkast</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </span>
+                                    <span class="archive-document-open workspace-document-open" aria-hidden="true">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                {% if not folders and not documents %}
+                    <div class="archive-empty-state">
+                        <span class="archive-empty-icon" aria-hidden="true">
+                            <i class="fa-regular fa-folder-open"></i>
+                        </span>
+                        <p class="archive-empty-title mb-1">Inga arbetsdokument i den här vyn.</p>
+                        <p class="archive-empty-text mb-0">
+                            Endast dokument som inte är finaliserade och arkiverade visas här.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

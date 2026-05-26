@@ -893,3 +893,164 @@
     padding: 0.65rem 0.85rem;
     margin-bottom: 0.25rem;
 }
+
+.document-safety-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: 1px solid transparent;
+}
+
+.document-safety-badge--meeting {
+    color: #14532d;
+    background: #dcfce7;
+    border-color: #86efac;
+}
+
+.document-safety-badge--draft {
+    color: #1e3a8a;
+    background: #e0e7ff;
+    border-color: #bfdbfe;
+}
+
+.document-safety-badge--warning {
+    color: #9a3412;
+    background: #ffedd5;
+    border-color: #fdba74;
+}
+
+.document-safety-note {
+    font-size: 0.85rem;
+    color: #9a3412;
+    background: #ffedd5;
+    border: 1px solid #fdba74;
+    border-left: 3px solid #f97316;
+    border-radius: 0.35rem;
+    padding: 0.55rem 0.7rem;
+    max-width: 62rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Workspace browser — document row polish (read-only)                          */
+/* -------------------------------------------------------------------------- */
+
+.workspace-browser .archive-header {
+    border-bottom-color: rgba(30, 64, 175, 0.12);
+}
+
+.workspace-browser .archive-tree-folder-icon--root {
+    color: #1d4ed8;
+}
+
+.workspace-document-row {
+    grid-template-columns: minmax(420px, 1fr) 140px 220px 24px;
+    align-items: center;
+    gap: 0.55rem 0.75rem;
+}
+
+.workspace-document-main {
+    min-width: 0;
+}
+
+.workspace-document-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.workspace-document-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.22rem;
+    min-width: 0;
+}
+
+.workspace-document-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.12rem 0.45rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.15;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.workspace-document-badge--workflow {
+    color: #334155;
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+}
+
+.workspace-document-badge--meeting {
+    color: #14532d;
+    background: #ecfdf5;
+    border-color: #bbf7d0;
+}
+
+.workspace-document-badge--draft {
+    color: #1e3a8a;
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.workspace-document-badge--warning {
+    color: #9a3412;
+    background: #fff7ed;
+    border-color: #fed7aa;
+}
+
+.workspace-document-badges--workflow {
+    min-width: 0;
+}
+
+.workspace-document-badges--safety {
+    min-width: 0;
+}
+
+.workspace-document-open {
+    justify-self: end;
+    align-self: center;
+}
+
+@media (max-width: 767.98px) {
+    .workspace-document-row {
+        grid-template-columns: minmax(0, 1fr) 24px;
+        grid-template-rows: auto auto auto;
+        gap: 0.4rem 0.6rem;
+    }
+
+    .workspace-document-primary {
+        grid-column: 1 / -1;
+        grid-row: 1;
+    }
+
+    .workspace-document-badges--workflow {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        padding-left: calc(1.75rem + 0.65rem);
+    }
+
+    .workspace-document-badges--safety {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        padding-left: calc(1.75rem + 0.65rem);
+    }
+
+    .workspace-document-badges {
+        justify-content: flex-start;
+    }
+
+    .workspace-document-open {
+        grid-column: 2;
+        grid-row: 1;
+    }
+}
