@@ -56,10 +56,20 @@ def ensure_archive_path(document: Document) -> DocumentFolder:
 
     meeting = document.meeting
     if meeting is not None and meeting.org_id != org.id:
-        raise ValueError("Meeting must belong to the same organization as the document.")
+        raise ValueError(
+            "Meeting must belong to the same organization as the document."
+        )
 
     if meeting is not None:
-        local_dt = _local_datetime(meeting.meeting_date)
+        # Prefer meeting_date; else document timestamps (backfill / edge).
+        if meeting.meeting_date is not None:
+            local_dt = _local_datetime(meeting.meeting_date)
+        else:
+            ref_dt = document.updated_at or document.created_at
+            if ref_dt is not None:
+                local_dt = _local_datetime(ref_dt)
+            else:
+                local_dt = _local_datetime(timezone.now())
         year = local_dt.year
         month = local_dt.month
         meeting_type = meeting.meeting_type
@@ -76,7 +86,7 @@ def ensure_archive_path(document: Document) -> DocumentFolder:
 
 
 def _local_datetime(dt):
-    """Normalize meeting_date to local wall-clock time for year/month extraction."""
+    """Normalize datetimes for year/month extraction."""
     if timezone.is_aware(dt):
         return timezone.localtime(dt)
     return dt

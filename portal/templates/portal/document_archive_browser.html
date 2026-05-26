@@ -18,7 +18,10 @@
             </p>
         </div>
         <div class="archive-header-actions" role="toolbar" aria-label="Arkivåtgärder">
-            <button type="button" class="btn btn-outline-primary btn-sm" disabled title="Kommer snart">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#archiveCreateFolderModal">
                 <i class="fa-solid fa-folder-plus me-1" aria-hidden="true"></i>
                 Ny mapp
             </button>
@@ -32,114 +35,416 @@
         </div>
     </header>
 
-    <nav class="archive-breadcrumb" aria-label="Arkivsökväg">
-        <ol class="archive-breadcrumb-list mb-0">
-            <li class="archive-breadcrumb-item">
-                {% if breadcrumbs %}
-                    {% if breadcrumbs|length == 1 and breadcrumbs.0.name == "Arkiv" %}
-                        <span class="archive-breadcrumb-current" aria-current="page">Arkiv</span>
-                    {% else %}
-                        <a href="{% url 'portal:document_archive' %}">Arkiv</a>
-                    {% endif %}
-                {% else %}
-                    <span class="archive-breadcrumb-current" aria-current="page">Arkiv</span>
-                {% endif %}
-            </li>
-            {% for crumb in breadcrumbs %}
-                {% if not forloop.first or crumb.name != "Arkiv" %}
-                    <li class="archive-breadcrumb-separator" aria-hidden="true">
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </li>
-                    <li class="archive-breadcrumb-item">
-                        {% if forloop.last %}
-                            <span class="archive-breadcrumb-current" aria-current="page">{{ crumb.name }}</span>
-                        {% else %}
-                            <a href="{{ crumb.url }}">{{ crumb.name }}</a>
-                        {% endif %}
-                    </li>
-                {% endif %}
-            {% endfor %}
-        </ol>
-    </nav>
+    <div class="archive-layout">
 
-    <div class="archive-grid">
-
-        {% if folders %}
-            <section class="archive-section" aria-labelledby="archive-folders-heading">
-                <h2 id="archive-folders-heading" class="archive-section-title">Mappar</h2>
-                <div class="archive-folder-grid">
-                    {% for folder in folders %}
-                        <a href="{% url 'portal:document_archive' %}?folder={{ folder.pk }}"
-                           class="archive-folder-tile">
-                            <span class="archive-folder-icon" aria-hidden="true">
-                                <i class="fa-solid fa-folder"></i>
-                            </span>
-                            <span class="archive-folder-meta">
-                                <span class="archive-folder-name">{{ folder.name }}</span>
-                                {% if folder.is_system_folder %}
-                                    <span class="archive-badge archive-badge-system">System</span>
+        <aside class="archive-tree-panel" aria-label="Mappträd">
+            <div class="archive-tree-panel-head">Mappar</div>
+            <nav class="archive-tree">
+                <ul class="archive-tree-list mb-0">
+                    <li class="archive-tree-node archive-tree-node--depth-0{% if breadcrumbs or current_folder %} archive-tree-node--expanded{% endif %}">
+                        <a href="{% url 'portal:document_archive' %}"
+                           class="archive-tree-link{% if not current_folder %} is-active{% endif %}">
+                            <span class="archive-tree-chevron" aria-hidden="true">
+                                {% if breadcrumbs or current_folder %}
+                                    <i class="fa-solid fa-chevron-down"></i>
                                 {% else %}
-                                    <span class="archive-badge archive-badge-custom">Anpassad</span>
+                                    <i class="fa-solid fa-chevron-right"></i>
                                 {% endif %}
                             </span>
-                            <span class="archive-folder-chevron" aria-hidden="true">
-                                <i class="fa-solid fa-chevron-right"></i>
+                            <span class="archive-tree-folder-icon archive-tree-folder-icon--root" aria-hidden="true">
+                                <i class="fa-solid fa-box-archive"></i>
                             </span>
+                            <span class="archive-tree-label">Arkiv</span>
                         </a>
-                    {% endfor %}
-                </div>
-            </section>
-        {% endif %}
+                    </li>
 
-        {% if documents %}
-            <section class="archive-section" aria-labelledby="archive-documents-heading">
-                <h2 id="archive-documents-heading" class="archive-section-title">Dokument</h2>
-                <div class="archive-document-list">
-                    {% for document in documents %}
-                        <a href="{% url 'portal:document_detail' document.pk %}"
-                           class="archive-document-row">
-                            <span class="archive-document-icon" aria-hidden="true">
-                                <i class="fa-solid fa-file-lines"></i>
-                            </span>
-                            <span class="archive-document-main">
-                                <span class="archive-document-title">{{ document.title }}</span>
-                                <span class="archive-document-meta">
-                                    {{ document.get_category_display }}
-                                    <span class="archive-document-meta-sep">·</span>
-                                    {{ document.updated_at|date:"Y-m-d H:i" }}
-                                </span>
-                            </span>
-                            <span class="archive-document-status">
-                                <span class="archive-badge archive-badge-status">Finaliserad</span>
-                                <span class="archive-badge archive-badge-archived">Arkiverad</span>
-                            </span>
-                            <span class="archive-document-open" aria-hidden="true">
+                    {% for crumb in breadcrumbs %}
+                        {% if not forloop.first or crumb.name != "Arkiv" %}
+                            <li class="archive-tree-node archive-tree-node--depth-{{ forloop.counter }}{% if crumb.folder.pk in expanded_folder_ids %} archive-tree-node--expanded{% endif %}">
+                                <a href="{{ crumb.url }}"
+                                   class="archive-tree-link{% if current_folder and crumb.folder.pk == current_folder.pk %} is-active{% endif %}">
+                                    <span class="archive-tree-chevron" aria-hidden="true">
+                                        {% if crumb.folder.pk in expanded_folder_ids %}
+                                            <i class="fa-solid fa-chevron-down"></i>
+                                        {% else %}
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        {% endif %}
+                                    </span>
+                                    <span class="archive-tree-folder-icon{% if crumb.folder.is_system_folder %} archive-tree-folder-icon--system archive-tree-folder-icon--{{ crumb.folder.folder_type }}{% else %} archive-tree-folder-icon--custom{% endif %}" aria-hidden="true">
+                                        {% if crumb.folder.is_system_folder %}
+                                            {% if crumb.folder.folder_type == "archive_root" %}
+                                                <i class="fa-solid fa-box-archive"></i>
+                                            {% elif crumb.folder.folder_type == "year" %}
+                                                <i class="fa-solid fa-calendar"></i>
+                                            {% elif crumb.folder.folder_type == "month" %}
+                                                <i class="fa-solid fa-calendar-days"></i>
+                                            {% elif crumb.folder.folder_type == "meeting_group" %}
+                                                <i class="fa-solid fa-folder-tree"></i>
+                                            {% elif crumb.folder.folder_type == "static" %}
+                                                <i class="fa-solid fa-folder"></i>
+                                            {% else %}
+                                                <i class="fa-solid fa-folder"></i>
+                                            {% endif %}
+                                        {% else %}
+                                            <i class="fa-solid fa-folder{% if current_folder and crumb.folder.pk == current_folder.pk %}-open{% endif %}"></i>
+                                        {% endif %}
+                                    </span>
+                                    <span class="archive-tree-label">
+                                        {{ crumb.name }}
+                                        {% if crumb.folder.archive_doc_count %}
+                                            <span class="archive-tree-count">({{ crumb.folder.archive_doc_count }})</span>
+                                        {% endif %}
+                                    </span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if current_folder %}
+                        {% for folder in folders %}
+                            <li class="archive-tree-node archive-tree-node--depth-{% if breadcrumbs %}{{ breadcrumbs|length|add:1 }}{% else %}1{% endif %}{% if current_folder.pk in expanded_folder_ids %} archive-tree-node--expanded{% endif %}">
+                                <a href="{% url 'portal:document_archive' %}?folder={{ folder.pk }}"
+                                   class="archive-tree-link">
+                                    <span class="archive-tree-chevron archive-tree-chevron--muted" aria-hidden="true">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </span>
+                                    <span class="archive-tree-folder-icon{% if folder.is_system_folder %} archive-tree-folder-icon--system archive-tree-folder-icon--{{ folder.folder_type }}{% else %} archive-tree-folder-icon--custom{% endif %}" aria-hidden="true">
+                                        {% if folder.is_system_folder %}
+                                            {% if folder.folder_type == "archive_root" %}
+                                                <i class="fa-solid fa-box-archive"></i>
+                                            {% elif folder.folder_type == "year" %}
+                                                <i class="fa-solid fa-calendar"></i>
+                                            {% elif folder.folder_type == "month" %}
+                                                <i class="fa-solid fa-calendar-days"></i>
+                                            {% elif folder.folder_type == "meeting_group" %}
+                                                <i class="fa-solid fa-folder-tree"></i>
+                                            {% elif folder.folder_type == "static" %}
+                                                <i class="fa-solid fa-folder"></i>
+                                            {% else %}
+                                                <i class="fa-solid fa-folder"></i>
+                                            {% endif %}
+                                        {% else %}
+                                            <i class="fa-solid fa-folder"></i>
+                                        {% endif %}
+                                    </span>
+                                    <span class="archive-tree-label">
+                                        {{ folder.name }}
+                                        {% if folder.archive_doc_count %}
+                                            <span class="archive-tree-count">({{ folder.archive_doc_count }})</span>
+                                        {% endif %}
+                                    </span>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    {% elif folders %}
+                        {% for folder in folders %}
+                            <li class="archive-tree-node archive-tree-node--depth-1">
+                                <a href="{% url 'portal:document_archive' %}?folder={{ folder.pk }}"
+                                   class="archive-tree-link">
+                                    <span class="archive-tree-chevron archive-tree-chevron--muted" aria-hidden="true">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </span>
+                                    <span class="archive-tree-folder-icon{% if folder.is_system_folder %} archive-tree-folder-icon--system archive-tree-folder-icon--{{ folder.folder_type }}{% else %} archive-tree-folder-icon--custom{% endif %}" aria-hidden="true">
+                                        {% if folder.is_system_folder %}
+                                            {% if folder.folder_type == "archive_root" %}
+                                                <i class="fa-solid fa-box-archive"></i>
+                                            {% elif folder.folder_type == "year" %}
+                                                <i class="fa-solid fa-calendar"></i>
+                                            {% elif folder.folder_type == "month" %}
+                                                <i class="fa-solid fa-calendar-days"></i>
+                                            {% elif folder.folder_type == "meeting_group" %}
+                                                <i class="fa-solid fa-folder-tree"></i>
+                                            {% elif folder.folder_type == "static" %}
+                                                <i class="fa-solid fa-folder"></i>
+                                            {% else %}
+                                                <i class="fa-solid fa-folder"></i>
+                                            {% endif %}
+                                        {% else %}
+                                            <i class="fa-solid fa-folder"></i>
+                                        {% endif %}
+                                    </span>
+                                    <span class="archive-tree-label">
+                                        {{ folder.name }}
+                                        {% if folder.archive_doc_count %}
+                                            <span class="archive-tree-count">({{ folder.archive_doc_count }})</span>
+                                        {% endif %}
+                                    </span>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    {% endif %}
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="archive-main-panel">
+
+            <nav class="archive-breadcrumb" aria-label="Arkivsökväg">
+                <ol class="archive-breadcrumb-list mb-0">
+                    <li class="archive-breadcrumb-item">
+                        {% if breadcrumbs %}
+                            {% if breadcrumbs|length == 1 and breadcrumbs.0.name == "Arkiv" %}
+                                <span class="archive-breadcrumb-current" aria-current="page">Arkiv</span>
+                            {% else %}
+                                <a href="{% url 'portal:document_archive' %}">Arkiv</a>
+                            {% endif %}
+                        {% else %}
+                            <span class="archive-breadcrumb-current" aria-current="page">Arkiv</span>
+                        {% endif %}
+                    </li>
+                    {% for crumb in breadcrumbs %}
+                        {% if not forloop.first or crumb.name != "Arkiv" %}
+                            <li class="archive-breadcrumb-separator" aria-hidden="true">
                                 <i class="fa-solid fa-chevron-right"></i>
-                            </span>
-                        </a>
+                            </li>
+                            <li class="archive-breadcrumb-item">
+                                {% if forloop.last %}
+                                    <span class="archive-breadcrumb-current" aria-current="page">{{ crumb.name }}</span>
+                                {% else %}
+                                    <a href="{{ crumb.url }}">{{ crumb.name }}</a>
+                                {% endif %}
+                            </li>
+                        {% endif %}
                     {% endfor %}
-                </div>
-            </section>
-        {% endif %}
+                </ol>
+            </nav>
 
-        {% if not folders and not documents %}
-            <div class="archive-empty-state">
-                <span class="archive-empty-icon" aria-hidden="true">
-                    <i class="fa-regular fa-folder-open"></i>
-                </span>
-                {% if current_folder %}
-                    <p class="archive-empty-title mb-1">Den här mappen är tom.</p>
-                    <p class="archive-empty-text mb-0">Det finns inga undermappar eller dokument här.</p>
-                {% else %}
-                    <p class="archive-empty-title mb-1">Arkivstrukturen har inte skapats ännu.</p>
-                    <p class="archive-empty-text mb-0">
-                        Finaliserade dokument utan mapp visas här tills de placeras i arkivet.
-                    </p>
-                {% endif %}
+            <div class="archive-content-header">
+                <h2 class="archive-content-title">
+                    {% if current_folder %}
+                        {{ current_folder.name }}
+                    {% else %}
+                        Arkiv
+                    {% endif %}
+                </h2>
+                <p class="archive-content-subtitle mb-0">
+                    {% if folders or documents %}
+                        {{ folders|length }} mapp{{ folders|length|pluralize:"ar" }},
+                        {{ documents|length }} dokument
+                    {% else %}
+                        Inget innehåll i den här mappen
+                    {% endif %}
+                </p>
             </div>
-        {% endif %}
+
+            <div class="archive-content-body">
+
+                {% if folders %}
+                    <section class="archive-section" aria-labelledby="archive-folders-heading">
+                        <h3 id="archive-folders-heading" class="archive-section-title">Mappar</h3>
+                        <div class="archive-content-folder-list">
+                            {% for folder in folders %}
+                                <a href="{% url 'portal:document_archive' %}?folder={{ folder.pk }}"
+                                   class="archive-content-folder-row">
+                                    <span class="archive-folder-icon{% if folder.is_system_folder %} archive-folder-icon--system archive-folder-icon--{{ folder.folder_type }}{% else %} archive-folder-icon--custom{% endif %}" aria-hidden="true">
+                                        {% if folder.is_system_folder %}
+                                            {% if folder.folder_type == "archive_root" %}
+                                                <i class="fa-solid fa-box-archive"></i>
+                                            {% elif folder.folder_type == "year" %}
+                                                <i class="fa-solid fa-calendar"></i>
+                                            {% elif folder.folder_type == "month" %}
+                                                <i class="fa-solid fa-calendar-days"></i>
+                                            {% elif folder.folder_type == "meeting_group" %}
+                                                <i class="fa-solid fa-folder-tree"></i>
+                                            {% elif folder.folder_type == "static" %}
+                                                <i class="fa-solid fa-folder"></i>
+                                            {% else %}
+                                                <i class="fa-solid fa-folder"></i>
+                                            {% endif %}
+                                        {% else %}
+                                            <i class="fa-solid fa-folder"></i>
+                                        {% endif %}
+                                    </span>
+                                    <span class="archive-folder-meta">
+                                        <span class="archive-folder-name">
+                                            {{ folder.name }}
+                                            {% if folder.archive_doc_count %}
+                                                <span class="archive-folder-count">({{ folder.archive_doc_count }})</span>
+                                            {% endif %}
+                                        </span>
+                                        {% if folder.is_system_folder %}
+                                            <span class="archive-badge archive-badge-system">System</span>
+                                        {% else %}
+                                            <span class="archive-badge archive-badge-custom">Anpassad</span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="archive-folder-chevron" aria-hidden="true">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                {% if documents %}
+                    <section class="archive-section" aria-labelledby="archive-documents-heading">
+                        <h3 id="archive-documents-heading" class="archive-section-title">Dokument</h3>
+                        <div class="archive-document-list">
+                            {% for document in documents %}
+                                <div class="archive-document-row-wrap">
+                                    <a href="{% url 'portal:document_detail' document.pk %}"
+                                       class="archive-document-row">
+                                        <span class="archive-document-icon" aria-hidden="true">
+                                            <i class="fa-solid fa-file-lines"></i>
+                                        </span>
+                                        <span class="archive-document-main">
+                                            <span class="archive-document-title">{{ document.title }}</span>
+                                            <span class="archive-document-meta">
+                                                {{ document.get_category_display }}
+                                                <span class="archive-document-meta-sep">·</span>
+                                                {{ document.updated_at|date:"Y-m-d H:i" }}
+                                            </span>
+                                        </span>
+                                        <span class="archive-document-status">
+                                            <span class="archive-badge archive-badge-status">Finaliserad</span>
+                                            <span class="archive-badge archive-badge-archived">Arkiverad</span>
+                                        </span>
+                                        <span class="archive-document-open" aria-hidden="true">
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        </span>
+                                    </a>
+                                    <div class="archive-document-actions">
+                                        <button type="button"
+                                                class="btn btn-outline-secondary btn-sm archive-move-trigger"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#archiveMoveDocumentModal"
+                                                data-document-pk="{{ document.pk }}"
+                                                data-move-url="{% url 'portal:document_move_to_folder' document.pk %}"
+                                                data-document-title="{{ document.title|default_if_none:''|truncatechars:100 }}">
+                                            Flytta
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                {% if not folders and not documents %}
+                    <div class="archive-empty-state">
+                        <span class="archive-empty-icon" aria-hidden="true">
+                            <i class="fa-regular fa-folder-open"></i>
+                        </span>
+                        {% if current_folder %}
+                            <p class="archive-empty-title mb-1">Den här mappen är tom.</p>
+                            <p class="archive-empty-text mb-0">Det finns inga undermappar eller dokument här.</p>
+                        {% else %}
+                            <p class="archive-empty-title mb-1">Arkivstrukturen har inte skapats ännu.</p>
+                            <p class="archive-empty-text mb-0">
+                                Finaliserade dokument utan mapp visas här tills de placeras i arkivet.
+                            </p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+            </div>
+
+        </main>
 
     </div>
 
 </div>
+
+<div class="modal fade archive-folder-modal" id="archiveCreateFolderModal" tabindex="-1"
+     aria-labelledby="archiveCreateFolderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'portal:document_folder_create' %}">
+                {% csrf_token %}
+                {% if current_folder %}
+                    <input type="hidden" name="parent_id" value="{{ current_folder.pk }}">
+                {% endif %}
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="archiveCreateFolderModalLabel">Skapa ny mapp</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="archiveFolderName" class="form-label">Mappnamn</label>
+                    <input type="text"
+                           class="form-control"
+                           id="archiveFolderName"
+                           name="name"
+                           maxlength="255"
+                           required
+                           placeholder="Ex. Stadgar, Avtal, Fiskevård"
+                           autocomplete="off">
+                    <div class="form-text">
+                        Mappen skapas i den aktuella platsen.
+                        {% if current_folder %}
+                            <span class="d-block mt-1 text-muted">Plats: {{ current_folder.name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Avbryt
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Skapa mapp
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade archive-move-modal" id="archiveMoveDocumentModal" tabindex="-1"
+     aria-labelledby="archiveMoveDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="" id="archiveMoveDocumentForm">
+                {% csrf_token %}
+                <input type="hidden" name="return_folder" value="{% if current_folder %}{{ current_folder.pk }}{% endif %}">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="archiveMoveDocumentModalLabel">Flytta dokument</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-2">
+                        <span class="fw-semibold archive-move-doc-title"></span>
+                    </p>
+                    <label for="archiveMoveFolderSelect" class="form-label">Målmapp</label>
+                    <select class="form-select archive-move-folder-select" id="archiveMoveFolderSelect" name="folder_id" required>
+                        <option value="" disabled selected>Välj mapp…</option>
+                        {% for opt in all_folders_for_move %}
+                            <option value="{{ opt.id }}">{{ opt.path_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-primary">Flytta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var modal = document.getElementById("archiveMoveDocumentModal");
+    if (!modal) return;
+    modal.addEventListener("show.bs.modal", function (event) {
+        var btn = event.relatedTarget;
+        if (!btn || !btn.classList.contains("archive-move-trigger")) return;
+        var form = document.getElementById("archiveMoveDocumentForm");
+        var url = btn.getAttribute("data-move-url");
+        var title = btn.getAttribute("data-document-title") || "";
+        if (form && url) {
+            form.action = url;
+        }
+        var titleEl = modal.querySelector(".archive-move-doc-title");
+        if (titleEl) {
+            titleEl.textContent = title;
+        }
+        var sel = modal.querySelector(".archive-move-folder-select");
+        if (sel) {
+            sel.selectedIndex = 0;
+        }
+    });
+})();
+</script>
 {% endblock %}

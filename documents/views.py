@@ -16,6 +16,7 @@ from .models import (
 )
 from governance.models import BoardMembership, BoardRole
 from .utils import log_document_activity, build_document_hash
+from .services.archive_folders import ensure_archive_path
 
 
 @login_required
@@ -312,7 +313,11 @@ def remove_document_reviewer(request, pk):
 @login_required
 def sign_document(request, pk):
     signature = get_object_or_404(
-        DocumentSignature.objects.select_related("document", "user"),
+        DocumentSignature.objects.select_related(
+            "document",
+            "user",
+            "document__meeting",
+        ),
         pk=pk,
         user=request.user,
         document__org=request.org,
@@ -341,9 +346,19 @@ def sign_document(request, pk):
             document.workflow_status = DocumentWorkflowStatus.FINALIZED
             document.is_archived = True
             document.document_hash = build_document_hash(document)
-            document.save(
-                update_fields=["workflow_status", "is_archived", "document_hash", "updated_at"]
-            )
+            update_fields = [
+                "workflow_status",
+                "is_archived",
+                "document_hash",
+                "updated_at",
+            ]
+            if document.meeting_id and (
+                document.folder_id is None or document.folder_auto_assigned
+            ):
+                document.folder = ensure_archive_path(document)
+                document.folder_auto_assigned = True
+                update_fields.extend(["folder", "folder_auto_assigned"])
+            document.save(update_fields=update_fields)
 
             log_document_activity(
                 document=document,

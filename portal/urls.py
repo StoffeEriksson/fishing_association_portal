@@ -13,11 +13,22 @@ urlpatterns = [
     path("documents/", views.document_overview, name="document_overview"),
     path("documents/activity/", views.activity_list, name="activity_list"),
     path("documents/workspace/", views.document_workspace, name="document_workspace"),
+    path(
+        "documents/archive/folders/create/",
+        views.document_folder_create,
+        name="document_folder_create",
+    ),
     path("documents/archive/", views.document_archive, name="document_archive"),
     path("documents/list/", views.document_list, name="document_list"),
 
     path("documents/upload/", views.document_upload, name="document_upload"),
     path("documents/create/blank/", views.create_blank_document, name="create_blank_document"),
+
+    path(
+        "documents/<int:pk>/move-to-folder/",
+        views.document_move_to_folder,
+        name="document_move_to_folder",
+    ),
 
     path("documents/trash/", views.document_trash, name="document_trash"),
     path("documents/<int:pk>/restore/", views.document_restore, name="document_restore"),

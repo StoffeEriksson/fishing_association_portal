@@ -4,8 +4,10 @@ from datetime import date, timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Count
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -35,6 +37,8 @@ from documents.models import (
     DocumentApproval,
     DocumentApprovalStatus,
     DocumentActivity,
+    DocumentFolder,
+    DocumentFolderType,
     DocumentSignature,
     DocumentSignatureStatus,
     DocumentSourceType,
@@ -603,9 +607,288 @@ def document_workspace(request):
     return render_document_collection(request, mode="workspace")
 
 
+def _collect_expanded_folder_ids(current_folder):
+    """Folder PKs from current_folder up through parents (for tree expand state)."""
+    ids = []
+    folder = current_folder
+    while folder is not None:
+        ids.append(folder.pk)
+        folder = folder.parent
+    return ids
+
+
+def _folder_document_counts(org):
+    """Archived finalized document counts per folder (tenant-scoped)."""
+    rows = (
+        Document.objects.filter(
+            org=org,
+            is_deleted=False,
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+            folder_id__isnull=False,
+        )
+        .values("folder_id")
+        .annotate(c=Count("id"))
+    )
+    return {row["folder_id"]: row["c"] for row in rows}
+
+
+def _folder_path_label(folder, by_id):
+    """Build 'Arkiv / 2026 / …' from parent chain (tenant-safe, in-memory)."""
+    parts = []
+    node = folder
+    seen = set()
+    while node is not None and node.pk not in seen:
+        seen.add(node.pk)
+        parts.append(node.name)
+        pid = node.parent_id
+        node = by_id.get(pid) if pid else None
+    parts.reverse()
+    return " / ".join(parts) if parts else folder.name
+
+
+def _all_folders_for_move(org):
+    """All folders for move-to select, sorted by path label."""
+    folders = list(
+        DocumentFolder.objects.filter(org=org).select_related("parent")
+    )
+    by_id = {f.pk: f for f in folders}
+    out = []
+    for f in folders:
+        out.append({
+            "id": f.pk,
+            "path_label": _folder_path_label(f, by_id),
+        })
+    out.sort(key=lambda x: (x["path_label"].lower(), x["id"]))
+    return out
+
+
+def _build_archive_breadcrumbs(current_folder):
+    """Build breadcrumb trail from archive root to current_folder."""
+    crumbs = []
+    folder = current_folder
+    while folder is not None:
+        crumbs.append({
+            "folder": folder,
+            "name": folder.name,
+            "url": f"{reverse('portal:document_archive')}?folder={folder.pk}",
+        })
+        folder = folder.parent
+    crumbs.reverse()
+    return crumbs
+
+
 @login_required
 def document_archive(request):
-    return render_document_collection(request, mode="archive")
+    org = request.org
+    folder_id = (request.GET.get("folder") or "").strip()
+
+    if folder_id:
+        current_folder = get_object_or_404(
+            DocumentFolder.objects.select_related("parent"),
+            pk=folder_id,
+            org=org,
+        )
+    else:
+        current_folder = (
+            DocumentFolder.objects.filter(
+                org=org,
+                system_key="archive",
+                is_system_folder=True,
+            )
+            .select_related("parent")
+            .first()
+        )
+
+    if current_folder is not None:
+        folders = list(
+            DocumentFolder.objects.filter(org=org, parent=current_folder)
+            .order_by("folder_type", "name")
+        )
+        documents = (
+            Document.objects.filter(
+                org=org,
+                folder=current_folder,
+                is_deleted=False,
+                is_archived=True,
+                workflow_status=DocumentWorkflowStatus.FINALIZED,
+            )
+            .order_by("-updated_at")
+        )
+        breadcrumbs = _build_archive_breadcrumbs(current_folder)
+    else:
+        folders = list(
+            DocumentFolder.objects.filter(org=org, parent__isnull=True)
+            .order_by("folder_type", "name")
+        )
+        documents = (
+            Document.objects.filter(
+                org=org,
+                folder__isnull=True,
+                is_deleted=False,
+                is_archived=True,
+                workflow_status=DocumentWorkflowStatus.FINALIZED,
+            )
+            .order_by("-updated_at")
+        )
+        breadcrumbs = []
+
+    expanded_folder_ids = _collect_expanded_folder_ids(current_folder)
+    folder_document_counts = _folder_document_counts(org)
+    all_folders_for_move = _all_folders_for_move(org)
+
+    for f in folders:
+        f.archive_doc_count = folder_document_counts.get(f.pk, 0)
+    for crumb in breadcrumbs:
+        crumb["folder"].archive_doc_count = folder_document_counts.get(
+            crumb["folder"].pk, 0
+        )
+
+    return render(
+        request,
+        "portal/document_archive_browser.html",
+        {
+            "current_folder": current_folder,
+            "folders": folders,
+            "documents": documents,
+            "breadcrumbs": breadcrumbs,
+            "expanded_folder_ids": expanded_folder_ids,
+            "folder_document_counts": folder_document_counts,
+            "all_folders_for_move": all_folders_for_move,
+        },
+    )
+
+
+def _archive_redirect_url(parent):
+    url = reverse("portal:document_archive")
+    if parent is not None:
+        return f"{url}?folder={parent.pk}"
+    return url
+
+
+@login_required
+@require_POST
+def document_move_to_folder(request, pk):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+
+    def _redirect_after_move():
+        rf = (request.POST.get("return_folder") or "").strip()
+        if rf.isdigit() and DocumentFolder.objects.filter(
+            pk=int(rf), org=org
+        ).exists():
+            return redirect(
+                f"{reverse('portal:document_archive')}?folder={rf}"
+            )
+        return redirect("portal:document_archive")
+
+    document = get_object_or_404(
+        Document.objects.filter(
+            org=org,
+            is_deleted=False,
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+        ),
+        pk=pk,
+    )
+
+    raw_folder_id = (request.POST.get("folder_id") or "").strip()
+    if not raw_folder_id.isdigit():
+        messages.error(request, "Välj en målmapp.")
+        return _redirect_after_move()
+
+    target_folder = get_object_or_404(
+        DocumentFolder,
+        pk=int(raw_folder_id),
+        org=org,
+    )
+
+    document.folder = target_folder
+    document.folder_auto_assigned = False
+    document.save(
+        update_fields=["folder", "folder_auto_assigned", "updated_at"]
+    )
+    messages.success(request, "Dokumentet har flyttats.")
+    return redirect(
+        f"{reverse('portal:document_archive')}?folder={target_folder.pk}"
+    )
+
+
+@login_required
+@require_POST
+def document_folder_create(request):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+    name = (request.POST.get("name") or "").strip()
+    parent_id = (request.POST.get("parent_id") or "").strip()
+
+    if not name:
+        messages.error(request, "Ange ett mappnamn.")
+        return redirect(_archive_redirect_url_for_post(request, org, parent_id))
+
+    if len(name) > 255:
+        messages.error(request, "Mappnamnet får vara högst 255 tecken.")
+        return redirect(_archive_redirect_url_for_post(request, org, parent_id))
+
+    parent = None
+    if parent_id:
+        parent = get_object_or_404(DocumentFolder, pk=parent_id, org=org)
+    else:
+        parent = (
+            DocumentFolder.objects.filter(
+                org=org,
+                system_key="archive",
+                is_system_folder=True,
+            )
+            .first()
+        )
+
+    duplicate_exists = DocumentFolder.objects.filter(
+        org=org,
+        parent=parent,
+        name=name,
+        is_system_folder=False,
+    ).exists()
+    if duplicate_exists:
+        messages.error(request, "Det finns redan en mapp med det namnet på den här platsen.")
+        return redirect(_archive_redirect_url(parent))
+
+    try:
+        DocumentFolder.objects.create(
+            org=org,
+            name=name,
+            parent=parent,
+            created_by=request.user,
+            is_system_folder=False,
+            folder_type=DocumentFolderType.CUSTOM,
+            system_key="",
+        )
+    except IntegrityError:
+        messages.error(request, "Det finns redan en mapp med det namnet på den här platsen.")
+        return redirect(_archive_redirect_url(parent))
+
+    messages.success(request, "Mappen skapades.")
+    return redirect(_archive_redirect_url(parent))
+
+
+def _archive_redirect_url_for_post(request, org, parent_id):
+    """Redirect target when validation fails before parent is resolved."""
+    if parent_id:
+        parent = DocumentFolder.objects.filter(pk=parent_id, org=org).first()
+        if parent:
+            return _archive_redirect_url(parent)
+    archive_root = DocumentFolder.objects.filter(
+        org=org,
+        system_key="archive",
+        is_system_folder=True,
+    ).first()
+    return _archive_redirect_url(archive_root)
 
 
 @login_required
