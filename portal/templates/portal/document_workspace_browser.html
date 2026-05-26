@@ -17,6 +17,26 @@
             </p>
         </div>
         <div class="archive-header-actions" role="toolbar" aria-label="Arbetsdokumentåtgärder">
+            {% if current_folder %}
+            <a href="{% url 'portal:document_upload' %}?workspace=1&amp;folder={{ current_folder.pk }}"
+               class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-upload me-1" aria-hidden="true"></i>
+                Ladda upp dokument
+            </a>
+            {% else %}
+            <a href="{% url 'portal:document_upload' %}?workspace=1"
+               class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-upload me-1" aria-hidden="true"></i>
+                Ladda upp dokument
+            </a>
+            {% endif %}
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#workspaceCreateFolderModal">
+                <i class="fa-solid fa-folder-plus me-1" aria-hidden="true"></i>
+                Ny mapp
+            </button>
             <a href="{% url 'portal:document_overview' %}" class="btn btn-outline-secondary btn-sm">
                 Tillbaka
             </a>
@@ -223,6 +243,53 @@
                 {% endif %}
             </div>
         </main>
+    </div>
+</div>
+
+<div class="modal fade archive-folder-modal" id="workspaceCreateFolderModal" tabindex="-1"
+     aria-labelledby="workspaceCreateFolderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'portal:document_workspace_folder_create' %}">
+                {% csrf_token %}
+                {% if current_folder %}
+                    <input type="hidden" name="parent_id" value="{{ current_folder.pk }}">
+                {% elif workspace_root %}
+                    <input type="hidden" name="parent_id" value="{{ workspace_root.pk }}">
+                {% endif %}
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="workspaceCreateFolderModalLabel">Skapa ny mapp</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="workspaceFolderName" class="form-label">Mappnamn</label>
+                    <input type="text"
+                           class="form-control"
+                           id="workspaceFolderName"
+                           name="name"
+                           maxlength="255"
+                           required
+                           placeholder="Ex. Utkast, Protokoll, Underlag"
+                           autocomplete="off">
+                    <div class="form-text">
+                        Mappen skapas i aktuell arbetsyta.
+                        {% if current_folder %}
+                            <span class="d-block mt-1 text-muted">Plats: {{ current_folder.name }}</span>
+                        {% elif workspace_root %}
+                            <span class="d-block mt-1 text-muted">Plats: {{ workspace_root.name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Avbryt
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Skapa mapp
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

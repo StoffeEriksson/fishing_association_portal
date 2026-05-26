@@ -13,14 +13,24 @@
   <div>
     <h1 class="page-title h2 mb-1">Ladda upp dokument</h1>
     <div class="muted-label">
-      Lägg till ett nytt dokument i organisationens arkiv
+      {% if workspace_mode %}
+        Lägg till ett arbetsdokument i vald arbetsmapp
+      {% else %}
+        Lägg till ett nytt dokument i organisationens arkiv
+      {% endif %}
     </div>
   </div>
 
   <div>
-    <a href="{% url 'portal:document_list' %}" class="btn btn-outline-secondary">
-      Tillbaka till dokument
-    </a>
+    {% if workspace_mode and target_folder %}
+      <a href="{% url 'portal:document_workspace' %}?folder={{ target_folder.pk }}" class="btn btn-outline-secondary">
+        Tillbaka till arbetsdokument
+      </a>
+    {% else %}
+      <a href="{% url 'portal:document_list' %}" class="btn btn-outline-secondary">
+        Tillbaka till dokument
+      </a>
+    {% endif %}
   </div>
 </div>
 
@@ -28,7 +38,21 @@
   <div class="card-body p-4">
     <form method="post" enctype="multipart/form-data" class="row g-3">
       {% csrf_token %}
-      {% if target_folder %}
+      {% if workspace_mode and target_folder %}
+      <input type="hidden" name="workspace" value="1">
+      <input type="hidden" name="folder" value="{{ target_folder.pk }}">
+      <div class="col-12">
+        <div class="upload-target-folder-notice upload-target-folder-notice--workspace" role="status">
+          <p class="mb-1">
+            Dokumentet laddas upp till arbetsmappen:
+            <strong>{{ target_folder_path_label }}</strong>
+          </p>
+          <p class="mb-0 small text-muted">
+            Detta blir ett arbetsdokument och inte ett officiellt arkivdokument.
+          </p>
+        </div>
+      </div>
+      {% elif target_folder %}
       <input type="hidden" name="folder" value="{{ target_folder.pk }}">
       <div class="col-12">
         <div class="upload-target-folder-notice" role="status">
@@ -73,9 +97,15 @@
         <button type="submit" class="btn btn-dark">
           Ladda upp dokument
         </button>
+        {% if workspace_mode and target_folder %}
+        <a href="{% url 'portal:document_workspace' %}?folder={{ target_folder.pk }}" class="btn btn-outline-secondary">
+          Avbryt
+        </a>
+        {% else %}
         <a href="{% url 'portal:document_list' %}" class="btn btn-outline-secondary">
           Avbryt
         </a>
+        {% endif %}
       </div>
     </form>
   </div>

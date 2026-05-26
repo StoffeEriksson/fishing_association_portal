@@ -894,6 +894,10 @@
     margin-bottom: 0.25rem;
 }
 
+.upload-target-folder-notice--workspace {
+    border-left-color: #6c757d;
+}
+
 .document-safety-badge {
     display: inline-flex;
     align-items: center;

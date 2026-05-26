@@ -777,6 +777,38 @@ def _resolve_upload_target_folder(org, folder_id_raw):
     return folder, _folder_path_label(folder, by_id)
 
 
+def _resolve_workspace_upload_target_folder(org, folder_id_raw):
+    """
+    Resolve workspace upload target: workspace-root or a folder under it.
+    Never archive. Wrong org / invalid folder → 404.
+    """
+    workspace_root = _ensure_workspace_root(org)
+    scope = _workspace_folder_scope(org)
+    folder_in_archive = scope["folder_in_archive"]
+    by_id = {
+        f.pk: f
+        for f in DocumentFolder.objects.filter(org=org).select_related("parent")
+    }
+
+    raw = (folder_id_raw or "").strip()
+    if not raw:
+        target = workspace_root
+    else:
+        if not raw.isdigit():
+            raise Http404("Ogiltig mapp.")
+        target = get_object_or_404(DocumentFolder, pk=int(raw), org=org)
+
+    if folder_in_archive.get(target.pk, False):
+        raise Http404("Mappen finns inte i arbetsdokument.")
+
+    if not _folder_is_valid_workspace_parent(
+        target, workspace_root, by_id, folder_in_archive
+    ):
+        raise Http404("Mappen finns inte i arbetsdokument.")
+
+    return target, _folder_path_label(target, by_id)
+
+
 def _all_folders_for_move(org):
     """All folders for move-to select, sorted by path label."""
     folders = list(
@@ -1250,10 +1282,18 @@ def document_upload(request):
 
     target_folder = None
     target_folder_path_label = None
+    workspace_mode = False
+    target_context = None
 
     if request.method == "POST":
+        workspace_mode = request.POST.get("workspace") == "1"
         post_folder_raw = request.POST.get("folder")
-        if post_folder_raw:
+
+        if workspace_mode:
+            target_folder, target_folder_path_label = (
+                _resolve_workspace_upload_target_folder(org, post_folder_raw)
+            )
+        elif post_folder_raw:
             target_folder, target_folder_path_label = _resolve_upload_target_folder(
                 org, post_folder_raw
             )
@@ -1266,7 +1306,10 @@ def document_upload(request):
             document.org = org
             document.uploaded_by = request.user
             document.source_type = DocumentSourceType.UPLOADED
-            if target_folder:
+            if workspace_mode:
+                document.folder = target_folder
+                document.folder_auto_assigned = False
+            elif target_folder:
                 document.folder = target_folder
                 document.folder_auto_assigned = False
             document.save()
@@ -1286,17 +1329,29 @@ def document_upload(request):
             )
 
             messages.success(request, "Dokumentet har laddats upp.")
+            if workspace_mode:
+                return redirect(
+                    f"{reverse('portal:document_workspace')}?folder={target_folder.pk}"
+                )
             if target_folder:
                 return redirect(
                     f"{reverse('portal:document_archive')}?folder={target_folder.pk}"
                 )
             return redirect("portal:document_overview")
     else:
+        workspace_mode = request.GET.get("workspace") == "1"
         get_folder_raw = request.GET.get("folder")
-        if get_folder_raw:
+
+        if workspace_mode:
+            target_folder, target_folder_path_label = (
+                _resolve_workspace_upload_target_folder(org, get_folder_raw)
+            )
+            target_context = "workspace"
+        elif get_folder_raw:
             target_folder, target_folder_path_label = _resolve_upload_target_folder(
                 org, get_folder_raw
             )
+            target_context = "archive"
         form = DocumentCreateForm()
 
     return render(
@@ -1306,6 +1361,8 @@ def document_upload(request):
             "form": form,
             "target_folder": target_folder,
             "target_folder_path_label": target_folder_path_label,
+            "workspace_mode": workspace_mode,
+            "target_context": target_context,
         },
     )
 
