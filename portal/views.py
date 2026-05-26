@@ -9,7 +9,7 @@ from django.db import IntegrityError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.urls import reverse
 from collections import OrderedDict
@@ -647,6 +647,21 @@ def _folder_path_label(folder, by_id):
     return " / ".join(parts) if parts else folder.name
 
 
+def _resolve_upload_target_folder(org, folder_id_raw):
+    """
+    Resolve DocumentFolder for upload from a raw id string (GET/POST).
+    Tenant-scoped; wrong org or unknown pk → 404. Empty → (None, None).
+    """
+    raw = (folder_id_raw or "").strip()
+    if not raw:
+        return None, None
+    if not raw.isdigit():
+        raise Http404("Ogiltig mapp.")
+    folder = get_object_or_404(DocumentFolder, pk=int(raw), org=org)
+    by_id = {f.pk: f for f in DocumentFolder.objects.filter(org=org)}
+    return folder, _folder_path_label(folder, by_id)
+
+
 def _all_folders_for_move(org):
     """All folders for move-to select, sorted by path label."""
     folders = list(
@@ -898,9 +913,22 @@ def document_list(request):
 
 @login_required
 def document_upload(request):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
     org = request.org
 
+    target_folder = None
+    target_folder_path_label = None
+
     if request.method == "POST":
+        post_folder_raw = request.POST.get("folder")
+        if post_folder_raw:
+            target_folder, target_folder_path_label = _resolve_upload_target_folder(
+                org, post_folder_raw
+            )
+
         form = DocumentCreateForm(request.POST, request.FILES)
         if form.is_valid():
             uploaded_file = form.cleaned_data["file"]
@@ -909,6 +937,9 @@ def document_upload(request):
             document.org = org
             document.uploaded_by = request.user
             document.source_type = DocumentSourceType.UPLOADED
+            if target_folder:
+                document.folder = target_folder
+                document.folder_auto_assigned = False
             document.save()
 
             DocumentVersion.objects.create(
@@ -926,14 +957,27 @@ def document_upload(request):
             )
 
             messages.success(request, "Dokumentet har laddats upp.")
-            return redirect("document_overview")
+            if target_folder:
+                return redirect(
+                    f"{reverse('portal:document_archive')}?folder={target_folder.pk}"
+                )
+            return redirect("portal:document_overview")
     else:
+        get_folder_raw = request.GET.get("folder")
+        if get_folder_raw:
+            target_folder, target_folder_path_label = _resolve_upload_target_folder(
+                org, get_folder_raw
+            )
         form = DocumentCreateForm()
 
     return render(
         request,
         "portal/document_upload.html",
-        {"form": form},
+        {
+            "form": form,
+            "target_folder": target_folder,
+            "target_folder_path_label": target_folder_path_label,
+        },
     )
 
 

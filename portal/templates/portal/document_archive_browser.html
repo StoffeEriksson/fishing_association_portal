@@ -25,7 +25,11 @@
                 <i class="fa-solid fa-folder-plus me-1" aria-hidden="true"></i>
                 Ny mapp
             </button>
+            {% if current_folder %}
+            <a href="{% url 'portal:document_upload' %}?folder={{ current_folder.pk }}" class="btn btn-primary btn-sm">
+            {% else %}
             <a href="{% url 'portal:document_upload' %}" class="btn btn-primary btn-sm">
+            {% endif %}
                 <i class="fa-solid fa-arrow-up-from-bracket me-1" aria-hidden="true"></i>
                 Ladda upp dokument
             </a>

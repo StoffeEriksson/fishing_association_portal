@@ -882,3 +882,14 @@
         align-self: center;
     }
 }
+
+/* Upload form: target archive folder (from archive browser link) */
+.upload-target-folder-notice {
+    font-size: 0.9rem;
+    color: #495057;
+    background: #f8f9fa;
+    border-left: 3px solid #0d6efd;
+    border-radius: 0.25rem;
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 0.25rem;
+}

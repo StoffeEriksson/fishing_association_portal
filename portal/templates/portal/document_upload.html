@@ -28,6 +28,14 @@
   <div class="card-body p-4">
     <form method="post" enctype="multipart/form-data" class="row g-3">
       {% csrf_token %}
+      {% if target_folder %}
+      <input type="hidden" name="folder" value="{{ target_folder.pk }}">
+      <div class="col-12">
+        <div class="upload-target-folder-notice" role="status">
+          Dokumentet laddas upp till: {{ target_folder_path_label }}
+        </div>
+      </div>
+      {% endif %}
 
       <div class="col-12">
         <label class="form-label">Titel</label>
