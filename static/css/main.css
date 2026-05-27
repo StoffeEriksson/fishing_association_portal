@@ -1534,36 +1534,253 @@ body.portal-app-body .shadow-soft {
 }
 
 /* Mitt konto */
-.my-account-avatar-wrap {
-    display: flex;
-    justify-content: center;
+.my-account-page {
+    padding-bottom: 0.5rem;
 }
 
-.my-account-avatar {
-    width: 96px;
-    height: 96px;
+.my-account-header-actions .btn {
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.my-account-card {
+    border: 1px solid rgba(37, 99, 235, 0.08);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.my-account-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.my-account-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 10px;
+    background: linear-gradient(145deg, rgba(47, 107, 255, 0.14) 0%, rgba(15, 23, 42, 0.06) 100%);
+    color: #2563eb;
+    font-size: 0.9rem;
+}
+
+.my-account-avatar-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1.25rem 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.6) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.my-account-avatar-preview {
+    margin-bottom: 1rem;
+}
+
+.my-account-avatar,
+.my-account-avatar-lg {
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid rgba(148, 163, 184, 0.25);
+}
+
+.my-account-avatar-lg {
+    width: 120px;
+    height: 120px;
+    border: 4px solid #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 }
 
 .my-account-avatar-placeholder {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+    background: linear-gradient(145deg, #1e293b 0%, #7f1d1d 115%);
     color: #f8fafc;
-    font-size: 1.75rem;
+    font-size: 2.1rem;
     font-weight: 700;
     letter-spacing: 0.04em;
 }
 
-.my-account-org-dl dt {
-    color: #64748b;
-    font-weight: 500;
+.my-account-avatar-upload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    max-width: 16rem;
 }
 
-.my-account-org-dl dd {
+.my-account-avatar-upload input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.my-account-avatar-btn {
+    border-radius: 999px;
     font-weight: 600;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.my-account-avatar-hint {
+    font-size: 0.78rem;
+    color: #64748b;
+}
+
+.my-account-readonly-field {
+    padding: 0.55rem 0.75rem;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    color: #334155;
+    font-weight: 500;
+    font-size: 0.92rem;
+}
+
+.my-account-fields .form-label {
+    font-weight: 600;
+    color: #334155;
+    font-size: 0.84rem;
+}
+
+.my-account-org-intro {
+    margin-bottom: 1rem;
+}
+
+.my-account-org-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.my-account-org-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.my-account-org-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.my-account-org-value .badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+}
+
+.my-account-role-badge {
+    background: rgba(47, 107, 255, 0.12);
+    color: #1d4ed8;
+    border: 1px solid rgba(47, 107, 255, 0.2);
+}
+
+.my-account-role-badge--board {
+    background: rgba(15, 23, 42, 0.08);
     color: #0f172a;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.my-account-card-org {
+    background: linear-gradient(180deg, #fff 0%, rgba(248, 250, 252, 0.85) 100%);
+}
+
+.my-account-org-empty {
+    padding: 0.5rem 0;
+}
+
+.my-account-form {
+    position: relative;
+}
+
+.my-account-save-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    margin-top: 1.5rem;
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+    padding: 0.85rem 0 0.25rem;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.92) 35%, #f8fafc 100%);
+}
+
+.my-account-save-bar-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    padding: 0.85rem 1.1rem;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid rgba(37, 99, 235, 0.12);
+    box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.08), 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.my-account-save-hint {
+    font-size: 0.82rem;
+    color: #64748b;
+    max-width: 28rem;
+}
+
+.my-account-save-btn {
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 0.55rem 1.35rem;
+    min-width: 10.5rem;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+}
+
+@media (max-width: 991.98px) {
+    .my-account-avatar-block {
+        padding: 1rem 0.75rem;
+    }
+
+    .my-account-avatar-lg {
+        width: 100px;
+        height: 100px;
+        font-size: 1.85rem;
+    }
+
+    .my-account-org-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .my-account-save-bar-inner {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .my-account-save-btn {
+        width: 100%;
+        min-width: 0;
+    }
 }

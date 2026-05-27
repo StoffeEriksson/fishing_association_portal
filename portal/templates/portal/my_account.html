@@ -4,177 +4,216 @@
 
 {% block content %}
 
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-  <div>
-    <h1 class="page-title h2 mb-1">Mitt konto</h1>
-    <div class="muted-label">
-      Hantera din profil och kontaktuppgifter
+<div class="my-account-page">
+  <header class="my-account-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="page-title h2 mb-1">Mitt konto</h1>
+      <p class="muted-label mb-0">
+        Hantera din profil och kontaktuppgifter
+      </p>
     </div>
-  </div>
-  <div>
-    <a href="{% url 'account_change_password' %}" class="btn btn-outline-secondary btn-sm">
-      Byt lösenord
-    </a>
-  </div>
-</div>
+    <div class="my-account-header-actions">
+      <a href="{% url 'account_change_password' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fa-solid fa-key me-1" aria-hidden="true"></i>
+        Byt lösenord
+      </a>
+    </div>
+  </header>
 
-<form method="post" enctype="multipart/form-data" class="my-account-form">
-  {% csrf_token %}
+  <form method="post" enctype="multipart/form-data" class="my-account-form">
+    {% csrf_token %}
 
-  <div class="row g-4">
-    <div class="col-lg-6">
-      <div class="card shadow-soft h-100">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Profil</h2>
+    <div class="row g-4 my-account-grid">
+      <div class="col-lg-6">
+        <div class="card shadow-soft my-account-card h-100">
+          <div class="card-body">
+            <div class="my-account-card-head">
+              <span class="my-account-card-icon" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
+              <h2 class="h5 mb-0">Profil</h2>
+            </div>
 
-          <div class="my-account-avatar-wrap mb-4">
-            {% if profile.avatar %}
-              <img
-                src="{{ profile.avatar.url }}"
-                alt="Profilbild"
-                class="my-account-avatar"
-              >
+            <div class="my-account-avatar-block">
+              <div class="my-account-avatar-preview" aria-hidden="true">
+                {% if profile.avatar %}
+                  <img
+                    src="{{ profile.avatar.url }}"
+                    alt=""
+                    class="my-account-avatar my-account-avatar-lg"
+                  >
+                {% else %}
+                  <span class="my-account-avatar my-account-avatar-lg my-account-avatar-placeholder">
+                    {{ account_initials }}
+                  </span>
+                {% endif %}
+              </div>
+
+              <div class="my-account-avatar-upload">
+                {{ profile_form.avatar }}
+                <label for="{{ profile_form.avatar.id_for_label }}" class="btn btn-outline-primary btn-sm my-account-avatar-btn">
+                  <i class="fa-solid fa-camera me-1" aria-hidden="true"></i>
+                  Byt profilbild
+                </label>
+                <p class="form-text my-account-avatar-hint mb-0">PNG eller JPG rekommenderas</p>
+                {% if profile_form.avatar.errors %}
+                  <div class="text-danger small mt-1">{{ profile_form.avatar.errors }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="my-account-fields">
+              <div class="mb-3">
+                <label for="{{ user_form.first_name.id_for_label }}" class="form-label">Förnamn</label>
+                {{ user_form.first_name }}
+                {% if user_form.first_name.errors %}
+                  <div class="text-danger small mt-1">{{ user_form.first_name.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="mb-3">
+                <label for="{{ user_form.last_name.id_for_label }}" class="form-label">Efternamn</label>
+                {{ user_form.last_name }}
+                {% if user_form.last_name.errors %}
+                  <div class="text-danger small mt-1">{{ user_form.last_name.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="mb-0">
+                <label for="{{ profile_form.phone.id_for_label }}" class="form-label">Telefon</label>
+                {{ profile_form.phone }}
+                {% if profile_form.phone.errors %}
+                  <div class="text-danger small mt-1">{{ profile_form.phone.errors }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6 d-flex flex-column gap-4">
+        <div class="card shadow-soft my-account-card">
+          <div class="card-body">
+            <div class="my-account-card-head">
+              <span class="my-account-card-icon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></span>
+              <h2 class="h5 mb-0">Kontakt &amp; adress</h2>
+            </div>
+
+            <div class="my-account-email-readonly mb-4">
+              <label class="form-label">E-post</label>
+              <div class="my-account-readonly-field">
+                {{ request.user.email|default:"—" }}
+              </div>
+              <p class="form-text mb-0">
+                E-post hanteras via inloggningen och kan inte ändras här.
+                Flera e-postadresser kommer senare.
+              </p>
+            </div>
+
+            <div class="my-account-fields">
+              <div class="mb-3">
+                <label for="{{ profile_form.address_line1.id_for_label }}" class="form-label">Adressrad 1</label>
+                {{ profile_form.address_line1 }}
+                {% if profile_form.address_line1.errors %}
+                  <div class="text-danger small mt-1">{{ profile_form.address_line1.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="mb-3">
+                <label for="{{ profile_form.address_line2.id_for_label }}" class="form-label">Adressrad 2</label>
+                {{ profile_form.address_line2 }}
+                {% if profile_form.address_line2.errors %}
+                  <div class="text-danger small mt-1">{{ profile_form.address_line2.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="row g-2 mb-3">
+                <div class="col-sm-5">
+                  <label for="{{ profile_form.postal_code.id_for_label }}" class="form-label">Postnummer</label>
+                  {{ profile_form.postal_code }}
+                  {% if profile_form.postal_code.errors %}
+                    <div class="text-danger small mt-1">{{ profile_form.postal_code.errors }}</div>
+                  {% endif %}
+                </div>
+                <div class="col-sm-7">
+                  <label for="{{ profile_form.city.id_for_label }}" class="form-label">Stad</label>
+                  {{ profile_form.city }}
+                  {% if profile_form.city.errors %}
+                    <div class="text-danger small mt-1">{{ profile_form.city.errors }}</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="mb-0">
+                <label for="{{ profile_form.country.id_for_label }}" class="form-label">Land</label>
+                {{ profile_form.country }}
+                {% if profile_form.country.errors %}
+                  <div class="text-danger small mt-1">{{ profile_form.country.errors }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-soft my-account-card my-account-card-org">
+          <div class="card-body">
+            <div class="my-account-card-head">
+              <span class="my-account-card-icon" aria-hidden="true"><i class="fa-solid fa-building"></i></span>
+              <h2 class="h5 mb-0">Aktiv organisation</h2>
+            </div>
+            <p class="text-muted small my-account-org-intro">
+              Din roll i den organisation som är aktiv i portalen just nu.
+            </p>
+
+            {% if request.org %}
+              <div class="my-account-org-rows">
+                <div class="my-account-org-row">
+                  <span class="my-account-org-label">Organisation</span>
+                  <span class="my-account-org-value badge text-bg-primary-subtle border">
+                    {{ request.org.name }}
+                  </span>
+                </div>
+                <div class="my-account-org-row">
+                  <span class="my-account-org-label">Portalroll</span>
+                  <span class="my-account-org-value">
+                    {% if portal_membership %}
+                      <span class="badge my-account-role-badge">{{ portal_membership.get_role_display }}</span>
+                    {% else %}
+                      <span class="badge text-bg-light border text-muted">Inget medlemskap</span>
+                    {% endif %}
+                  </span>
+                </div>
+                <div class="my-account-org-row">
+                  <span class="my-account-org-label">Styrelseroll</span>
+                  <span class="my-account-org-value">
+                    {% if board_membership %}
+                      <span class="badge my-account-role-badge my-account-role-badge--board">{{ board_membership.get_role_display }}</span>
+                    {% else %}
+                      <span class="badge text-bg-light border text-muted">Ingen styrelseroll</span>
+                    {% endif %}
+                  </span>
+                </div>
+              </div>
             {% else %}
-              <div class="my-account-avatar my-account-avatar-placeholder" aria-hidden="true">
-                {{ account_initials }}
+              <div class="my-account-org-empty">
+                <span class="badge text-bg-warning-subtle border text-dark">Ingen aktiv organisation vald</span>
               </div>
             {% endif %}
           </div>
-
-          <div class="mb-3">
-            <label for="{{ profile_form.avatar.id_for_label }}" class="form-label">Profilbild</label>
-            {{ profile_form.avatar }}
-            {% if profile_form.avatar.errors %}
-              <div class="text-danger small mt-1">{{ profile_form.avatar.errors }}</div>
-            {% endif %}
-          </div>
-
-          <div class="mb-3">
-            <label for="{{ user_form.first_name.id_for_label }}" class="form-label">Förnamn</label>
-            {{ user_form.first_name }}
-            {% if user_form.first_name.errors %}
-              <div class="text-danger small mt-1">{{ user_form.first_name.errors }}</div>
-            {% endif %}
-          </div>
-
-          <div class="mb-3">
-            <label for="{{ user_form.last_name.id_for_label }}" class="form-label">Efternamn</label>
-            {{ user_form.last_name }}
-            {% if user_form.last_name.errors %}
-              <div class="text-danger small mt-1">{{ user_form.last_name.errors }}</div>
-            {% endif %}
-          </div>
-
-          <div class="mb-0">
-            <label for="{{ profile_form.phone.id_for_label }}" class="form-label">Telefon</label>
-            {{ profile_form.phone }}
-            {% if profile_form.phone.errors %}
-              <div class="text-danger small mt-1">{{ profile_form.phone.errors }}</div>
-            {% endif %}
-          </div>
         </div>
       </div>
     </div>
 
-    <div class="col-lg-6">
-      <div class="card shadow-soft mb-4">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Kontakt &amp; adress</h2>
-
-          <div class="mb-3">
-            <label class="form-label">E-post</label>
-            <input
-              type="email"
-              class="form-control"
-              value="{{ request.user.email|default:'' }}"
-              readonly
-              disabled
-            >
-            <div class="form-text">E-post hanteras via inloggningen och kan inte ändras här.</div>
-          </div>
-
-          <div class="mb-3">
-            <label for="{{ profile_form.address_line1.id_for_label }}" class="form-label">Adressrad 1</label>
-            {{ profile_form.address_line1 }}
-            {% if profile_form.address_line1.errors %}
-              <div class="text-danger small mt-1">{{ profile_form.address_line1.errors }}</div>
-            {% endif %}
-          </div>
-
-          <div class="mb-3">
-            <label for="{{ profile_form.address_line2.id_for_label }}" class="form-label">Adressrad 2</label>
-            {{ profile_form.address_line2 }}
-            {% if profile_form.address_line2.errors %}
-              <div class="text-danger small mt-1">{{ profile_form.address_line2.errors }}</div>
-            {% endif %}
-          </div>
-
-          <div class="row g-2">
-            <div class="col-sm-5">
-              <label for="{{ profile_form.postal_code.id_for_label }}" class="form-label">Postnummer</label>
-              {{ profile_form.postal_code }}
-              {% if profile_form.postal_code.errors %}
-                <div class="text-danger small mt-1">{{ profile_form.postal_code.errors }}</div>
-              {% endif %}
-            </div>
-            <div class="col-sm-7">
-              <label for="{{ profile_form.city.id_for_label }}" class="form-label">Stad</label>
-              {{ profile_form.city }}
-              {% if profile_form.city.errors %}
-                <div class="text-danger small mt-1">{{ profile_form.city.errors }}</div>
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="mb-0 mt-3">
-            <label for="{{ profile_form.country.id_for_label }}" class="form-label">Land</label>
-            {{ profile_form.country }}
-            {% if profile_form.country.errors %}
-              <div class="text-danger small mt-1">{{ profile_form.country.errors }}</div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      <div class="card shadow-soft">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Aktiv organisation</h2>
-          <p class="text-muted small mb-3">Information om din roll i den organisation som är aktiv i portalen.</p>
-
-          {% if request.org %}
-            <dl class="row mb-0 my-account-org-dl">
-              <dt class="col-sm-4">Organisation</dt>
-              <dd class="col-sm-8">{{ request.org.name }}</dd>
-
-              <dt class="col-sm-4">Portalroll</dt>
-              <dd class="col-sm-8">
-                {% if portal_membership %}
-                  {{ portal_membership.get_role_display }}
-                {% else %}
-                  <span class="text-muted">Inget medlemskap</span>
-                {% endif %}
-              </dd>
-
-              <dt class="col-sm-4">Styrelseroll</dt>
-              <dd class="col-sm-8">
-                {% if board_membership %}
-                  {{ board_membership.get_role_display }}
-                {% else %}
-                  <span class="text-muted">Ingen styrelseroll</span>
-                {% endif %}
-              </dd>
-            </dl>
-          {% else %}
-            <p class="text-muted mb-0">Ingen aktiv organisation vald</p>
-          {% endif %}
-        </div>
+    <div class="my-account-save-bar" role="group" aria-label="Spara profil">
+      <div class="my-account-save-bar-inner">
+        <p class="my-account-save-hint d-none d-md-block mb-0">
+          Ändringar sparas för hela ditt konto, inte per organisation.
+        </p>
+        <button type="submit" class="btn btn-dark my-account-save-btn">
+          <i class="fa-solid fa-check me-1" aria-hidden="true"></i>
+          Spara ändringar
+        </button>
       </div>
     </div>
-  </div>
-
-  <div class="d-flex justify-content-end mt-4">
-    <button type="submit" class="btn btn-dark">Spara ändringar</button>
-  </div>
-</form>
+  </form>
+</div>
 
 {% endblock %}
