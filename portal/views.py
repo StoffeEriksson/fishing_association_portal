@@ -705,6 +705,8 @@ def document_workspace(request):
     for child in tree_children_by_parent.get(workspace_root.pk, []):
         append_tree(child, 1)
 
+    all_workspace_folders_for_move = _all_workspace_folders_for_move(org)
+
     return render(
         request,
         "portal/document_workspace_browser.html",
@@ -718,6 +720,7 @@ def document_workspace(request):
             "folder_document_counts": folder_document_counts,
             "tree_nodes": tree_nodes,
             "workspace_root_missing": False,
+            "all_workspace_folders_for_move": all_workspace_folders_for_move,
         },
     )
 
@@ -820,6 +823,49 @@ def _all_folders_for_move(org):
         out.append({
             "id": f.pk,
             "path_label": _folder_path_label(f, by_id),
+        })
+    out.sort(key=lambda x: (x["path_label"].lower(), x["id"]))
+    return out
+
+
+def _workspace_folder_path_label(folder, workspace_root, by_id):
+    """Path from workspace-root down to folder, e.g. Arbetsdokument / Fiskevård."""
+    parts = []
+    node = folder
+    seen = set()
+    while node is not None and node.pk not in seen:
+        seen.add(node.pk)
+        parts.append(node.name)
+        if node.pk == workspace_root.pk:
+            break
+        pid = node.parent_id
+        node = by_id.get(pid) if pid else None
+    parts.reverse()
+    return " / ".join(parts)
+
+
+def _all_workspace_folders_for_move(org):
+    """Workspace-root and descendants for move-to select (never archive)."""
+    workspace_root = _ensure_workspace_root(org)
+    scope = _workspace_folder_scope(org)
+    folder_in_archive = scope["folder_in_archive"]
+    by_id = {
+        f.pk: f
+        for f in DocumentFolder.objects.filter(org=org).select_related("parent")
+    }
+    out = []
+    for folder in scope["workspace_folders"]:
+        if folder_in_archive.get(folder.pk, False):
+            continue
+        if not _folder_is_valid_workspace_parent(
+            folder, workspace_root, by_id, folder_in_archive
+        ):
+            continue
+        out.append({
+            "id": folder.pk,
+            "path_label": _workspace_folder_path_label(
+                folder, workspace_root, by_id
+            ),
         })
     out.sort(key=lambda x: (x["path_label"].lower(), x["id"]))
     return out
@@ -1191,6 +1237,79 @@ def document_move_to_folder(request, pk):
     return redirect(
         f"{reverse('portal:document_archive')}?folder={target_folder.pk}"
     )
+
+
+@login_required
+@require_POST
+def document_workspace_move_to_folder(request, pk):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+    workspace_root = _ensure_workspace_root(org)
+
+    def _redirect_after_move(target=None):
+        if target is not None:
+            return redirect(
+                f"{reverse('portal:document_workspace')}?folder={target.pk}"
+            )
+        rf = (request.POST.get("return_folder") or "").strip()
+        if rf.isdigit():
+            folder = DocumentFolder.objects.filter(pk=int(rf), org=org).first()
+            if folder:
+                return redirect(
+                    f"{reverse('portal:document_workspace')}?folder={folder.pk}"
+                )
+        return redirect(_workspace_redirect_url(workspace_root))
+
+    document = get_object_or_404(
+        Document.objects.filter(
+            org=org,
+            is_deleted=False,
+        ).exclude(
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+        ),
+        pk=pk,
+    )
+
+    raw_folder_id = (request.POST.get("folder_id") or "").strip()
+    if not raw_folder_id.isdigit():
+        messages.error(request, "Välj en målmapp.")
+        return _redirect_after_move()
+
+    target_folder = get_object_or_404(
+        DocumentFolder,
+        pk=int(raw_folder_id),
+        org=org,
+    )
+
+    scope = _workspace_folder_scope(org)
+    folder_in_archive = scope["folder_in_archive"]
+    by_id = {
+        f.pk: f
+        for f in DocumentFolder.objects.filter(org=org).select_related("parent")
+    }
+
+    if folder_in_archive.get(target_folder.pk, False):
+        raise Http404("Mappen finns inte i arbetsdokument.")
+
+    if not _folder_is_valid_workspace_parent(
+        target_folder, workspace_root, by_id, folder_in_archive
+    ):
+        raise Http404("Mappen finns inte i arbetsdokument.")
+
+    if document.folder_id and folder_in_archive.get(document.folder_id, False):
+        raise Http404("Dokumentet finns inte i arbetsdokument.")
+
+    document.folder = target_folder
+    document.folder_auto_assigned = False
+    document.save(
+        update_fields=["folder", "folder_auto_assigned", "updated_at"]
+    )
+    messages.success(request, "Dokumentet har flyttats.")
+    return _redirect_after_move(target_folder)
 
 
 @login_required

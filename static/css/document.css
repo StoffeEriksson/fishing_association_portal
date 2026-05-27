@@ -950,6 +950,10 @@
     color: #1d4ed8;
 }
 
+.workspace-document-row-wrap .archive-document-row.workspace-document-row {
+    border-bottom: none;
+}
+
 .workspace-document-row {
     grid-template-columns: minmax(420px, 1fr) 140px 220px 24px;
     align-items: center;

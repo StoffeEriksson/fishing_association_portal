@@ -173,58 +173,72 @@
                         <h3 id="workspace-documents-heading" class="archive-section-title">Dokument</h3>
                         <div class="archive-document-list">
                             {% for document in documents %}
-                                <a href="{% url 'portal:document_detail' document.pk %}"
-                                   class="archive-document-row workspace-document-row">
-                                    <span class="workspace-document-primary">
-                                        <span class="archive-document-icon" aria-hidden="true">
-                                            <i class="fa-solid fa-file-lines"></i>
-                                        </span>
-                                        <span class="archive-document-main workspace-document-main">
-                                            <span class="archive-document-title">{{ document.title }}</span>
-                                            <span class="archive-document-meta">
-                                                {% if document.category == "protocol" and not document.meeting %}
-                                                    Protokollutkast
-                                                {% else %}
-                                                    {{ document.get_category_display }}
-                                                {% endif %}
-                                                <span class="archive-document-meta-sep">·</span>
-                                                {{ document.created_at|date:"Y-m-d H:i" }}
-                                                {% if document.meeting %}
+                                <div class="archive-document-row-wrap workspace-document-row-wrap">
+                                    <a href="{% url 'portal:document_detail' document.pk %}"
+                                       class="archive-document-row workspace-document-row">
+                                        <span class="workspace-document-primary">
+                                            <span class="archive-document-icon" aria-hidden="true">
+                                                <i class="fa-solid fa-file-lines"></i>
+                                            </span>
+                                            <span class="archive-document-main workspace-document-main">
+                                                <span class="archive-document-title">{{ document.title }}</span>
+                                                <span class="archive-document-meta">
+                                                    {% if document.category == "protocol" and not document.meeting %}
+                                                        Protokollutkast
+                                                    {% else %}
+                                                        {{ document.get_category_display }}
+                                                    {% endif %}
                                                     <span class="archive-document-meta-sep">·</span>
-                                                    Möte: {{ document.meeting.title }}
-                                                {% endif %}
+                                                    {{ document.created_at|date:"Y-m-d H:i" }}
+                                                    {% if document.meeting %}
+                                                        <span class="archive-document-meta-sep">·</span>
+                                                        Möte: {{ document.meeting.title }}
+                                                    {% endif %}
+                                                </span>
                                             </span>
                                         </span>
-                                    </span>
-                                    <span class="workspace-document-badges workspace-document-badges--workflow" aria-label="Workflowstatus">
-                                        {% if document.workflow_status == "draft" %}
-                                            <span class="workspace-document-badge workspace-document-badge--workflow">Utkast</span>
-                                        {% elif document.workflow_status == "locked_for_review" %}
-                                            <span class="workspace-document-badge workspace-document-badge--workflow">Låst</span>
-                                        {% elif document.workflow_status == "under_review" %}
-                                            <span class="workspace-document-badge workspace-document-badge--workflow">Under granskning</span>
-                                        {% elif document.workflow_status == "approved" %}
-                                            <span class="workspace-document-badge workspace-document-badge--workflow">Godkänd</span>
-                                            {% if document.has_pending_signatures %}
-                                                <span class="workspace-document-badge workspace-document-badge--workflow">Väntar på signering</span>
+                                        <span class="workspace-document-badges workspace-document-badges--workflow" aria-label="Workflowstatus">
+                                            {% if document.workflow_status == "draft" %}
+                                                <span class="workspace-document-badge workspace-document-badge--workflow">Utkast</span>
+                                            {% elif document.workflow_status == "locked_for_review" %}
+                                                <span class="workspace-document-badge workspace-document-badge--workflow">Låst</span>
+                                            {% elif document.workflow_status == "under_review" %}
+                                                <span class="workspace-document-badge workspace-document-badge--workflow">Under granskning</span>
+                                            {% elif document.workflow_status == "approved" %}
+                                                <span class="workspace-document-badge workspace-document-badge--workflow">Godkänd</span>
+                                                {% if document.has_pending_signatures %}
+                                                    <span class="workspace-document-badge workspace-document-badge--workflow">Väntar på signering</span>
+                                                {% endif %}
                                             {% endif %}
-                                        {% endif %}
-                                    </span>
-                                    <span class="workspace-document-badges workspace-document-badges--safety" aria-label="Säkerhetsstatus">
-                                        {% if document.meeting %}
-                                            <span class="workspace-document-badge workspace-document-badge--meeting">Möteskopplat</span>
-                                        {% else %}
-                                            <span class="workspace-document-badge workspace-document-badge--draft">Arbetsdokument</span>
-                                            <span class="workspace-document-badge workspace-document-badge--draft">Ej möteskopplat</span>
-                                            {% if document.category == "protocol" %}
-                                                <span class="workspace-document-badge workspace-document-badge--warning">Protokollutkast</span>
+                                        </span>
+                                        <span class="workspace-document-badges workspace-document-badges--safety" aria-label="Säkerhetsstatus">
+                                            {% if document.meeting %}
+                                                <span class="workspace-document-badge workspace-document-badge--meeting">Möteskopplat</span>
+                                            {% else %}
+                                                <span class="workspace-document-badge workspace-document-badge--draft">Arbetsdokument</span>
+                                                <span class="workspace-document-badge workspace-document-badge--draft">Ej möteskopplat</span>
+                                                {% if document.category == "protocol" %}
+                                                    <span class="workspace-document-badge workspace-document-badge--warning">Protokollutkast</span>
+                                                {% endif %}
                                             {% endif %}
-                                        {% endif %}
-                                    </span>
-                                    <span class="archive-document-open workspace-document-open" aria-hidden="true">
-                                        <i class="fa-solid fa-chevron-right"></i>
-                                    </span>
-                                </a>
+                                        </span>
+                                        <span class="archive-document-open workspace-document-open" aria-hidden="true">
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        </span>
+                                    </a>
+                                    <div class="archive-document-actions">
+                                        <button type="button"
+                                                class="btn btn-outline-secondary btn-sm workspace-move-trigger"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#workspaceMoveDocumentModal"
+                                                data-document-pk="{{ document.pk }}"
+                                                data-move-url="{% url 'portal:document_workspace_move_to_folder' document.pk %}"
+                                                data-document-title="{{ document.title|default_if_none:''|truncatechars:100 }}">
+                                            <i class="fa-solid fa-folder-open me-1" aria-hidden="true"></i>
+                                            Flytta
+                                        </button>
+                                    </div>
+                                </div>
                             {% endfor %}
                         </div>
                     </section>
@@ -292,4 +306,63 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade archive-move-modal" id="workspaceMoveDocumentModal" tabindex="-1"
+     aria-labelledby="workspaceMoveDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="" id="workspaceMoveDocumentForm">
+                {% csrf_token %}
+                <input type="hidden" name="return_folder" value="{% if current_folder %}{{ current_folder.pk }}{% endif %}">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="workspaceMoveDocumentModalLabel">Flytta arbetsdokument</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-2">
+                        <span class="fw-semibold workspace-move-doc-title"></span>
+                    </p>
+                    <label for="workspaceMoveFolderSelect" class="form-label">Målmapp</label>
+                    <select class="form-select workspace-move-folder-select" id="workspaceMoveFolderSelect" name="folder_id" required>
+                        <option value="" disabled selected>Välj mapp…</option>
+                        {% for opt in all_workspace_folders_for_move %}
+                            <option value="{{ opt.id }}">{{ opt.path_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-primary">Flytta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var modal = document.getElementById("workspaceMoveDocumentModal");
+    if (!modal) return;
+    modal.addEventListener("show.bs.modal", function (event) {
+        var btn = event.relatedTarget;
+        if (!btn || !btn.classList.contains("workspace-move-trigger")) return;
+        var form = document.getElementById("workspaceMoveDocumentForm");
+        var url = btn.getAttribute("data-move-url");
+        var title = btn.getAttribute("data-document-title") || "";
+        if (form && url) {
+            form.action = url;
+        }
+        var titleEl = modal.querySelector(".workspace-move-doc-title");
+        if (titleEl) {
+            titleEl.textContent = title;
+        }
+        var sel = modal.querySelector(".workspace-move-folder-select");
+        if (sel) {
+            sel.selectedIndex = 0;
+        }
+    });
+})();
+</script>
 {% endblock %}

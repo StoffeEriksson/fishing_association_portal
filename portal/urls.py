@@ -14,6 +14,11 @@ urlpatterns = [
     path("documents/activity/", views.activity_list, name="activity_list"),
     path("documents/workspace/", views.document_workspace, name="document_workspace"),
     path(
+        "documents/workspace/folders/create/",
+        views.document_workspace_folder_create,
+        name="document_workspace_folder_create",
+    ),
+    path(
         "documents/archive/folders/create/",
         views.document_folder_create,
         name="document_folder_create",
@@ -28,6 +33,11 @@ urlpatterns = [
         "documents/<int:pk>/move-to-folder/",
         views.document_move_to_folder,
         name="document_move_to_folder",
+    ),
+    path(
+        "documents/<int:pk>/workspace-move-to-folder/",
+        views.document_workspace_move_to_folder,
+        name="document_workspace_move_to_folder",
     ),
 
     path("documents/trash/", views.document_trash, name="document_trash"),
