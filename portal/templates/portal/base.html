@@ -192,12 +192,30 @@
             </span>
           {% endif %}
 
-          <div class="text-end portal-topbar-user top-meta">
-            <div>Inloggad som</div>
-            <div class="fw-semibold portal-topbar-user-email">
-              {{ request.user.email|default:request.user.username }}
-            </div>
-          </div>
+          <a
+            href="{% url 'portal:my_account' %}"
+            class="portal-account-trigger"
+            aria-label="Mitt konto"
+            title="Mitt konto"
+          >
+            {% if portal_account_profile and portal_account_profile.avatar %}
+              <img
+                src="{{ portal_account_profile.avatar.url }}"
+                alt=""
+                class="portal-account-avatar"
+                width="38"
+                height="38"
+              >
+            {% else %}
+              <span class="portal-account-avatar portal-account-initials" aria-hidden="true">
+                {{ portal_account_initials }}
+              </span>
+            {% endif %}
+            <span class="portal-account-meta d-none d-md-flex">
+              <span class="portal-account-meta-label">Mitt konto</span>
+              <span class="portal-account-meta-name">{{ portal_account_display_name }}</span>
+            </span>
+          </a>
 
           <a class="btn btn-outline-secondary btn-sm portal-topbar-logout" href="{% url 'account_logout' %}" title="Logga ut">
             <span class="d-none d-sm-inline">Logga ut</span>

@@ -378,6 +378,24 @@ def _account_user_initials(user):
     return label[0].upper()
 
 
+def _account_user_display_name(user):
+    full_name = user.get_full_name().strip()
+    if full_name:
+        return full_name
+    return user.email or user.username or ""
+
+
+def portal_account_topbar(request):
+    if not getattr(request, "user", None) or not request.user.is_authenticated:
+        return {}
+    profile = UserProfile.objects.filter(user_id=request.user.pk).only("avatar").first()
+    return {
+        "portal_account_profile": profile,
+        "portal_account_initials": _account_user_initials(request.user),
+        "portal_account_display_name": _account_user_display_name(request.user),
+    }
+
+
 @login_required
 def my_account(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
@@ -416,6 +434,7 @@ def my_account(request):
             "profile_form": profile_form,
             "profile": profile,
             "account_initials": _account_user_initials(request.user),
+            "account_display_name": _account_user_display_name(request.user),
             "portal_membership": portal_membership,
             "board_membership": board_membership,
         },
