@@ -1,5 +1,8 @@
 import os
+import re
 from datetime import date, timedelta
+from html import unescape
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -7,9 +10,10 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Sum, Count
 from django.db import IntegrityError
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.utils import timezone
-from django.http import Http404, HttpResponse
+from django.utils.html import strip_tags
+from django.http import Http404, HttpResponse, JsonResponse
 from django.template.loader import render_to_string
 from django.urls import reverse
 from collections import OrderedDict
@@ -21,7 +25,8 @@ import base64
 from calendarapp.calendar_widget import build_dashboard_calendar_widget
 from calendarapp.models import CalendarEvent
 from fisheries.models import ActionArea, ActionPriority, ActionStatus
-from fishingrights.models import FishingRightShare, Property
+from fishingrights.models import FishingRightShare, Property, RightHolder
+from governance.models import BoardMatter, Meeting
 from documents.forms import (
     DocumentCreateForm,
     DocumentUpdateForm,
@@ -354,6 +359,653 @@ def dashboard(request):
             "upcoming_meetings_count": upcoming_meetings_count,
             "news_feed": news_feed,
             "calendar_widget": calendar_widget,
+        },
+    )
+
+
+def _safe_reverse(url_name, *args, fallback=None):
+    try:
+        return reverse(url_name, args=args)
+    except Exception:
+        if fallback:
+            try:
+                return reverse(fallback)
+            except Exception:
+                return "/"
+        return "/"
+
+
+_SEARCH_CANDIDATE_LIMIT = 15
+_SEARCH_DISPLAY_LIMIT = 3
+_SEARCH_RANK_EXACT = 40
+_SEARCH_RANK_STARTS = 30
+_SEARCH_RANK_CONTAINS = 20
+
+
+def _search_field_rank(query, value):
+    text = (value or "").strip()
+    if not text:
+        return 0
+    text_lower = text.lower()
+    query_lower = query.lower()
+    if text_lower == query_lower:
+        return _SEARCH_RANK_EXACT
+    if text_lower.startswith(query_lower):
+        return _SEARCH_RANK_STARTS
+    if query_lower in text_lower:
+        return _SEARCH_RANK_CONTAINS
+    return 0
+
+
+def _search_pick_best_match(query, field_specs):
+    best_rank = 0
+    best_match = None
+    best_field = None
+    for spec in field_specs:
+        value = spec.get("value") or ""
+        if spec.get("strip_html"):
+            value = _search_plain_text(value)
+        rank = _search_field_rank(query, value)
+        if rank == 0:
+            continue
+        labels = spec["labels"]
+        if rank == _SEARCH_RANK_EXACT:
+            match_label = labels["exact"]
+        elif rank == _SEARCH_RANK_STARTS:
+            match_label = labels.get("starts", labels["contains"])
+        else:
+            match_label = labels["contains"]
+        if rank > best_rank:
+            best_rank = rank
+            best_match = match_label
+            best_field = spec.get("field")
+    return best_rank, best_match, best_field
+
+
+def _search_plain_text(value):
+    text = unescape(strip_tags(value or ""))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _search_snippet_source_text(content):
+    """Plain text for snippets only; strips template filler lines/underscores."""
+    text = unescape(strip_tags(content or ""))
+    text = re.sub(r"_{3,}", " ", text)
+    text = re.sub(r"-{3,}", " ", text)
+    text = re.sub(r"[–—─]{3,}", " ", text)
+    text = re.sub(r"[=·•]{3,}", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _search_snippet_trim_edges(text):
+    return text.strip(" _-–—─.=·•\t\n\r")
+
+
+def _search_snippet_word_start(text, pos):
+    if pos <= 0:
+        return 0
+    if text[pos - 1] == " ":
+        return pos
+    space = text.rfind(" ", 0, pos)
+    return space + 1 if space >= 0 else 0
+
+
+def _search_snippet_word_end(text, pos):
+    if pos >= len(text):
+        return len(text)
+    if pos < len(text) and text[pos] == " ":
+        return pos
+    space = text.find(" ", pos)
+    return space if space >= 0 else len(text)
+
+
+def _search_content_snippet(
+    query,
+    content,
+    before_chars=90,
+    after_chars=120,
+    max_len=200,
+    match_lead_chars=42,
+):
+    """Plain-text snippet centered on the first case-insensitive query match."""
+    text = _search_snippet_source_text(content)
+    if not text:
+        return None
+    text_lower = text.lower()
+    query_lower = query.lower()
+    idx = text_lower.find(query_lower)
+    if idx < 0:
+        return None
+
+    match_end = idx + len(query)
+    raw_start = max(0, idx - before_chars)
+    raw_end = min(len(text), match_end + after_chars)
+
+    start = min(_search_snippet_word_start(text, raw_start), idx)
+    end = max(_search_snippet_word_end(text, raw_end), match_end)
+
+    if end <= start:
+        start = raw_start
+        end = min(len(text), match_end + after_chars)
+
+    if end - start > max_len:
+        before_take = min(before_chars, idx - start, max(0, max_len - len(query) - 20))
+        after_take = min(after_chars, len(text) - match_end, max_len - before_take - len(query))
+        start = max(0, idx - before_take)
+        end = min(len(text), match_end + after_take)
+        start = min(_search_snippet_word_start(text, start), idx)
+        end = max(end, match_end)
+        if end - start > max_len:
+            start = max(0, end - max_len)
+            if idx < start:
+                start = max(0, idx - 20)
+            end = min(len(text), max(start + max_len, match_end))
+
+    snippet = _search_snippet_trim_edges(text[start:end])
+    if query_lower not in snippet.lower():
+        start = max(0, idx - 40)
+        end = min(len(text), match_end + 80)
+        snippet = _search_snippet_trim_edges(text[start:end])
+
+    prefix = "..." if start > 0 else ""
+    suffix = "..." if end < len(text) else ""
+    inner = snippet
+    match_pos = inner.lower().find(query_lower)
+    if match_pos > match_lead_chars:
+        trim_at = match_pos - match_lead_chars
+        inner = inner[trim_at:].lstrip()
+        prefix = "..."
+    snippet = f"{prefix}{inner}{suffix}"
+    return snippet
+
+
+def _search_top_rows(query, rows, field_specs_builder, tie_breaker=None, limit=_SEARCH_DISPLAY_LIMIT):
+    scored = []
+    for row in rows:
+        rank, match, field = _search_pick_best_match(query, field_specs_builder(row))
+        if rank == 0:
+            continue
+        scored.append((rank, tie_breaker(row) if tie_breaker else 0, row, match, field))
+
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return scored[:limit]
+
+
+def _search_candidate_limit(limit_per_group):
+    return min(max(limit_per_group * 2, _SEARCH_CANDIDATE_LIMIT), 50)
+
+
+_SEARCH_RESULTS_PAGE_LIMIT = 25
+
+
+def _build_global_search_groups(org, q, limit_per_group=_SEARCH_DISPLAY_LIMIT):
+    groups = OrderedDict()
+    total = 0
+    candidate_limit = _search_candidate_limit(limit_per_group)
+
+    def add_item(group_label, item):
+        nonlocal total
+        groups.setdefault(group_label, []).append(item)
+        total += 1
+
+    folder_in_archive = _workspace_folder_scope(org)["folder_in_archive"]
+    title_labels = {
+        "exact": "Titel matchar",
+        "starts": "Titel matchar",
+        "contains": "Titel matchar",
+    }
+    name_labels = {
+        "exact": "Namn matchar",
+        "starts": "Namn matchar",
+        "contains": "Namn matchar",
+    }
+    designation_labels = {
+        "exact": "Beteckning matchar",
+        "starts": "Beteckning matchar",
+        "contains": "Beteckning matchar",
+    }
+
+    document_candidates = list(
+        Document.objects.filter(org=org, is_deleted=False)
+        .filter(
+            Q(title__icontains=q)
+            | Q(description__icontains=q)
+            | Q(content__icontains=q)
+        )
+        .select_related("meeting")
+        .order_by("-updated_at")[:candidate_limit]
+    )
+    for rank, _, document, match, field in _search_top_rows(
+        q,
+        document_candidates,
+        lambda doc: [
+            {"value": doc.title, "labels": title_labels, "field": "title"},
+            {
+                "value": doc.description,
+                "labels": {
+                    "exact": "Beskrivning matchar",
+                    "contains": "Beskrivning matchar",
+                },
+                "field": "description",
+            },
+            {
+                "value": doc.content,
+                "labels": {
+                    "exact": "Innehåll matchar",
+                    "contains": "Innehåll matchar",
+                },
+                "field": "content",
+                "strip_html": True,
+            },
+        ],
+        tie_breaker=lambda doc: doc.updated_at.timestamp() if doc.updated_at else 0,
+        limit=limit_per_group,
+    ):
+        subtitle_parts = []
+        if (
+            document.is_archived
+            and document.workflow_status == DocumentWorkflowStatus.FINALIZED
+        ):
+            subtitle_parts.append("Arkiv")
+        else:
+            subtitle_parts.append("Arbetsdokument")
+        if document.meeting_id:
+            subtitle_parts.append("Möteskopplat")
+        else:
+            subtitle_parts.append("Ej möteskopplat")
+
+        item = {
+            "type": "document",
+            "title": document.title,
+            "subtitle": " - ".join(subtitle_parts),
+            "match": match,
+            "url": _safe_reverse(
+                "portal:document_detail",
+                document.pk,
+                fallback="portal:document_overview",
+            ),
+            "icon": "fa-file-lines",
+        }
+        if field == "content":
+            snippet = _search_content_snippet(q, document.content)
+            if snippet:
+                item["snippet"] = snippet
+        add_item("Dokument", item)
+
+    folder_candidates = list(
+        DocumentFolder.objects.filter(org=org, name__icontains=q)
+        .select_related("parent")
+        .order_by("name")[:candidate_limit]
+    )
+    for rank, _, folder, match, field in _search_top_rows(
+        q,
+        folder_candidates,
+        lambda f: [{"value": f.name, "labels": name_labels, "field": "name"}],
+        tie_breaker=lambda f: f.name.lower(),
+        limit=limit_per_group,
+    ):
+        is_archive_folder = folder_in_archive.get(folder.pk, False) or _is_archive_system_key(
+            folder.system_key
+        )
+        if is_archive_folder:
+            folder_url = f"{reverse('portal:document_archive')}?folder={folder.pk}"
+            folder_subtitle = "Arkivmapp"
+        else:
+            folder_url = f"{reverse('portal:document_workspace')}?folder={folder.pk}"
+            folder_subtitle = "Arbetsmapp"
+        add_item(
+            "Mappar",
+            {
+                "type": "folder",
+                "title": folder.name,
+                "subtitle": folder_subtitle,
+                "match": match,
+                "url": folder_url,
+                "icon": "fa-folder",
+            },
+        )
+
+    meeting_candidates = list(
+        Meeting.objects.filter(org=org)
+        .filter(Q(title__icontains=q) | Q(location__icontains=q))
+        .order_by("-meeting_date")[:candidate_limit]
+    )
+    for rank, _, meeting, match, field in _search_top_rows(
+        q,
+        meeting_candidates,
+        lambda m: [
+            {"value": m.title, "labels": title_labels, "field": "title"},
+            {
+                "value": m.location,
+                "labels": {
+                    "exact": "Ort matchar",
+                    "contains": "Ort matchar",
+                },
+                "field": "location",
+            },
+        ],
+        tie_breaker=lambda m: m.meeting_date.timestamp() if m.meeting_date else 0,
+        limit=limit_per_group,
+    ):
+        meeting_dt = timezone.localtime(meeting.meeting_date)
+        subtitle = meeting_dt.strftime("%Y-%m-%d")
+        if meeting.location:
+            subtitle = f"{subtitle} - {meeting.location}"
+        add_item(
+            "Möten",
+            {
+                "type": "meeting",
+                "title": meeting.title,
+                "subtitle": subtitle,
+                "match": match,
+                "url": _safe_reverse(
+                    "governance:meeting_detail",
+                    meeting.pk,
+                    fallback="governance:upcoming_meetings",
+                ),
+                "icon": "fa-calendar-check",
+            },
+        )
+
+    matter_candidates = list(
+        BoardMatter.objects.filter(org=org)
+        .filter(
+            Q(title__icontains=q)
+            | Q(description__icontains=q)
+            | Q(prepared_statement__icontains=q)
+            | Q(meeting_decision__icontains=q)
+        )
+        .order_by("-updated_at")[:candidate_limit]
+    )
+    for rank, _, matter, match, field in _search_top_rows(
+        q,
+        matter_candidates,
+        lambda m: [
+            {"value": m.title, "labels": title_labels, "field": "title"},
+            {
+                "value": m.description,
+                "labels": {
+                    "exact": "Beskrivning matchar",
+                    "contains": "Beskrivning matchar",
+                },
+                "field": "description",
+            },
+            {
+                "value": m.prepared_statement,
+                "labels": {
+                    "exact": "Innehåll matchar",
+                    "contains": "Innehåll matchar",
+                },
+                "field": "prepared_statement",
+            },
+            {
+                "value": m.meeting_decision,
+                "labels": {
+                    "exact": "Beslut matchar",
+                    "contains": "Beslut matchar",
+                },
+                "field": "meeting_decision",
+            },
+        ],
+        tie_breaker=lambda m: m.updated_at.timestamp() if m.updated_at else 0,
+        limit=limit_per_group,
+    ):
+        add_item(
+            "Ärenden",
+            {
+                "type": "matter",
+                "title": matter.title,
+                "subtitle": matter.get_status_display(),
+                "match": match,
+                "url": _safe_reverse(
+                    "governance:matter_detail",
+                    matter.pk,
+                    fallback="governance:matter_list",
+                ),
+                "icon": "fa-clipboard-list",
+            },
+        )
+
+    property_candidates = list(
+        Property.objects.filter(org=org)
+        .filter(Q(designation__icontains=q) | Q(external_id__icontains=q))
+        .order_by("designation")[:candidate_limit]
+    )
+    for rank, _, property_obj, match, field in _search_top_rows(
+        q,
+        property_candidates,
+        lambda p: [
+            {
+                "value": p.designation,
+                "labels": designation_labels,
+                "field": "designation",
+            },
+            {
+                "value": p.external_id,
+                "labels": {
+                    "exact": "Externt ID matchar",
+                    "contains": "Externt ID matchar",
+                },
+                "field": "external_id",
+            },
+        ],
+        tie_breaker=lambda p: p.designation.lower(),
+        limit=limit_per_group,
+    ):
+        add_item(
+            "Fastigheter",
+            {
+                "type": "property",
+                "title": property_obj.designation,
+                "subtitle": property_obj.external_id or "Fastighet",
+                "match": match,
+                "url": _safe_reverse(
+                    "portal:property_detail",
+                    property_obj.pk,
+                    fallback="portal:property_list",
+                ),
+                "icon": "fa-building",
+            },
+        )
+
+    holder_candidates = list(
+        RightHolder.objects.filter(org=org)
+        .filter(Q(name__icontains=q) | Q(email__icontains=q))
+        .order_by("name")[:candidate_limit]
+    )
+    for rank, _, holder, match, field in _search_top_rows(
+        q,
+        holder_candidates,
+        lambda h: [
+            {"value": h.name, "labels": name_labels, "field": "name"},
+            {
+                "value": h.email,
+                "labels": {
+                    "exact": "E-post matchar",
+                    "contains": "E-post matchar",
+                },
+                "field": "email",
+            },
+        ],
+        tie_breaker=lambda h: h.name.lower(),
+        limit=limit_per_group,
+    ):
+        add_item(
+            "Rättighetshavare",
+            {
+                "type": "right_holder",
+                "title": holder.name,
+                "subtitle": holder.email or "Rättighetshavare",
+                "match": match,
+                "url": f"{reverse('portal:property_list')}?{urlencode({'q': holder.name})}",
+                "icon": "fa-user",
+            },
+        )
+
+    event_candidates = list(
+        CalendarEvent.objects.filter(org=org)
+        .filter(
+            Q(title__icontains=q)
+            | Q(description__icontains=q)
+            | Q(location__icontains=q)
+        )
+        .order_by("start_at")[:candidate_limit]
+    )
+    for rank, _, event, match, field in _search_top_rows(
+        q,
+        event_candidates,
+        lambda e: [
+            {"value": e.title, "labels": title_labels, "field": "title"},
+            {
+                "value": e.description,
+                "labels": {
+                    "exact": "Beskrivning matchar",
+                    "contains": "Beskrivning matchar",
+                },
+                "field": "description",
+            },
+            {
+                "value": e.location,
+                "labels": {
+                    "exact": "Ort matchar",
+                    "contains": "Ort matchar",
+                },
+                "field": "location",
+            },
+        ],
+        tie_breaker=lambda e: e.start_at.timestamp() if e.start_at else 0,
+        limit=limit_per_group,
+    ):
+        event_dt = timezone.localtime(event.start_at)
+        subtitle = event_dt.strftime("%Y-%m-%d %H:%M")
+        if event.location:
+            subtitle = f"{subtitle} - {event.location}"
+        add_item(
+            "Kalender",
+            {
+                "type": "calendar_event",
+                "title": event.title,
+                "subtitle": subtitle,
+                "match": match,
+                "url": _safe_reverse(
+                    "calendarapp:detail",
+                    event.pk,
+                    fallback="calendarapp:list",
+                ),
+                "icon": "fa-calendar-days",
+            },
+        )
+
+    action_candidates = list(
+        ActionArea.objects.filter(org=org, is_active=True)
+        .filter(Q(name__icontains=q) | Q(description__icontains=q))
+        .order_by("-updated_at")[:candidate_limit]
+    )
+    for rank, _, action, match, field in _search_top_rows(
+        q,
+        action_candidates,
+        lambda a: [
+            {"value": a.name, "labels": name_labels, "field": "name"},
+            {
+                "value": a.description,
+                "labels": {
+                    "exact": "Beskrivning matchar",
+                    "contains": "Beskrivning matchar",
+                },
+                "field": "description",
+            },
+        ],
+        tie_breaker=lambda a: a.updated_at.timestamp() if a.updated_at else 0,
+        limit=limit_per_group,
+    ):
+        subtitle = action.get_status_display()
+        if action.deadline:
+            subtitle = f"{subtitle} - Deadline {action.deadline:%Y-%m-%d}"
+        add_item(
+            "Fiskevård",
+            {
+                "type": "fisheries_action",
+                "title": action.name,
+                "subtitle": subtitle,
+                "match": match,
+                "url": _safe_reverse(
+                    "fisheries:action_detail",
+                    action.pk,
+                    fallback="fisheries:overview",
+                ),
+                "icon": "fa-fish",
+            },
+        )
+
+    return {
+        "groups": [
+            {"label": label, "items": items}
+            for label, items in groups.items()
+            if items
+        ],
+        "total": total,
+    }
+
+
+@login_required
+@require_GET
+def global_search(request):
+    q = (request.GET.get("q") or "").strip()
+
+    empty_payload = {
+        "query": q,
+        "groups": [],
+        "total": 0,
+    }
+    if request.org is None or len(q) < 2:
+        return JsonResponse(empty_payload)
+
+    result = _build_global_search_groups(
+        request.org,
+        q,
+        limit_per_group=_SEARCH_DISPLAY_LIMIT,
+    )
+    payload = {
+        "query": q,
+        "groups": result["groups"],
+        "total": result["total"],
+        "results_url": (
+            f"{reverse('portal:global_search_results')}?{urlencode({'q': q})}"
+        ),
+    }
+    return JsonResponse(payload)
+
+
+@login_required
+def global_search_results(request):
+    org = request.org
+    q = (request.GET.get("q") or "").strip()
+
+    if org is None:
+        messages.warning(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:dashboard")
+
+    query_too_short = len(q) < 2
+    groups = []
+    total = 0
+
+    if not query_too_short:
+        result = _build_global_search_groups(
+            org,
+            q,
+            limit_per_group=_SEARCH_RESULTS_PAGE_LIMIT,
+        )
+        groups = result["groups"]
+        total = result["total"]
+
+    return render(
+        request,
+        "portal/global_search_results.html",
+        {
+            "q": q,
+            "groups": groups,
+            "total": total,
+            "query_too_short": query_too_short,
         },
     )
 
@@ -1373,6 +2025,221 @@ def document_workspace_move_to_folder(request, pk):
 
 @login_required
 @require_POST
+def document_workspace_document_rename(request, pk):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+    document = get_object_or_404(
+        Document.objects.filter(
+            org=org,
+            is_deleted=False,
+            meeting__isnull=True,
+        ).exclude(
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+        ),
+        pk=pk,
+    )
+
+    title = (request.POST.get("title") or "").strip()
+    if not title:
+        messages.error(request, "Dokumenttitel kan inte vara tom.")
+        return (
+            redirect(f"{reverse('portal:document_workspace')}?folder={document.folder_id}")
+            if document.folder_id
+            else redirect("portal:document_workspace")
+        )
+    if len(title) > 255:
+        messages.error(request, "Dokumenttitel får vara högst 255 tecken.")
+        return (
+            redirect(f"{reverse('portal:document_workspace')}?folder={document.folder_id}")
+            if document.folder_id
+            else redirect("portal:document_workspace")
+        )
+
+    folder_id = document.folder_id
+    document.title = title
+    document.save(update_fields=["title", "updated_at"])
+    messages.success(request, "Dokumentet bytte namn.")
+    return (
+        redirect(f"{reverse('portal:document_workspace')}?folder={folder_id}")
+        if folder_id
+        else redirect("portal:document_workspace")
+    )
+
+
+@login_required
+@require_POST
+def document_workspace_document_delete(request, pk):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+    document = get_object_or_404(
+        Document.objects.filter(
+            org=org,
+            is_deleted=False,
+            meeting__isnull=True,
+        ).exclude(
+            is_archived=True,
+            workflow_status=DocumentWorkflowStatus.FINALIZED,
+        ),
+        pk=pk,
+    )
+
+    folder_id = document.folder_id
+    document.is_deleted = True
+    document.save(update_fields=["is_deleted", "updated_at"])
+    messages.success(request, "Dokumentet flyttades till papperskorgen.")
+    return (
+        redirect(f"{reverse('portal:document_workspace')}?folder={folder_id}")
+        if folder_id
+        else redirect("portal:document_workspace")
+    )
+
+
+@login_required
+@require_POST
+def document_folder_delete(request, pk):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+    folder = get_object_or_404(DocumentFolder, pk=pk, org=org)
+
+    def _redirect_back():
+        context = (request.POST.get("context") or "").strip().lower()
+        parent = folder.parent
+        if context == "workspace":
+            return (
+                redirect(f"{reverse('portal:document_workspace')}?folder={parent.pk}")
+                if parent is not None
+                else redirect("portal:document_workspace")
+            )
+        if context == "archive":
+            return (
+                redirect(f"{reverse('portal:document_archive')}?folder={parent.pk}")
+                if parent is not None
+                else redirect("portal:document_archive")
+            )
+        return redirect("portal:document_overview")
+
+    if folder.is_system_folder:
+        messages.error(request, "Systemmappar kan inte tas bort.")
+        return _redirect_back()
+
+    if folder.children.exists():
+        messages.error(
+            request,
+            "Mappen kan inte tas bort eftersom den innehåller undermappar.",
+        )
+        return _redirect_back()
+
+    if folder.documents.filter(is_deleted=False).exists():
+        messages.error(
+            request,
+            "Mappen kan inte tas bort eftersom den innehåller dokument.",
+        )
+        return _redirect_back()
+
+    parent = folder.parent
+    folder.delete()
+    messages.success(request, "Mappen togs bort.")
+
+    context = (request.POST.get("context") or "").strip().lower()
+    if context == "workspace":
+        return (
+            redirect(f"{reverse('portal:document_workspace')}?folder={parent.pk}")
+            if parent is not None
+            else redirect("portal:document_workspace")
+        )
+    if context == "archive":
+        return (
+            redirect(f"{reverse('portal:document_archive')}?folder={parent.pk}")
+            if parent is not None
+            else redirect("portal:document_archive")
+        )
+
+    return redirect("portal:document_overview")
+
+
+@login_required
+@require_POST
+def document_folder_rename(request, pk):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+    folder = get_object_or_404(DocumentFolder, pk=pk, org=org)
+    context_param = (request.POST.get("context") or "").strip().lower()
+    return_folder_raw = (request.POST.get("return_folder") or "").strip()
+
+    def redirect_after():
+        if context_param == "workspace":
+            scope = _workspace_folder_scope(org)
+            folder_in_archive = scope["folder_in_archive"]
+            browse_pk = folder.pk
+            if return_folder_raw.isdigit():
+                cand_pk = int(return_folder_raw)
+                if DocumentFolder.objects.filter(pk=cand_pk, org=org).exists():
+                    if not folder_in_archive.get(cand_pk, False):
+                        browse_pk = cand_pk
+            return redirect(f"{reverse('portal:document_workspace')}?folder={browse_pk}")
+        if context_param == "archive":
+            browse_pk = folder.pk
+            if return_folder_raw.isdigit():
+                cand_pk = int(return_folder_raw)
+                if DocumentFolder.objects.filter(pk=cand_pk, org=org).exists():
+                    browse_pk = cand_pk
+            return redirect(f"{reverse('portal:document_archive')}?folder={browse_pk}")
+        return redirect("portal:document_overview")
+
+    if folder.is_system_folder:
+        messages.error(request, "Systemmappar kan inte byta namn.")
+        return redirect_after()
+
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        messages.error(request, "Mappnamn kan inte vara tomt.")
+        return redirect_after()
+    if len(name) > 255:
+        messages.error(request, "Mappnamnet är för långt.")
+        return redirect_after()
+
+    duplicate_exists = DocumentFolder.objects.filter(
+        org=org,
+        parent=folder.parent,
+        name=name,
+        is_system_folder=False,
+    ).exclude(pk=folder.pk).exists()
+    if duplicate_exists:
+        messages.error(
+            request,
+            "Det finns redan en mapp med det namnet här.",
+        )
+        return redirect_after()
+
+    try:
+        folder.name = name
+        folder.save(update_fields=["name"])
+    except IntegrityError:
+        messages.error(
+            request,
+            "Det finns redan en mapp med det namnet här.",
+        )
+        return redirect_after()
+
+    messages.success(request, "Mappen bytte namn.")
+    return redirect_after()
+
+
+@login_required
+@require_POST
 def document_folder_create(request):
     if request.org is None:
         messages.error(request, "Ingen aktiv organisation vald.")
@@ -1935,13 +2802,33 @@ def get_template_form(template):
 
 @login_required
 def create_blank_document(request):
+    if request.org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:document_overview")
+
+    org = request.org
+    target_folder = None
+    target_folder_path_label = None
+    workspace_mode = False
+
     if request.method == "POST":
+        workspace_mode = request.POST.get("workspace") == "1"
+        post_folder_raw = request.POST.get("folder")
+
+        if workspace_mode:
+            target_folder, target_folder_path_label = (
+                _resolve_workspace_upload_target_folder(org, post_folder_raw)
+            )
+
         form = DocumentUpdateForm(request.POST)
         if form.is_valid():
             document = form.save(commit=False)
-            document.org = request.org
+            document.org = org
             document.source_type = DocumentSourceType.TEMPLATE
             document.uploaded_by = request.user
+            if workspace_mode:
+                document.folder = target_folder
+                document.folder_auto_assigned = False
             document.save()
 
             log_document_activity(
@@ -1954,6 +2841,14 @@ def create_blank_document(request):
             messages.success(request, f"Dokumentet '{document.title}' skapades.")
             return redirect("portal:document_edit", pk=document.pk)
     else:
+        workspace_mode = request.GET.get("workspace") == "1"
+        get_folder_raw = request.GET.get("folder")
+
+        if workspace_mode:
+            target_folder, target_folder_path_label = (
+                _resolve_workspace_upload_target_folder(org, get_folder_raw)
+            )
+
         form = DocumentUpdateForm(initial={
             "title": "Nytt dokument",
             "content": "<h1>Rubrik</h1><p>Börja skriva här...</p>",
@@ -1962,7 +2857,12 @@ def create_blank_document(request):
     return render(
         request,
         "portal/documents/create_blank_document.html",
-        {"form": form},
+        {
+            "form": form,
+            "workspace_mode": workspace_mode,
+            "target_folder": target_folder,
+            "target_folder_path_label": target_folder_path_label,
+        },
     )
 
 

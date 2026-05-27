@@ -6,6 +6,8 @@ app_name = "portal"
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("search/", views.global_search, name="global_search"),
+    path("search/results/", views.global_search_results, name="global_search_results"),
 
     path("properties/", views.property_list, name="property_list"),
     path("properties/<int:pk>/", views.property_detail, name="property_detail"),
@@ -40,6 +42,17 @@ urlpatterns = [
         name="document_workspace_move_to_folder",
     ),
 
+    path(
+        "documents/folders/<int:pk>/delete/",
+        views.document_folder_delete,
+        name="document_folder_delete",
+    ),
+    path(
+        "documents/folders/<int:pk>/rename/",
+        views.document_folder_rename,
+        name="document_folder_rename",
+    ),
+
     path("documents/trash/", views.document_trash, name="document_trash"),
     path("documents/<int:pk>/restore/", views.document_restore, name="document_restore"),
 
@@ -48,6 +61,16 @@ urlpatterns = [
         "documents/create-from-template/<int:template_id>/",
         views.create_from_template,
         name="create_from_template"
+    ),
+    path(
+        "documents/<int:pk>/workspace-rename/",
+        views.document_workspace_document_rename,
+        name="document_workspace_document_rename",
+    ),
+    path(
+        "documents/<int:pk>/workspace-delete/",
+        views.document_workspace_document_delete,
+        name="document_workspace_document_delete",
     ),
 
     path("documents/<int:pk>/", views.document_detail, name="document_detail"),

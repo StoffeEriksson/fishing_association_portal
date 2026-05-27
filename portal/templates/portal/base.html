@@ -63,10 +63,44 @@
             <span class="portal-sidebar-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
           </button>
           <div id="sidebar-nav-styrelse" class="collapse portal-sidebar-collapse sidebar-submenu {% if ns == 'governance' %}show{% endif %}">
-            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'board_member_list' or ns == 'governance' and un == 'board_member_create' or ns == 'governance' and un == 'board_member_update' or ns == 'governance' and un == 'board_member_deactivate' %}active{% endif %}" href="{% url 'governance:board_member_list' %}"{% if ns == 'governance' and un == 'board_member_list' or ns == 'governance' and un == 'board_member_create' or ns == 'governance' and un == 'board_member_update' or ns == 'governance' and un == 'board_member_deactivate' %} aria-current="page"{% endif %}>Styrelsemedlemmar</a>
+            <button class="portal-sidebar-sublink sidebar-link"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#sidebar-nav-styrelsemedlemmar"
+                    aria-expanded="{% if ns == 'governance' and un == 'board_member_list' or ns == 'governance' and un == 'board_member_create' or ns == 'governance' and un == 'board_member_update' or ns == 'governance' and un == 'board_member_deactivate' %}true{% else %}false{% endif %}"
+                    aria-controls="sidebar-nav-styrelsemedlemmar">
+              Styrelsemedlemmar
+              <span class="portal-sidebar-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+            </button>
+            <div id="sidebar-nav-styrelsemedlemmar"
+                 class="collapse portal-sidebar-collapse sidebar-submenu {% if ns == 'governance' and un == 'board_member_list' or ns == 'governance' and un == 'board_member_create' or ns == 'governance' and un == 'board_member_update' or ns == 'governance' and un == 'board_member_deactivate' %}show{% endif %}">
+              <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'board_member_list' or ns == 'governance' and un == 'board_member_update' or ns == 'governance' and un == 'board_member_deactivate' %}active{% endif %}"
+                 href="{% url 'governance:board_member_list' %}"
+                 {% if ns == 'governance' and un == 'board_member_list' or ns == 'governance' and un == 'board_member_update' or ns == 'governance' and un == 'board_member_deactivate' %} aria-current="page"{% endif %}>Hantera medlemmar</a>
+              <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'board_member_create' %}active{% endif %}"
+                 href="{% url 'governance:board_member_create' %}"
+                 {% if ns == 'governance' and un == 'board_member_create' %} aria-current="page"{% endif %}>Lägg till medlem</a>
+            </div>
             <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_create' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' %}active{% endif %}" href="{% url 'governance:upcoming_meetings' %}"{% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_create' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' %} aria-current="page"{% endif %}>Möten</a>
             <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'protocol_review_list' %}active{% endif %}" href="{% url 'governance:protocol_review_list' %}"{% if ns == 'governance' and un == 'protocol_review_list' %} aria-current="page"{% endif %}>Protokoll för justering</a>
-            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'matter_list' or ns == 'governance' and un == 'matter_create' or ns == 'governance' and un == 'matter_detail' or ns == 'governance' and un == 'matter_update' or ns == 'governance' and un == 'matter_change_status' %}active{% endif %}" href="{% url 'governance:matter_list' %}"{% if ns == 'governance' and un == 'matter_list' or ns == 'governance' and un == 'matter_create' or ns == 'governance' and un == 'matter_detail' or ns == 'governance' and un == 'matter_update' or ns == 'governance' and un == 'matter_change_status' %} aria-current="page"{% endif %}>Ärenden</a>
+            <button class="portal-sidebar-sublink sidebar-link"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#sidebar-nav-arenden"
+                    aria-expanded="{% if ns == 'governance' and un == 'matter_list' or ns == 'governance' and un == 'matter_create' or ns == 'governance' and un == 'matter_detail' or ns == 'governance' and un == 'matter_update' or ns == 'governance' and un == 'matter_change_status' %}true{% else %}false{% endif %}"
+                    aria-controls="sidebar-nav-arenden">
+              Ärenden
+              <span class="portal-sidebar-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+            </button>
+            <div id="sidebar-nav-arenden"
+                 class="collapse portal-sidebar-collapse sidebar-submenu {% if ns == 'governance' and un == 'matter_list' or ns == 'governance' and un == 'matter_create' or ns == 'governance' and un == 'matter_detail' or ns == 'governance' and un == 'matter_update' or ns == 'governance' and un == 'matter_change_status' %}show{% endif %}">
+              <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'matter_list' or ns == 'governance' and un == 'matter_detail' or ns == 'governance' and un == 'matter_update' or ns == 'governance' and un == 'matter_change_status' %}active{% endif %}"
+                 href="{% url 'governance:matter_list' %}"
+                 {% if ns == 'governance' and un == 'matter_list' or ns == 'governance' and un == 'matter_detail' or ns == 'governance' and un == 'matter_update' or ns == 'governance' and un == 'matter_change_status' %} aria-current="page"{% endif %}>Aktuella ärenden</a>
+              <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'matter_create' %}active{% endif %}"
+                 href="{% url 'governance:matter_create' %}"
+                 {% if ns == 'governance' and un == 'matter_create' %} aria-current="page"{% endif %}>Skapa ärende</a>
+            </div>
             <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'activity_log_list' %}active{% endif %}" href="{% url 'governance:activity_log_list' %}"{% if ns == 'governance' and un == 'activity_log_list' %} aria-current="page"{% endif %}>Auditlogg</a>
           </div>
         </div>
@@ -78,6 +112,26 @@
             <span class="portal-sidebar-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
           </button>
           <div id="sidebar-nav-dokument" class="collapse portal-sidebar-collapse sidebar-submenu {% if ns == 'portal' and un != 'dashboard' and un != 'property_list' and un != 'property_detail' %}show{% endif %}">
+            <button class="portal-sidebar-sublink sidebar-link"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#sidebar-nav-skapa-nytt"
+                    aria-expanded="{% if ns == 'portal' and un == 'create_blank_document' and request.GET.workspace == '1' or ns == 'portal' and un == 'document_upload' and request.GET.workspace == '1' %}true{% else %}false{% endif %}"
+                    aria-controls="sidebar-nav-skapa-nytt">
+              Skapa nytt
+              <span class="portal-sidebar-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+            </button>
+            <div id="sidebar-nav-skapa-nytt"
+                 class="collapse portal-sidebar-collapse sidebar-submenu {% if ns == 'portal' and un == 'create_blank_document' and request.GET.workspace == '1' or ns == 'portal' and un == 'document_upload' and request.GET.workspace == '1' %}show{% endif %}">
+              <a class="portal-sidebar-sublink sidebar-link {% if ns == 'portal' and un == 'create_blank_document' and request.GET.workspace == '1' %}active{% endif %}"
+                 href="{% url 'portal:create_blank_document' %}?workspace=1{% if un == 'document_workspace' and request.GET.folder %}&amp;folder={{ request.GET.folder }}{% endif %}"
+                 {% if ns == 'portal' and un == 'create_blank_document' and request.GET.workspace == '1' %} aria-current="page"{% endif %}>Nytt dokument</a>
+              <a class="portal-sidebar-sublink sidebar-link {% if ns == 'portal' and un == 'document_upload' and request.GET.workspace == '1' %}active{% endif %}"
+                 href="{% url 'portal:document_upload' %}?workspace=1{% if un == 'document_workspace' and request.GET.folder %}&amp;folder={{ request.GET.folder }}{% endif %}"
+                 {% if ns == 'portal' and un == 'document_upload' and request.GET.workspace == '1' %} aria-current="page"{% endif %}>Ladda upp dokument</a>
+              <a class="portal-sidebar-sublink sidebar-link"
+                 href="{% url 'portal:document_workspace' %}{% if un == 'document_workspace' and request.GET.folder %}?folder={{ request.GET.folder }}{% endif %}">Ny mapp</a>
+            </div>
             <a class="portal-sidebar-sublink sidebar-link {% if ns == 'portal' and un == 'document_archive' %}active{% endif %}" href="{% url 'portal:document_archive' %}"{% if ns == 'portal' and un == 'document_archive' %} aria-current="page"{% endif %}>Arkiv</a>
             <a class="portal-sidebar-sublink sidebar-link {% if ns == 'portal' and un == 'document_workspace' %}active{% endif %}" href="{% url 'portal:document_workspace' %}"{% if ns == 'portal' and un == 'document_workspace' %} aria-current="page"{% endif %}>Arbetsdokument</a>
             <a class="portal-sidebar-sublink sidebar-link {% if ns == 'portal' and un == 'document_trash' %}active{% endif %}" href="{% url 'portal:document_trash' %}"{% if ns == 'portal' and un == 'document_trash' %} aria-current="page"{% endif %}>Papperskorgen</a>
@@ -120,10 +174,11 @@
           {% block portal_topbar_start %}{% endblock %}
         </div>
 
-        <div class="portal-topbar-search" role="search">
+        <div class="portal-topbar-search" role="search" data-search-url="{% url 'portal:global_search' %}" data-results-url="{% url 'portal:global_search_results' %}">
           <label class="visually-hidden" for="portal-topbar-search-input">Sök i portalen</label>
           <i class="fa-solid fa-magnifying-glass portal-topbar-search-icon" aria-hidden="true"></i>
-          <input id="portal-topbar-search-input" class="portal-topbar-search-input" type="search" placeholder="Sök…" autocomplete="off" disabled>
+          <input id="portal-topbar-search-input" class="portal-topbar-search-input" type="search" placeholder="Sök…" autocomplete="off" aria-expanded="false" aria-haspopup="listbox">
+          <div id="portal-global-search-results" class="portal-global-search-results" hidden></div>
         </div>
 
         <div class="portal-topbar-end">

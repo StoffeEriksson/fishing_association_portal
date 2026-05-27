@@ -1,0 +1,140 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Sökresultat{% endblock %}
+
+{% block portal_topbar_start %}
+  <span class="portal-topbar-heading text-body-secondary">Sökresultat</span>
+{% endblock %}
+
+{% block content %}
+<div class="global-search-results-page" data-search-query="{{ q|escape }}">
+
+  <div class="global-search-results-sticky">
+    <div class="global-search-results-sticky-inner">
+      <div class="global-search-results-intro">
+        <h1 class="page-title mb-1">Sökresultat</h1>
+        {% if query_too_short %}
+          <p class="global-search-results-meta mb-0">Ange minst två tecken för att söka.</p>
+        {% elif q %}
+          <p class="global-search-results-meta mb-0">
+            Sökning efter <strong>{{ q }}</strong>
+            {% if total %}
+              <span class="global-search-results-total">— {{ total }} träff{{ total|pluralize:"ar" }}</span>
+            {% endif %}
+          </p>
+        {% endif %}
+      </div>
+
+      <form class="global-search-results-form" method="get" action="{% url 'portal:global_search_results' %}" role="search">
+        <label class="visually-hidden" for="global-search-page-input">Sök i portalen</label>
+        <div class="input-group global-search-results-input-group">
+          <span class="input-group-text global-search-results-input-icon" aria-hidden="true">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </span>
+          <input
+            id="global-search-page-input"
+            class="form-control"
+            type="search"
+            name="q"
+            value="{{ q }}"
+            placeholder="Sök i portalen…"
+            autocomplete="off"
+            minlength="2">
+          <button class="btn btn-dark" type="submit">Sök</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="global-search-results-body">
+    {% if query_too_short %}
+      <div class="card shadow-soft global-search-results-empty-card">
+        <div class="card-body">
+          <p class="mb-0 text-muted">Skriv minst två tecken i sökfältet ovan.</p>
+        </div>
+      </div>
+    {% elif not groups %}
+      <div class="card shadow-soft global-search-results-empty-card">
+        <div class="card-body text-center py-5">
+          <p class="mb-0">Inga resultat hittades för <strong>{{ q }}</strong>.</p>
+        </div>
+      </div>
+    {% else %}
+      {% for group in groups %}
+        <section class="global-search-results-group">
+          <header class="global-search-results-group-head">
+            {% if group.label == "Dokument" %}
+              <span class="global-search-results-group-icon" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></span>
+            {% elif group.label == "Mappar" %}
+              <span class="global-search-results-group-icon" aria-hidden="true"><i class="fa-solid fa-folder"></i></span>
+            {% elif group.label == "Möten" %}
+              <span class="global-search-results-group-icon" aria-hidden="true"><i class="fa-solid fa-calendar-check"></i></span>
+            {% elif group.label == "Ärenden" %}
+              <span class="global-search-results-group-icon" aria-hidden="true"><i class="fa-solid fa-clipboard-list"></i></span>
+            {% elif group.label == "Fastigheter" %}
+              <span class="global-search-results-group-icon" aria-hidden="true"><i class="fa-solid fa-building"></i></span>
+            {% elif group.label == "Rättighetshavare" %}
+              <span class="global-search-results-group-icon" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
+            {% elif group.label == "Kalender" %}
+              <span class="global-search-results-group-icon" aria-hidden="true"><i class="fa-solid fa-calendar-days"></i></span>
+            {% elif group.label == "Fiskevård" %}
+              <span class="global-search-results-group-icon" aria-hidden="true"><i class="fa-solid fa-fish"></i></span>
+            {% else %}
+              <span class="global-search-results-group-icon" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
+            {% endif %}
+            <h2 class="global-search-results-group-title mb-0">
+              {{ group.label }}
+              <span class="global-search-results-group-count">({{ group.items|length }})</span>
+            </h2>
+          </header>
+
+          <div class="global-search-results-group-card card shadow-soft">
+            <ul class="list-group list-group-flush global-search-results-list">
+              {% for item in group.items %}
+                <li class="list-group-item global-search-results-item">
+                  <div class="global-search-results-item-row">
+                    <span class="global-search-results-item-icon" aria-hidden="true">
+                      <i class="fa-solid {{ item.icon }}"></i>
+                    </span>
+                    <div class="global-search-results-item-main flex-grow-1 min-w-0">
+                      <div class="fw-semibold global-search-results-item-title global-search-highlightable">{{ item.title }}</div>
+                      {% if item.subtitle %}
+                        <div class="global-search-results-item-subtitle">{{ item.subtitle }}</div>
+                      {% endif %}
+                      {% if item.match %}
+                        <div class="global-search-results-item-match">Match: {{ item.match }}</div>
+                      {% endif %}
+                      {% if item.snippet %}
+                        <div class="global-search-results-item-snippet global-search-highlightable">{{ item.snippet }}</div>
+                      {% endif %}
+                    </div>
+                    {% if item.type == "document" %}
+                      <span class="search-type-badge search-type-badge--document">Dokument</span>
+                    {% elif item.type == "folder" %}
+                      <span class="search-type-badge search-type-badge--folder">Mapp</span>
+                    {% elif item.type == "meeting" %}
+                      <span class="search-type-badge search-type-badge--meeting">Möte</span>
+                    {% elif item.type == "matter" %}
+                      <span class="search-type-badge search-type-badge--matter">Ärende</span>
+                    {% elif item.type == "property" %}
+                      <span class="search-type-badge search-type-badge--property">Fastighet</span>
+                    {% elif item.type == "right_holder" %}
+                      <span class="search-type-badge search-type-badge--right-holder">Rättighet</span>
+                    {% elif item.type == "calendar_event" %}
+                      <span class="search-type-badge search-type-badge--calendar">Kalender</span>
+                    {% elif item.type == "fisheries_action" %}
+                      <span class="search-type-badge search-type-badge--fisheries">Fiskevård</span>
+                    {% endif %}
+                    <a href="{{ item.url }}" class="btn btn-outline-primary btn-sm global-search-results-open-btn flex-shrink-0">Öppna</a>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </section>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
