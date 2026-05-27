@@ -37,9 +37,6 @@
                 <i class="fa-solid fa-folder-plus me-1" aria-hidden="true"></i>
                 Ny mapp
             </button>
-            <a href="{% url 'portal:document_overview' %}" class="btn btn-outline-secondary btn-sm">
-                Tillbaka
-            </a>
         </div>
     </header>
 
@@ -75,7 +72,14 @@
                     {% for node in tree_nodes %}
                         <li class="archive-tree-node archive-tree-node--depth-{{ node.depth }}">
                             <a href="{% url 'portal:document_workspace' %}?folder={{ node.folder.pk }}"
-                               class="archive-tree-link{% if current_folder and node.folder.pk == current_folder.pk %} is-active{% endif %}">
+                               class="archive-tree-link{% if current_folder and node.folder.pk == current_folder.pk %} is-active{% endif %}{% if not node.folder.is_system_folder %} js-folder-context-target{% endif %}"
+                               {% if not node.folder.is_system_folder %}
+                               data-folder-delete-url="{% url 'portal:document_folder_delete' node.folder.pk %}"
+                               data-folder-rename-url="{% url 'portal:document_folder_rename' node.folder.pk %}"
+                               data-folder-delete-context="workspace"
+                               data-folder-name="{{ node.folder.name }}"
+                               data-folder-return-folder="{{ current_folder.pk }}"
+                               {% endif %}>
                                 <span class="archive-tree-chevron archive-tree-chevron--muted" aria-hidden="true">
                                     <i class="fa-solid fa-chevron-right"></i>
                                 </span>
@@ -141,23 +145,32 @@
                         <h3 id="workspace-folders-heading" class="archive-section-title">Mappar</h3>
                         <div class="archive-content-folder-list">
                             {% for folder in folders %}
-                                <a href="{% url 'portal:document_workspace' %}?folder={{ folder.pk }}"
-                                   class="archive-content-folder-row">
-                                    <span class="archive-folder-icon archive-folder-icon--custom" aria-hidden="true">
-                                        <i class="fa-solid fa-folder"></i>
-                                    </span>
-                                    <span class="archive-folder-meta">
-                                        <span class="archive-folder-name">
-                                            {{ folder.name }}
-                                            {% if folder.workspace_doc_count %}
-                                                <span class="archive-folder-count">({{ folder.workspace_doc_count }})</span>
-                                            {% endif %}
+                                <div class="archive-content-folder-row-wrap">
+                                    <a href="{% url 'portal:document_workspace' %}?folder={{ folder.pk }}"
+                                       class="archive-content-folder-row{% if not folder.is_system_folder %} js-folder-context-target{% endif %}"
+                                       {% if not folder.is_system_folder %}
+                                       data-folder-delete-url="{% url 'portal:document_folder_delete' folder.pk %}"
+                                       data-folder-rename-url="{% url 'portal:document_folder_rename' folder.pk %}"
+                                       data-folder-delete-context="workspace"
+                                       data-folder-name="{{ folder.name }}"
+                                       data-folder-return-folder="{{ current_folder.pk }}"
+                                       {% endif %}>
+                                        <span class="archive-folder-icon archive-folder-icon--custom" aria-hidden="true">
+                                            <i class="fa-solid fa-folder"></i>
                                         </span>
-                                    </span>
-                                    <span class="archive-folder-chevron" aria-hidden="true">
-                                        <i class="fa-solid fa-chevron-right"></i>
-                                    </span>
-                                </a>
+                                        <span class="archive-folder-meta">
+                                            <span class="archive-folder-name">
+                                                {{ folder.name }}
+                                                {% if folder.workspace_doc_count %}
+                                                    <span class="archive-folder-count">({{ folder.workspace_doc_count }})</span>
+                                                {% endif %}
+                                            </span>
+                                        </span>
+                                        <span class="archive-folder-chevron" aria-hidden="true">
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        </span>
+                                    </a>
+                                </div>
                             {% endfor %}
                         </div>
                     </section>
@@ -170,7 +183,13 @@
                             {% for document in documents %}
                                 <div class="archive-document-row-wrap workspace-document-row-wrap">
                                     <a href="{% url 'portal:document_detail' document.pk %}"
-                                       class="archive-document-row workspace-document-row">
+                                       class="archive-document-row workspace-document-row{% if not document.meeting %} js-workspace-document-context-target{% endif %}"
+                                       {% if not document.meeting %}
+                                       data-document-rename-url="{% url 'portal:document_workspace_document_rename' document.pk %}"
+                                       data-document-delete-url="{% url 'portal:document_workspace_document_delete' document.pk %}"
+                                       data-document-title="{{ document.title|escape }}"
+                                       {% if current_folder %}data-document-return-folder="{{ current_folder.pk }}"{% endif %}
+                                       {% endif %}>
                                         <span class="workspace-document-primary">
                                             <span class="archive-document-icon" aria-hidden="true">
                                                 <i class="fa-solid fa-file-lines"></i>
@@ -333,6 +352,85 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="folderRenameModal" tabindex="-1" aria-labelledby="folderRenameModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="folderRenameForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="context" id="folderRenameContextInput" value="">
+                <input type="hidden" name="return_folder" id="folderRenameReturnInput" value="">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="folderRenameModalLabel">Byt namn på mapp</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="folderRenameNameInput" class="form-label">Nytt namn</label>
+                    <input type="text" class="form-control" name="name" id="folderRenameNameInput" required maxlength="255" autocomplete="off">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-primary">Spara</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="folderContextMenu" class="archive-context-menu" role="menu" aria-hidden="true">
+    <button type="button" class="archive-context-menu__item archive-context-menu__item--rename" data-action="rename-folder">
+        <i class="fa-solid fa-pen me-2" aria-hidden="true"></i>
+        Byt namn
+    </button>
+    <button type="button" class="archive-context-menu__item archive-context-menu__item--danger" data-action="delete-folder">
+        <i class="fa-solid fa-trash me-2" aria-hidden="true"></i>
+        Ta bort mapp
+    </button>
+</div>
+
+<form id="folderDeleteContextForm" method="post" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="context" value="">
+</form>
+
+<div class="modal fade" id="workspaceDocumentRenameModal" tabindex="-1" aria-labelledby="workspaceDocumentRenameModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="workspaceDocumentRenameForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="return_folder" id="workspaceDocumentRenameReturnFolderInput" value="">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="workspaceDocumentRenameModalLabel">Byt namn på dokument</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="workspaceDocumentRenameTitleInput" class="form-label">Nytt dokumentnamn</label>
+                    <input type="text" class="form-control" name="title" id="workspaceDocumentRenameTitleInput" required maxlength="255" autocomplete="off">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-primary">Spara</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="workspaceDocumentContextMenu" class="archive-context-menu" role="menu" aria-hidden="true">
+    <button type="button" class="archive-context-menu__item archive-context-menu__item--rename" data-action="rename-document">
+        <i class="fa-solid fa-pen me-2" aria-hidden="true"></i>
+        Byt namn
+    </button>
+    <button type="button" class="archive-context-menu__item archive-context-menu__item--danger" data-action="delete-document">
+        <i class="fa-solid fa-trash me-2" aria-hidden="true"></i>
+        Ta bort dokument
+    </button>
+</div>
+
+<form id="workspaceDocumentDeleteForm" method="post" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="return_folder" id="workspaceDocumentDeleteReturnFolderInput" value="">
+</form>
 {% endblock %}
 
 {% block extra_js %}
@@ -357,6 +455,213 @@
         if (sel) {
             sel.selectedIndex = 0;
         }
+    });
+})();
+
+(function () {
+    var menu = document.getElementById("folderContextMenu");
+    var form = document.getElementById("folderDeleteContextForm");
+    var renameModalEl = document.getElementById("folderRenameModal");
+    var renameForm = document.getElementById("folderRenameForm");
+    if (!menu || !form) return;
+
+    var contextInput = form.querySelector('input[name="context"]');
+    var deleteItem = menu.querySelector('[data-action="delete-folder"]');
+    var renameItem = menu.querySelector('[data-action="rename-folder"]');
+    if (!deleteItem || !renameItem) return;
+
+    var renameContextInput = renameForm ? document.getElementById("folderRenameContextInput") : null;
+    var renameReturnInput = renameForm ? document.getElementById("folderRenameReturnInput") : null;
+    var renameNameInput = renameForm ? document.getElementById("folderRenameNameInput") : null;
+
+    var pendingDeleteUrl = "";
+    var pendingRenameUrl = "";
+    var pendingContext = "";
+    var pendingFolderName = "";
+    var pendingReturnFolder = "";
+    var menuPadding = 8;
+
+    function hideMenu() {
+        menu.classList.remove("is-open");
+        menu.setAttribute("aria-hidden", "true");
+    }
+
+    function openFolderContextMenu(event, deleteUrl, renameUrl, context, folderName, returnFolder) {
+        pendingDeleteUrl = deleteUrl;
+        pendingRenameUrl = renameUrl;
+        pendingContext = context;
+        pendingFolderName = folderName || "mappen";
+        pendingReturnFolder = returnFolder || "";
+
+        menu.classList.add("is-open");
+        menu.setAttribute("aria-hidden", "false");
+
+        var menuWidth = menu.offsetWidth || 180;
+        var menuHeight = menu.offsetHeight || 80;
+        var maxLeft = Math.max(menuPadding, window.innerWidth - menuWidth - menuPadding);
+        var maxTop = Math.max(menuPadding, window.innerHeight - menuHeight - menuPadding);
+        menu.style.left = Math.min(event.clientX, maxLeft) + "px";
+        menu.style.top = Math.min(event.clientY, maxTop) + "px";
+    }
+
+    document.addEventListener("contextmenu", function (event) {
+        var target = event.target.closest(".js-folder-context-target");
+        if (!target) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        var deleteUrl = target.dataset.folderDeleteUrl;
+        var renameUrl = target.dataset.folderRenameUrl;
+        var context = target.dataset.folderDeleteContext;
+        var folderName = target.dataset.folderName;
+        var returnFolder = target.dataset.folderReturnFolder || "";
+
+        if (!deleteUrl || !renameUrl || !context) return;
+
+        openFolderContextMenu(event, deleteUrl, renameUrl, context, folderName, returnFolder);
+    });
+
+    document.addEventListener("click", function (event) {
+        if (!menu.classList.contains("is-open")) return;
+        if (!menu.contains(event.target)) hideMenu();
+    });
+
+    window.addEventListener("scroll", hideMenu, true);
+    window.addEventListener("resize", hideMenu);
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") hideMenu();
+    });
+
+    renameItem.addEventListener("click", function () {
+        hideMenu();
+        if (!renameForm || !renameModalEl || !pendingRenameUrl) return;
+        renameForm.action = pendingRenameUrl;
+        if (renameContextInput) renameContextInput.value = pendingContext;
+        if (renameReturnInput) renameReturnInput.value = pendingReturnFolder;
+        if (renameNameInput) {
+            renameNameInput.value = pendingFolderName || "";
+            renameNameInput.select();
+        }
+        if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
+            var inst = bootstrap.Modal.getOrCreateInstance(renameModalEl);
+            inst.show();
+            renameModalEl.addEventListener("shown.bs.modal", function onShown() {
+                renameModalEl.removeEventListener("shown.bs.modal", onShown);
+                if (renameNameInput) renameNameInput.focus();
+            });
+        }
+    });
+
+    deleteItem.addEventListener("click", function () {
+        hideMenu();
+        if (!pendingDeleteUrl) return;
+        if (!confirm("Ta bort mappen '" + pendingFolderName + "'? Mappen måste vara tom.")) return;
+        form.action = pendingDeleteUrl;
+        if (contextInput) contextInput.value = pendingContext;
+        form.submit();
+    });
+})();
+
+(function () {
+    var menu = document.getElementById("workspaceDocumentContextMenu");
+    var renameModalEl = document.getElementById("workspaceDocumentRenameModal");
+    var renameForm = document.getElementById("workspaceDocumentRenameForm");
+    var renameTitleInput = document.getElementById("workspaceDocumentRenameTitleInput");
+    var renameReturnFolderInput = document.getElementById("workspaceDocumentRenameReturnFolderInput");
+    var deleteForm = document.getElementById("workspaceDocumentDeleteForm");
+    var deleteReturnFolderInput = document.getElementById("workspaceDocumentDeleteReturnFolderInput");
+    if (!menu || !renameModalEl || !renameForm || !deleteForm) return;
+
+    var renameItem = menu.querySelector('[data-action="rename-document"]');
+    var deleteItem = menu.querySelector('[data-action="delete-document"]');
+    if (!renameItem || !deleteItem) return;
+
+    var pendingRenameUrl = "";
+    var pendingDeleteUrl = "";
+    var pendingTitle = "";
+    var pendingReturnFolder = "";
+    var menuPadding = 8;
+
+    function hideMenu() {
+        menu.classList.remove("is-open");
+        menu.setAttribute("aria-hidden", "true");
+    }
+
+    function openMenu(event, renameUrl, deleteUrl, title, returnFolder) {
+        pendingRenameUrl = renameUrl;
+        pendingDeleteUrl = deleteUrl;
+        pendingTitle = title || "";
+        pendingReturnFolder = returnFolder || "";
+
+        menu.classList.add("is-open");
+        menu.setAttribute("aria-hidden", "false");
+        var menuWidth = menu.offsetWidth || 180;
+        var menuHeight = menu.offsetHeight || 80;
+        var maxLeft = Math.max(menuPadding, window.innerWidth - menuWidth - menuPadding);
+        var maxTop = Math.max(menuPadding, window.innerHeight - menuHeight - menuPadding);
+        menu.style.left = Math.min(event.clientX, maxLeft) + "px";
+        menu.style.top = Math.min(event.clientY, maxTop) + "px";
+    }
+
+    document.addEventListener("contextmenu", function (event) {
+        var target = event.target.closest(".js-workspace-document-context-target");
+        if (!target) return;
+
+        var renameUrl = target.dataset.documentRenameUrl;
+        var deleteUrl = target.dataset.documentDeleteUrl;
+        if (!renameUrl || !deleteUrl) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        openMenu(
+            event,
+            renameUrl,
+            deleteUrl,
+            target.dataset.documentTitle,
+            target.dataset.documentReturnFolder || ""
+        );
+    });
+
+    document.addEventListener("click", function (event) {
+        if (!menu.classList.contains("is-open")) return;
+        if (!menu.contains(event.target)) hideMenu();
+    });
+
+    window.addEventListener("scroll", hideMenu, true);
+    window.addEventListener("resize", hideMenu);
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") hideMenu();
+    });
+
+    renameItem.addEventListener("click", function () {
+        hideMenu();
+        if (!pendingRenameUrl) return;
+
+        renameForm.action = pendingRenameUrl;
+        if (renameReturnFolderInput) renameReturnFolderInput.value = pendingReturnFolder;
+        if (renameTitleInput) {
+            renameTitleInput.value = pendingTitle;
+            renameTitleInput.select();
+        }
+
+        if (typeof bootstrap === "undefined" || !bootstrap.Modal) return;
+        var modal = bootstrap.Modal.getOrCreateInstance(renameModalEl);
+        modal.show();
+        renameModalEl.addEventListener("shown.bs.modal", function onShown() {
+            renameModalEl.removeEventListener("shown.bs.modal", onShown);
+            if (renameTitleInput) renameTitleInput.focus();
+        });
+    });
+
+    deleteItem.addEventListener("click", function () {
+        hideMenu();
+        if (!pendingDeleteUrl) return;
+        if (!confirm("Flytta dokumentet '" + pendingTitle + "' till papperskorgen?")) return;
+        deleteForm.action = pendingDeleteUrl;
+        if (deleteReturnFolderInput) deleteReturnFolderInput.value = pendingReturnFolder;
+        deleteForm.submit();
     });
 })();
 </script>

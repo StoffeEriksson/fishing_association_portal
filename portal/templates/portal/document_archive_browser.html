@@ -33,9 +33,6 @@
                 <i class="fa-solid fa-arrow-up-from-bracket me-1" aria-hidden="true"></i>
                 Ladda upp dokument
             </a>
-            <a href="{% url 'portal:document_overview' %}" class="btn btn-outline-secondary btn-sm">
-                Tillbaka
-            </a>
         </div>
     </header>
 
@@ -66,7 +63,14 @@
                         {% if not forloop.first or crumb.name != "Arkiv" %}
                             <li class="archive-tree-node archive-tree-node--depth-{{ forloop.counter }}{% if crumb.folder.pk in expanded_folder_ids %} archive-tree-node--expanded{% endif %}">
                                 <a href="{{ crumb.url }}"
-                                   class="archive-tree-link{% if current_folder and crumb.folder.pk == current_folder.pk %} is-active{% endif %}">
+                                   class="archive-tree-link{% if current_folder and crumb.folder.pk == current_folder.pk %} is-active{% endif %}{% if not crumb.folder.is_system_folder %} js-folder-context-target{% endif %}"
+                                   {% if not crumb.folder.is_system_folder %}
+                                   data-folder-delete-url="{% url 'portal:document_folder_delete' crumb.folder.pk %}"
+                                   data-folder-rename-url="{% url 'portal:document_folder_rename' crumb.folder.pk %}"
+                                   data-folder-delete-context="archive"
+                                   data-folder-name="{{ crumb.folder.name }}"
+                                   {% if current_folder %}data-folder-return-folder="{{ current_folder.pk }}"{% endif %}
+                                   {% endif %}>
                                     <span class="archive-tree-chevron" aria-hidden="true">
                                         {% if crumb.folder.pk in expanded_folder_ids %}
                                             <i class="fa-solid fa-chevron-down"></i>
@@ -108,7 +112,14 @@
                         {% for folder in folders %}
                             <li class="archive-tree-node archive-tree-node--depth-{% if breadcrumbs %}{{ breadcrumbs|length|add:1 }}{% else %}1{% endif %}{% if current_folder.pk in expanded_folder_ids %} archive-tree-node--expanded{% endif %}">
                                 <a href="{% url 'portal:document_archive' %}?folder={{ folder.pk }}"
-                                   class="archive-tree-link">
+                                   class="archive-tree-link{% if not folder.is_system_folder %} js-folder-context-target{% endif %}"
+                                   {% if not folder.is_system_folder %}
+                                   data-folder-delete-url="{% url 'portal:document_folder_delete' folder.pk %}"
+                                   data-folder-rename-url="{% url 'portal:document_folder_rename' folder.pk %}"
+                                   data-folder-delete-context="archive"
+                                   data-folder-name="{{ folder.name }}"
+                                   {% if current_folder %}data-folder-return-folder="{{ current_folder.pk }}"{% endif %}
+                                   {% endif %}>
                                     <span class="archive-tree-chevron archive-tree-chevron--muted" aria-hidden="true">
                                         <i class="fa-solid fa-chevron-right"></i>
                                     </span>
@@ -144,7 +155,14 @@
                         {% for folder in folders %}
                             <li class="archive-tree-node archive-tree-node--depth-1">
                                 <a href="{% url 'portal:document_archive' %}?folder={{ folder.pk }}"
-                                   class="archive-tree-link">
+                                   class="archive-tree-link{% if not folder.is_system_folder %} js-folder-context-target{% endif %}"
+                                   {% if not folder.is_system_folder %}
+                                   data-folder-delete-url="{% url 'portal:document_folder_delete' folder.pk %}"
+                                   data-folder-rename-url="{% url 'portal:document_folder_rename' folder.pk %}"
+                                   data-folder-delete-context="archive"
+                                   data-folder-name="{{ folder.name }}"
+                                   {% if current_folder %}data-folder-return-folder="{{ current_folder.pk }}"{% endif %}
+                                   {% endif %}>
                                     <span class="archive-tree-chevron archive-tree-chevron--muted" aria-hidden="true">
                                         <i class="fa-solid fa-chevron-right"></i>
                                     </span>
@@ -238,44 +256,53 @@
                         <h3 id="archive-folders-heading" class="archive-section-title">Mappar</h3>
                         <div class="archive-content-folder-list">
                             {% for folder in folders %}
-                                <a href="{% url 'portal:document_archive' %}?folder={{ folder.pk }}"
-                                   class="archive-content-folder-row">
-                                    <span class="archive-folder-icon{% if folder.is_system_folder %} archive-folder-icon--system archive-folder-icon--{{ folder.folder_type }}{% else %} archive-folder-icon--custom{% endif %}" aria-hidden="true">
-                                        {% if folder.is_system_folder %}
-                                            {% if folder.folder_type == "archive_root" %}
-                                                <i class="fa-solid fa-box-archive"></i>
-                                            {% elif folder.folder_type == "year" %}
-                                                <i class="fa-solid fa-calendar"></i>
-                                            {% elif folder.folder_type == "month" %}
-                                                <i class="fa-solid fa-calendar-days"></i>
-                                            {% elif folder.folder_type == "meeting_group" %}
-                                                <i class="fa-solid fa-folder-tree"></i>
-                                            {% elif folder.folder_type == "static" %}
-                                                <i class="fa-solid fa-folder"></i>
+                                <div class="archive-content-folder-row-wrap">
+                                    <a href="{% url 'portal:document_archive' %}?folder={{ folder.pk }}"
+                                       class="archive-content-folder-row{% if not folder.is_system_folder %} js-folder-context-target{% endif %}"
+                                       {% if not folder.is_system_folder %}
+                                       data-folder-delete-url="{% url 'portal:document_folder_delete' folder.pk %}"
+                                       data-folder-rename-url="{% url 'portal:document_folder_rename' folder.pk %}"
+                                       data-folder-delete-context="archive"
+                                       data-folder-name="{{ folder.name }}"
+                                       {% if current_folder %}data-folder-return-folder="{{ current_folder.pk }}"{% endif %}
+                                       {% endif %}>
+                                        <span class="archive-folder-icon{% if folder.is_system_folder %} archive-folder-icon--system archive-folder-icon--{{ folder.folder_type }}{% else %} archive-folder-icon--custom{% endif %}" aria-hidden="true">
+                                            {% if folder.is_system_folder %}
+                                                {% if folder.folder_type == "archive_root" %}
+                                                    <i class="fa-solid fa-box-archive"></i>
+                                                {% elif folder.folder_type == "year" %}
+                                                    <i class="fa-solid fa-calendar"></i>
+                                                {% elif folder.folder_type == "month" %}
+                                                    <i class="fa-solid fa-calendar-days"></i>
+                                                {% elif folder.folder_type == "meeting_group" %}
+                                                    <i class="fa-solid fa-folder-tree"></i>
+                                                {% elif folder.folder_type == "static" %}
+                                                    <i class="fa-solid fa-folder"></i>
+                                                {% else %}
+                                                    <i class="fa-solid fa-folder"></i>
+                                                {% endif %}
                                             {% else %}
                                                 <i class="fa-solid fa-folder"></i>
                                             {% endif %}
-                                        {% else %}
-                                            <i class="fa-solid fa-folder"></i>
-                                        {% endif %}
-                                    </span>
-                                    <span class="archive-folder-meta">
-                                        <span class="archive-folder-name">
-                                            {{ folder.name }}
-                                            {% if folder.archive_doc_count %}
-                                                <span class="archive-folder-count">({{ folder.archive_doc_count }})</span>
+                                        </span>
+                                        <span class="archive-folder-meta">
+                                            <span class="archive-folder-name">
+                                                {{ folder.name }}
+                                                {% if folder.archive_doc_count %}
+                                                    <span class="archive-folder-count">({{ folder.archive_doc_count }})</span>
+                                                {% endif %}
+                                            </span>
+                                            {% if folder.is_system_folder %}
+                                                <span class="archive-badge archive-badge-system">System</span>
+                                            {% else %}
+                                                <span class="archive-badge archive-badge-custom">Anpassad</span>
                                             {% endif %}
                                         </span>
-                                        {% if folder.is_system_folder %}
-                                            <span class="archive-badge archive-badge-system">System</span>
-                                        {% else %}
-                                            <span class="archive-badge archive-badge-custom">Anpassad</span>
-                                        {% endif %}
-                                    </span>
-                                    <span class="archive-folder-chevron" aria-hidden="true">
-                                        <i class="fa-solid fa-chevron-right"></i>
-                                    </span>
-                                </a>
+                                        <span class="archive-folder-chevron" aria-hidden="true">
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        </span>
+                                    </a>
+                                </div>
                             {% endfor %}
                         </div>
                     </section>
@@ -295,7 +322,11 @@
                                         <span class="archive-document-main">
                                             <span class="archive-document-title">{{ document.title }}</span>
                                             <span class="archive-document-meta">
-                                                {{ document.get_category_display }}
+                                                {% if document.category == "protocol" and not document.meeting %}
+                                                    Protokollutkast
+                                                {% else %}
+                                                    {{ document.get_category_display }}
+                                                {% endif %}
                                                 <span class="archive-document-meta-sep">·</span>
                                                 {{ document.updated_at|date:"Y-m-d H:i" }}
                                             </span>
@@ -303,6 +334,18 @@
                                         <span class="archive-document-status">
                                             <span class="archive-badge archive-badge-status">Finaliserad</span>
                                             <span class="archive-badge archive-badge-archived">Arkiverad</span>
+                                            {% if document.meeting %}
+                                                <span class="document-safety-badge document-safety-badge--meeting">Möteskopplat</span>
+                                                {% if document.category == "protocol" %}
+                                                    <span class="document-safety-badge document-safety-badge--meeting">Officiellt mötesprotokoll</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="document-safety-badge document-safety-badge--draft">Ej möteskopplat</span>
+                                                <span class="document-safety-badge document-safety-badge--draft">Arbetsdokument</span>
+                                                {% if document.category == "protocol" %}
+                                                    <span class="document-safety-badge document-safety-badge--warning">Protokollutkast</span>
+                                                {% endif %}
+                                            {% endif %}
                                         </span>
                                         <span class="archive-document-open" aria-hidden="true">
                                             <i class="fa-solid fa-chevron-right"></i>
@@ -424,6 +467,46 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="folderRenameModal" tabindex="-1" aria-labelledby="folderRenameModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="folderRenameForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="context" id="folderRenameContextInput" value="">
+                <input type="hidden" name="return_folder" id="folderRenameReturnInput" value="">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="folderRenameModalLabel">Byt namn på mapp</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="folderRenameNameInput" class="form-label">Nytt namn</label>
+                    <input type="text" class="form-control" name="name" id="folderRenameNameInput" required maxlength="255" autocomplete="off">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-primary">Spara</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="folderContextMenu" class="archive-context-menu" role="menu" aria-hidden="true">
+    <button type="button" class="archive-context-menu__item archive-context-menu__item--rename" data-action="rename-folder">
+        <i class="fa-solid fa-pen me-2" aria-hidden="true"></i>
+        Byt namn
+    </button>
+    <button type="button" class="archive-context-menu__item archive-context-menu__item--danger" data-action="delete-folder">
+        <i class="fa-solid fa-trash me-2" aria-hidden="true"></i>
+        Ta bort mapp
+    </button>
+</div>
+
+<form id="folderDeleteContextForm" method="post" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="context" value="">
+</form>
 {% endblock %}
 
 {% block extra_js %}
@@ -448,6 +531,111 @@
         if (sel) {
             sel.selectedIndex = 0;
         }
+    });
+})();
+
+(function () {
+    var menu = document.getElementById("folderContextMenu");
+    var form = document.getElementById("folderDeleteContextForm");
+    var renameModalEl = document.getElementById("folderRenameModal");
+    var renameForm = document.getElementById("folderRenameForm");
+    if (!menu || !form) return;
+
+    var contextInput = form.querySelector('input[name="context"]');
+    var deleteItem = menu.querySelector('[data-action="delete-folder"]');
+    var renameItem = menu.querySelector('[data-action="rename-folder"]');
+    if (!deleteItem || !renameItem) return;
+
+    var renameContextInput = renameForm ? document.getElementById("folderRenameContextInput") : null;
+    var renameReturnInput = renameForm ? document.getElementById("folderRenameReturnInput") : null;
+    var renameNameInput = renameForm ? document.getElementById("folderRenameNameInput") : null;
+
+    var pendingDeleteUrl = "";
+    var pendingRenameUrl = "";
+    var pendingContext = "";
+    var pendingFolderName = "";
+    var pendingReturnFolder = "";
+    var menuPadding = 8;
+
+    function hideMenu() {
+        menu.classList.remove("is-open");
+        menu.setAttribute("aria-hidden", "true");
+    }
+
+    function openFolderContextMenu(event, deleteUrl, renameUrl, context, folderName, returnFolder) {
+        pendingDeleteUrl = deleteUrl;
+        pendingRenameUrl = renameUrl;
+        pendingContext = context;
+        pendingFolderName = folderName || "mappen";
+        pendingReturnFolder = returnFolder || "";
+
+        menu.classList.add("is-open");
+        menu.setAttribute("aria-hidden", "false");
+
+        var menuWidth = menu.offsetWidth || 180;
+        var menuHeight = menu.offsetHeight || 80;
+        var maxLeft = Math.max(menuPadding, window.innerWidth - menuWidth - menuPadding);
+        var maxTop = Math.max(menuPadding, window.innerHeight - menuHeight - menuPadding);
+        menu.style.left = Math.min(event.clientX, maxLeft) + "px";
+        menu.style.top = Math.min(event.clientY, maxTop) + "px";
+    }
+
+    document.addEventListener("contextmenu", function (event) {
+        var target = event.target.closest(".js-folder-context-target");
+        if (!target) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        var deleteUrl = target.dataset.folderDeleteUrl;
+        var renameUrl = target.dataset.folderRenameUrl;
+        var context = target.dataset.folderDeleteContext;
+        var folderName = target.dataset.folderName;
+        var returnFolder = target.dataset.folderReturnFolder || "";
+
+        if (!deleteUrl || !renameUrl || !context) return;
+
+        openFolderContextMenu(event, deleteUrl, renameUrl, context, folderName, returnFolder);
+    });
+
+    document.addEventListener("click", function (event) {
+        if (!menu.classList.contains("is-open")) return;
+        if (!menu.contains(event.target)) hideMenu();
+    });
+
+    window.addEventListener("scroll", hideMenu, true);
+    window.addEventListener("resize", hideMenu);
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") hideMenu();
+    });
+
+    renameItem.addEventListener("click", function () {
+        hideMenu();
+        if (!renameForm || !renameModalEl || !pendingRenameUrl) return;
+        renameForm.action = pendingRenameUrl;
+        if (renameContextInput) renameContextInput.value = pendingContext;
+        if (renameReturnInput) renameReturnInput.value = pendingReturnFolder;
+        if (renameNameInput) {
+            renameNameInput.value = pendingFolderName || "";
+            renameNameInput.select();
+        }
+        if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
+            var inst = bootstrap.Modal.getOrCreateInstance(renameModalEl);
+            inst.show();
+            renameModalEl.addEventListener("shown.bs.modal", function onShown() {
+                renameModalEl.removeEventListener("shown.bs.modal", onShown);
+                if (renameNameInput) renameNameInput.focus();
+            });
+        }
+    });
+
+    deleteItem.addEventListener("click", function () {
+        hideMenu();
+        if (!pendingDeleteUrl) return;
+        if (!confirm("Ta bort mappen '" + pendingFolderName + "'? Mappen måste vara tom.")) return;
+        form.action = pendingDeleteUrl;
+        if (contextInput) contextInput.value = pendingContext;
+        form.submit();
     });
 })();
 </script>

@@ -11,17 +11,13 @@
     </div>
   </div>
 
+  {% if membership.can_manage_matters %}
   <div class="d-flex gap-2">
-    <a href="{% url 'governance:dashboard' %}" class="btn btn-outline-secondary">
-      Tillbaka
+    <a href="{% url 'governance:matter_create' %}" class="btn btn-dark">
+      + Skapa ärende
     </a>
-
-    {% if membership.can_manage_matters %}
-      <a href="{% url 'governance:matter_create' %}" class="btn btn-dark">
-        + Skapa ärende
-      </a>
-    {% endif %}
   </div>
+  {% endif %}
 </div>
 
 <div class="card shadow-soft mb-4">
