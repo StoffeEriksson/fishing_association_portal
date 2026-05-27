@@ -627,11 +627,14 @@ def document_workspace(request):
     else:
         current_folder = workspace_root
 
-    folders = [
+    child_folders = [
         f for f in workspace_folders
         if current_folder is not None and f.parent_id == current_folder.pk
     ]
-    folders.sort(key=lambda f: (f.folder_type, f.name.lower(), f.pk))
+    workspace_system_folders, workspace_custom_folders = _split_workspace_child_folders(
+        child_folders
+    )
+    folders = workspace_system_folders + workspace_custom_folders
 
     docs_qs = (
         Document.objects.filter(
@@ -673,7 +676,7 @@ def document_workspace(request):
     expanded_folder_ids = _collect_expanded_folder_ids(current_folder)
     folder_document_counts = _workspace_folder_document_counts(org, workspace_ids)
 
-    for f in folders:
+    for f in child_folders:
         f.workspace_doc_count = folder_document_counts.get(f.pk, 0)
     for crumb in breadcrumbs:
         crumb["folder"].workspace_doc_count = folder_document_counts.get(
@@ -687,9 +690,7 @@ def document_workspace(request):
             continue
         tree_children_by_parent.setdefault(pid, []).append(f)
     for pid in tree_children_by_parent:
-        tree_children_by_parent[pid].sort(
-            key=lambda f: (f.folder_type, f.name.lower(), f.pk)
-        )
+        tree_children_by_parent[pid].sort(key=_workspace_tree_sort_key)
 
     tree_nodes = []
 
@@ -889,6 +890,64 @@ def _build_archive_breadcrumbs(current_folder):
 def _is_archive_system_key(system_key):
     key = (system_key or "").strip().lower()
     return key == "archive" or key.startswith("archive/")
+
+
+WORKSPACE_CATEGORY_SYSTEM_KEYS = (
+    "workspace/meeting-documents",
+    "workspace/protocol-drafts",
+    "workspace/bylaws",
+    "workspace/notices",
+    "workspace/motions",
+    "workspace/decisions",
+    "workspace/other",
+)
+WORKSPACE_CATEGORY_SYSTEM_KEY_ORDER = {
+    key: index for index, key in enumerate(WORKSPACE_CATEGORY_SYSTEM_KEYS)
+}
+
+
+def _is_workspace_category_system_folder(folder):
+    if not folder.is_system_folder:
+        return False
+    key = (folder.system_key or "").strip().lower()
+    return key.startswith("workspace/")
+
+
+def _split_workspace_child_folders(child_folders):
+    """Split direct children into backfill system folders vs user custom folders."""
+    system_folders = []
+    custom_folders = []
+    for folder in child_folders:
+        if _is_workspace_category_system_folder(folder):
+            system_folders.append(folder)
+        elif not folder.is_system_folder:
+            custom_folders.append(folder)
+    system_folders.sort(
+        key=lambda f: (
+            WORKSPACE_CATEGORY_SYSTEM_KEY_ORDER.get(
+                (f.system_key or "").strip().lower(),
+                len(WORKSPACE_CATEGORY_SYSTEM_KEYS),
+            ),
+            f.name.lower(),
+            f.pk,
+        )
+    )
+    custom_folders.sort(key=lambda f: (f.name.lower(), f.pk))
+    return system_folders, custom_folders
+
+
+def _workspace_tree_sort_key(folder):
+    if _is_workspace_category_system_folder(folder):
+        key = (folder.system_key or "").strip().lower()
+        return (
+            0,
+            WORKSPACE_CATEGORY_SYSTEM_KEY_ORDER.get(
+                key, len(WORKSPACE_CATEGORY_SYSTEM_KEYS)
+            ),
+            folder.name.lower(),
+            folder.pk,
+        )
+    return (1, 0, folder.name.lower(), folder.pk)
 
 
 def _workspace_folder_scope(org):
