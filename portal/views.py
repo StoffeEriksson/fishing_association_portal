@@ -22,11 +22,14 @@ import qrcode
 from io import BytesIO
 import base64
 
+from accounts.forms import UserAccountForm, UserProfileForm
+from accounts.models import UserProfile
 from calendarapp.calendar_widget import build_dashboard_calendar_widget
 from calendarapp.models import CalendarEvent
+from core.models import Membership
 from fisheries.models import ActionArea, ActionPriority, ActionStatus
 from fishingrights.models import FishingRightShare, Property, RightHolder
-from governance.models import BoardMatter, Meeting
+from governance.models import BoardMembership, BoardMatter, Meeting
 from documents.forms import (
     DocumentCreateForm,
     DocumentUpdateForm,
@@ -359,6 +362,62 @@ def dashboard(request):
             "upcoming_meetings_count": upcoming_meetings_count,
             "news_feed": news_feed,
             "calendar_widget": calendar_widget,
+        },
+    )
+
+
+def _account_user_initials(user):
+    parts = []
+    if user.first_name:
+        parts.append(user.first_name[0])
+    if user.last_name:
+        parts.append(user.last_name[0])
+    if parts:
+        return "".join(parts).upper()[:2]
+    label = user.email or user.username or "?"
+    return label[0].upper()
+
+
+@login_required
+def my_account(request):
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    if request.method == "POST":
+        user_form = UserAccountForm(request.POST, instance=request.user)
+        profile_form = UserProfileForm(request.POST, request.FILES, instance=profile)
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, "Konto uppdaterat")
+            return redirect("portal:my_account")
+    else:
+        user_form = UserAccountForm(instance=request.user)
+        profile_form = UserProfileForm(instance=profile)
+
+    portal_membership = None
+    board_membership = None
+    if request.org:
+        portal_membership = Membership.objects.filter(
+            user=request.user,
+            organization=request.org,
+            is_active=True,
+        ).first()
+        board_membership = BoardMembership.objects.filter(
+            org=request.org,
+            user=request.user,
+            is_active=True,
+        ).first()
+
+    return render(
+        request,
+        "portal/my_account.html",
+        {
+            "user_form": user_form,
+            "profile_form": profile_form,
+            "profile": profile,
+            "account_initials": _account_user_initials(request.user),
+            "portal_membership": portal_membership,
+            "board_membership": board_membership,
         },
     )
 

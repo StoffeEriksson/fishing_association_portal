@@ -6,6 +6,7 @@ app_name = "portal"
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("account/", views.my_account, name="my_account"),
     path("search/", views.global_search, name="global_search"),
     path("search/results/", views.global_search_results, name="global_search_results"),
 

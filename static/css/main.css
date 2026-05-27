@@ -1467,3 +1467,38 @@ body.portal-app-body .shadow-soft {
         margin-top: 0.25rem;
     }
 }
+
+/* Mitt konto */
+.my-account-avatar-wrap {
+    display: flex;
+    justify-content: center;
+}
+
+.my-account-avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(148, 163, 184, 0.25);
+}
+
+.my-account-avatar-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+    color: #f8fafc;
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.my-account-org-dl dt {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.my-account-org-dl dd {
+    font-weight: 600;
+    color: #0f172a;
+}
