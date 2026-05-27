@@ -23,6 +23,13 @@
   <form method="post" enctype="multipart/form-data" class="my-account-form">
     {% csrf_token %}
 
+    {% if profile_form.non_field_errors %}
+      <div class="alert alert-danger">{{ profile_form.non_field_errors }}</div>
+    {% endif %}
+    {% if user_form.non_field_errors %}
+      <div class="alert alert-danger">{{ user_form.non_field_errors }}</div>
+    {% endif %}
+
     <div class="row g-4 my-account-grid">
       <div class="col-lg-6">
         <div class="card shadow-soft my-account-card h-100">
@@ -34,24 +41,30 @@
 
             <div class="my-account-avatar-block">
               <div class="my-account-avatar-preview" aria-hidden="true">
-                {% if profile.avatar %}
+                {% if profile_has_avatar %}
                   <img
                     src="{{ profile.avatar.url }}"
                     alt=""
                     class="my-account-avatar my-account-avatar-lg"
                   >
+                {% elif portal_account_has_avatar %}
+                  <img
+                    src="{{ portal_account_profile.avatar.url }}"
+                    alt=""
+                    class="my-account-avatar my-account-avatar-lg"
+                  >
                 {% else %}
                   <span class="my-account-avatar my-account-avatar-lg my-account-avatar-placeholder">
-                    {{ account_initials }}
+                    <span class="my-account-initials-text">{{ account_initials|default:"?" }}</span>
                   </span>
                 {% endif %}
               </div>
 
               <div class="my-account-avatar-upload">
-                {{ profile_form.avatar }}
-                <label for="{{ profile_form.avatar.id_for_label }}" class="btn btn-outline-primary btn-sm my-account-avatar-btn">
+                <label class="btn btn-outline-primary btn-sm my-account-avatar-btn my-account-avatar-file-label">
                   <i class="fa-solid fa-camera me-1" aria-hidden="true"></i>
-                  Byt profilbild
+                  <span>Byt profilbild</span>
+                  <span class="my-account-avatar-file-field">{{ profile_form.avatar }}</span>
                 </label>
                 <p class="form-text my-account-avatar-hint mb-0">PNG eller JPG rekommenderas</p>
                 {% if profile_form.avatar.errors %}
@@ -163,32 +176,24 @@
               Din roll i den organisation som är aktiv i portalen just nu.
             </p>
 
-            {% if request.org %}
+            {% if active_org %}
               <div class="my-account-org-rows">
                 <div class="my-account-org-row">
                   <span class="my-account-org-label">Organisation</span>
-                  <span class="my-account-org-value badge text-bg-primary-subtle border">
-                    {{ request.org.name }}
+                  <span class="my-account-org-value">
+                    <span class="badge my-account-org-badge">{{ active_org.name }}</span>
                   </span>
                 </div>
                 <div class="my-account-org-row">
                   <span class="my-account-org-label">Portalroll</span>
                   <span class="my-account-org-value">
-                    {% if portal_membership %}
-                      <span class="badge my-account-role-badge">{{ portal_membership.get_role_display }}</span>
-                    {% else %}
-                      <span class="badge text-bg-light border text-muted">Inget medlemskap</span>
-                    {% endif %}
+                    <span class="badge my-account-role-badge">{{ portal_role_label }}</span>
                   </span>
                 </div>
                 <div class="my-account-org-row">
                   <span class="my-account-org-label">Styrelseroll</span>
                   <span class="my-account-org-value">
-                    {% if board_membership %}
-                      <span class="badge my-account-role-badge my-account-role-badge--board">{{ board_membership.get_role_display }}</span>
-                    {% else %}
-                      <span class="badge text-bg-light border text-muted">Ingen styrelseroll</span>
-                    {% endif %}
+                    <span class="badge my-account-role-badge my-account-role-badge--board">{{ board_role_label }}</span>
                   </span>
                 </div>
               </div>

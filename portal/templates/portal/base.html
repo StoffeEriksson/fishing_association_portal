@@ -198,7 +198,7 @@
             aria-label="Mitt konto"
             title="Mitt konto"
           >
-            {% if portal_account_profile and portal_account_profile.avatar %}
+            {% if portal_account_has_avatar %}
               <img
                 src="{{ portal_account_profile.avatar.url }}"
                 alt=""
@@ -208,7 +208,7 @@
               >
             {% else %}
               <span class="portal-account-avatar portal-account-initials" aria-hidden="true">
-                {{ portal_account_initials }}
+                <span class="portal-account-initials-text">{{ portal_account_initials|default:"?" }}</span>
               </span>
             {% endif %}
             <span class="portal-account-meta d-none d-md-flex">

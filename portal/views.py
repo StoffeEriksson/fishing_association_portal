@@ -374,15 +374,27 @@ def _account_user_initials(user):
         parts.append(user.last_name[0])
     if parts:
         return "".join(parts).upper()[:2]
-    label = user.email or user.username or "?"
-    return label[0].upper()
+    label = (user.email or user.username or "?").strip()
+    return label[0].upper() if label else "?"
+
+
+def _profile_has_avatar(profile):
+    return bool(profile and profile.avatar and profile.avatar.name)
 
 
 def _account_user_display_name(user):
-    full_name = user.get_full_name().strip()
-    if full_name:
-        return full_name
-    return user.email or user.username or ""
+    first_name = (user.first_name or "").strip()
+    last_name = (user.last_name or "").strip()
+
+    if first_name and last_name:
+        return f"{first_name} {last_name}"
+    if first_name:
+        return first_name
+    if last_name:
+        return last_name
+    if user.email:
+        return user.email
+    return user.get_username()
 
 
 def portal_account_topbar(request):
@@ -391,6 +403,7 @@ def portal_account_topbar(request):
     profile = UserProfile.objects.filter(user_id=request.user.pk).only("avatar").first()
     return {
         "portal_account_profile": profile,
+        "portal_account_has_avatar": _profile_has_avatar(profile),
         "portal_account_initials": _account_user_initials(request.user),
         "portal_account_display_name": _account_user_display_name(request.user),
     }
@@ -408,23 +421,41 @@ def my_account(request):
             profile_form.save()
             messages.success(request, "Konto uppdaterat")
             return redirect("portal:my_account")
+        messages.error(
+            request,
+            "Kunde inte spara alla uppgifter. Kontrollera formuläret.",
+        )
     else:
         user_form = UserAccountForm(instance=request.user)
         profile_form = UserProfileForm(instance=profile)
 
+    active_org = request.org
+    portal_role_label = "Ingen portalroll"
+    board_role_label = "Ingen styrelseroll"
     portal_membership = None
     board_membership = None
-    if request.org:
+
+    if active_org:
         portal_membership = Membership.objects.filter(
             user=request.user,
-            organization=request.org,
+            organization=active_org,
             is_active=True,
         ).first()
+        if portal_membership:
+            portal_role_label = portal_membership.get_role_display()
+
         board_membership = BoardMembership.objects.filter(
-            org=request.org,
+            org=active_org,
             user=request.user,
             is_active=True,
         ).first()
+        if board_membership:
+            board_role_label = board_membership.get_role_display()
+
+    profile = (
+        UserProfile.objects.filter(user_id=request.user.pk).first() or profile
+    )
+    profile.refresh_from_db()
 
     return render(
         request,
@@ -433,8 +464,12 @@ def my_account(request):
             "user_form": user_form,
             "profile_form": profile_form,
             "profile": profile,
+            "profile_has_avatar": _profile_has_avatar(profile),
             "account_initials": _account_user_initials(request.user),
             "account_display_name": _account_user_display_name(request.user),
+            "active_org": active_org,
+            "portal_role_label": portal_role_label,
+            "board_role_label": board_role_label,
             "portal_membership": portal_membership,
             "board_membership": board_membership,
         },

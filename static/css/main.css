@@ -995,15 +995,27 @@ a.portal-sidebar-settings .portal-sidebar-ico {
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
 }
 
-.portal-account-initials {
+.portal-account-avatar.portal-account-initials {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-width: 38px;
+    min-height: 38px;
+    overflow: visible;
+    line-height: 1;
+}
+
+.portal-account-initials {
     background: linear-gradient(145deg, #1e293b 0%, #7f1d1d 120%);
+}
+
+.portal-account-initials-text {
+    display: block;
     color: #fff;
     font-size: 0.82rem;
     font-weight: 700;
     letter-spacing: 0.03em;
+    line-height: 1;
 }
 
 .portal-account-meta {
@@ -1586,6 +1598,13 @@ body.portal-app-body .shadow-soft {
     margin-bottom: 1rem;
 }
 
+.my-account-avatar-preview img.my-account-avatar-lg {
+    display: block;
+    width: 120px;
+    height: 120px;
+    max-width: none;
+}
+
 .my-account-avatar,
 .my-account-avatar-lg {
     border-radius: 50%;
@@ -1619,16 +1638,34 @@ body.portal-app-body .shadow-soft {
     max-width: 16rem;
 }
 
-.my-account-avatar-upload input[type="file"] {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
+.my-account-avatar-file-label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    cursor: pointer;
     overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+}
+
+.my-account-avatar-file-field {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.my-account-avatar-file-field input[type="file"],
+.my-account-avatar-file-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+    font-size: 0;
 }
 
 .my-account-avatar-btn {
@@ -1636,6 +1673,11 @@ body.portal-app-body .shadow-soft {
     font-weight: 600;
     padding-left: 1rem;
     padding-right: 1rem;
+}
+
+.my-account-initials-text {
+    display: block;
+    line-height: 1;
 }
 
 .my-account-avatar-hint {
@@ -1694,6 +1736,13 @@ body.portal-app-body .shadow-soft {
     font-weight: 600;
     padding: 0.35rem 0.65rem;
     border-radius: 999px;
+}
+
+.my-account-org-badge {
+    background: rgba(47, 107, 255, 0.1);
+    color: #1d4ed8;
+    border: 1px solid rgba(47, 107, 255, 0.2);
+    opacity: 1;
 }
 
 .my-account-role-badge {

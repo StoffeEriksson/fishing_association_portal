@@ -29,7 +29,6 @@ class UserProfileForm(forms.ModelForm):
             "country",
         ]
         widgets = {
-            "avatar": forms.FileInput(attrs={"class": "form-control"}),
             "phone": forms.TextInput(attrs={"class": "form-control"}),
             "address_line1": forms.TextInput(attrs={"class": "form-control"}),
             "address_line2": forms.TextInput(attrs={"class": "form-control"}),
@@ -37,3 +36,13 @@ class UserProfileForm(forms.ModelForm):
             "city": forms.TextInput(attrs={"class": "form-control"}),
             "country": forms.TextInput(attrs={"class": "form-control"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["avatar"].required = False
+        self.fields["avatar"].widget = forms.FileInput(
+            attrs={
+                "class": "my-account-avatar-file-input",
+                "accept": "image/png,image/jpeg,image/jpg,image/webp,image/gif",
+            }
+        )
