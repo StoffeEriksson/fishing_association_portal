@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/document.css' %}">
 {% endblock %}
 
 {% block portal_topbar_start %}
@@ -423,7 +424,22 @@
                           </a>
                         </div>
                         <div class="small text-muted">
-                          {{ doc.get_category_display }}
+                          {% if doc.category == "protocol" and not doc.meeting %}
+                            Protokollutkast
+                          {% else %}
+                            {{ doc.get_category_display }}
+                          {% endif %}
+                        </div>
+                        <div class="mt-1 d-flex gap-1 flex-wrap">
+                          {% if doc.meeting %}
+                            <span class="document-safety-badge document-safety-badge--meeting">Möteskopplat</span>
+                          {% else %}
+                            <span class="document-safety-badge document-safety-badge--draft">Arbetsdokument</span>
+                            <span class="document-safety-badge document-safety-badge--draft">Ej möteskopplat</span>
+                          {% endif %}
+                          {% if doc.category == "protocol" and not doc.meeting %}
+                            <span class="document-safety-badge document-safety-badge--warning">Protokollutkast</span>
+                          {% endif %}
                         </div>
                       </div>
 

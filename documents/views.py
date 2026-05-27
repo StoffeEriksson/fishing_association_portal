@@ -207,17 +207,27 @@ def approve_document(request, pk):
                         defaults={"status": DocumentSignatureStatus.PENDING},
                     )
 
+            if meeting:
+                activity_message = (
+                    "Alla justerare har godkänt dokumentet. "
+                    "Dokumentet är nu redo för signering."
+                )
+                success_message = (
+                    "Alla justerare har godkänt dokumentet. "
+                    "Dokumentet är nu redo för signering."
+                )
+            else:
+                activity_message = "Dokumentet är godkänt som arbetsdokument."
+                success_message = "Dokumentet är godkänt som arbetsdokument."
+
             log_document_activity(
                 document=document,
                 user=request.user,
                 action="updated",
-                message="Alla justerare har godkänt dokumentet. Dokumentet är nu redo för signering.",
+                message=activity_message,
             )
 
-            messages.success(
-                request,
-                "Alla justerare har godkänt dokumentet. Dokumentet är nu redo för signering.",
-            )
+            messages.success(request, success_message)
         else:
             messages.success(request, "Dokumentet har godkänts.")
 

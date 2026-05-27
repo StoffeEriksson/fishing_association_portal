@@ -11,7 +11,12 @@
   <div>
     <h1 class="h3 mb-1">{{ doc.title }}</h1>
     <div class="text-muted small">
-      {{ doc.get_category_display }} · Senast uppdaterad {{ doc.updated_at|date:"Y-m-d" }}
+      {% if doc.category == "protocol" and not doc.meeting %}
+        Protokollutkast
+      {% else %}
+        {{ doc.get_category_display }}
+      {% endif %}
+      · Senast uppdaterad {{ doc.updated_at|date:"Y-m-d" }}
     </div>
 
     <div class="mt-2 d-flex gap-2 flex-wrap">
@@ -29,6 +34,19 @@
 
       {% if doc.is_archived %}
         <span class="badge text-bg-primary">Arkiverat</span>
+      {% endif %}
+
+      {% if doc.meeting %}
+        <span class="document-safety-badge document-safety-badge--meeting">Möteskopplat</span>
+        {% if doc.category == "protocol" %}
+          <span class="document-safety-badge document-safety-badge--meeting">Officiellt mötesprotokoll</span>
+        {% endif %}
+      {% else %}
+        <span class="document-safety-badge document-safety-badge--draft">Ej möteskopplat</span>
+        <span class="document-safety-badge document-safety-badge--draft">Arbetsdokument</span>
+        {% if doc.category == "protocol" %}
+          <span class="document-safety-badge document-safety-badge--warning">Protokollutkast</span>
+        {% endif %}
       {% endif %}
     </div>
 
@@ -48,11 +66,15 @@
       <div class="small text-muted mt-2">
         Kopplat möte: {{ doc.meeting.title }} · Status: {{ doc.meeting.get_status_display }}
       </div>
+    {% elif doc.category == "protocol" %}
+      <div class="document-safety-note mt-2">
+        Detta dokument är ett arbetsutkast och är inte ett officiellt justerat/signerat mötesprotokoll.
+      </div>
     {% endif %}
   </div>
 
   <div class="d-flex gap-2 flex-wrap">
-    {% if doc.workflow_status == "draft" %}
+    {% if doc.workflow_status == "draft" and doc.meeting %}
       <a href="{% url 'portal:lock_document' doc.pk %}" class="btn btn-warning btn-sm">
         🔒 Lås för justering
       </a>
@@ -110,7 +132,13 @@
         <div class="row g-3">
           <div class="col-md-4">
             <div class="small text-muted">Kategori</div>
-            <div class="fw-semibold">{{ doc.get_category_display }}</div>
+            <div class="fw-semibold">
+              {% if doc.category == "protocol" and not doc.meeting %}
+                Protokollutkast
+              {% else %}
+                {{ doc.get_category_display }}
+              {% endif %}
+            </div>
           </div>
 
           <div class="col-md-4">
