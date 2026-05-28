@@ -9,7 +9,7 @@ from django.utils import timezone
 from maps.models import WaterBody
 from core.models import Membership
 
-from .labels import get_action_status_label
+from .labels import get_action_priority_label, get_action_status_label
 from .models import (
     ActionArea,
     ActionComment,
@@ -161,6 +161,202 @@ def _build_attention_items(active_actions, today, week_end):
 
     sorted_items = sorted(items_by_pk.values(), key=sort_key)
     return sorted_items[:8], len(items_by_pk)
+
+
+_FISHERIES_FLOW_LABELS = ("Beslut", "Planerad", "Pågår", "Klar / Uppföljning")
+
+_PRIORITY_BADGE_ICONS = {
+    ActionPriority.LOW: "fa-arrow-down",
+    ActionPriority.MEDIUM: "fa-minus",
+    ActionPriority.HIGH: "fa-arrow-up",
+    ActionPriority.CRITICAL: "fa-fire",
+}
+
+
+def _flow_active_index(status):
+    if status == ActionStatus.COMPLETED:
+        return 4
+    if status == ActionStatus.IN_PROGRESS:
+        return 2
+    if status == ActionStatus.PLANNED:
+        return 1
+    if status in (ActionStatus.NEEDS_ACTION, ActionStatus.URGENT):
+        return 0
+    return 0
+
+
+def _build_fisheries_flow_steps(status):
+    active_index = _flow_active_index(status)
+    steps = []
+    for index, label in enumerate(_FISHERIES_FLOW_LABELS):
+        if active_index >= 4:
+            state = "done"
+        elif index < active_index:
+            state = "done"
+        elif index == active_index:
+            state = "active"
+        else:
+            state = "pending"
+        steps.append({"label": label, "state": state})
+    return steps
+
+
+def _build_action_header_badges(action):
+    badges = [
+        {
+            "icon": _PRIORITY_BADGE_ICONS.get(action.priority, "fa-minus"),
+            "label": get_action_priority_label(action.priority),
+            "emphasis": action.priority in (ActionPriority.HIGH, ActionPriority.CRITICAL),
+        },
+        {
+            "icon": "fa-circle-dot",
+            "label": get_action_status_label(action.status),
+        },
+    ]
+    if action.water_body:
+        badges.append({"icon": "fa-water", "label": action.water_body.name})
+    if action.responsible_user:
+        badges.append({"icon": "fa-user", "label": _user_display_name(action.responsible_user)})
+    else:
+        badges.append({"icon": "fa-user", "label": "Ingen ansvarig", "muted": True})
+    if action.status in (ActionStatus.NEEDS_ACTION, ActionStatus.URGENT):
+        badges.append({"icon": "fa-scale-balanced", "label": "Beslut krävs"})
+    return badges
+
+
+def _build_action_next_step(action, today):
+    week_end = today + timedelta(days=7)
+    status_label = get_action_status_label(action.status)
+
+    if action.status == ActionStatus.COMPLETED:
+        return {
+            "title": "Nästa steg",
+            "body": "Åtgärden är genomförd.",
+            "pill_label": status_label,
+            "pill_class": "fv-next-pill--done",
+            "cta_label": None,
+            "cta_href": None,
+        }
+
+    if not action.responsible_user_id:
+        return {
+            "title": "Nästa steg",
+            "body": "Tilldela ansvarig för att komma vidare.",
+            "pill_label": "Saknar ansvarig",
+            "pill_class": "fv-next-pill--warn",
+            "cta_label": "Tilldela ansvarig",
+            "cta_href": "#fv-manage-insats",
+        }
+
+    if action.deadline and action.deadline < today:
+        return {
+            "title": "Nästa steg",
+            "body": "Åtgärden behöver uppdateras eller planeras om.",
+            "pill_label": "Försenad",
+            "pill_class": "fv-next-pill--critical",
+            "cta_label": "Uppdatera plan",
+            "cta_href": "#fv-manage-insats",
+        }
+
+    if action.status == ActionStatus.URGENT:
+        return {
+            "title": "Nästa steg",
+            "body": "Den här åtgärden kräver uppmärksamhet nu.",
+            "pill_label": status_label,
+            "pill_class": "fv-next-pill--critical",
+            "cta_label": "Uppdatera status",
+            "cta_href": "#fv-manage-insats",
+        }
+
+    if action.status == ActionStatus.NEEDS_ACTION:
+        return {
+            "title": "Nästa steg",
+            "body": "Ta upp frågan på nästa styrelsemöte.",
+            "pill_label": status_label,
+            "pill_class": "fv-next-pill--decision",
+            "cta_label": "Uppdatera status",
+            "cta_href": "#fv-manage-insats",
+        }
+
+    if action.deadline and today <= action.deadline <= week_end:
+        return {
+            "title": "Nästa steg",
+            "body": "Kontrollera att arbetet går enligt plan.",
+            "pill_label": f"Deadline {_format_short_date(action.deadline)}",
+            "pill_class": "fv-next-pill--deadline",
+            "cta_label": "Uppdatera plan",
+            "cta_href": "#fv-manage-insats",
+        }
+
+    if action.status == ActionStatus.IN_PROGRESS:
+        body = "Fortsätt arbetet och följ upp läget i vattnet."
+    elif action.status == ActionStatus.PLANNED:
+        body = "Förbered insatsen inför genomförande."
+    else:
+        body = "Fortsätt driva insatsen framåt."
+
+    return {
+        "title": "Nästa steg",
+        "body": body,
+        "pill_label": status_label,
+        "pill_class": "fv-next-pill--neutral",
+        "cta_label": None,
+        "cta_href": None,
+    }
+
+
+def _humanize_action_log(log):
+    user = _user_display_name(log.user) or "Någon"
+    if log.event_type == "comment_added":
+        return f"{user} lade till en anteckning"
+    if log.event_type == "status_changed":
+        if log.to_status:
+            return f"{user} satte status till {get_action_status_label(log.to_status)}"
+        if log.message:
+            return f"{user} {log.message[0].lower()}{log.message[1:]}"
+    if log.event_type == "updated":
+        return f"{user} uppdaterade insatsen"
+    if log.message:
+        return f"{user}: {log.message}"
+    return f"{user} registrerade aktivitet"
+
+
+def _build_activity_feed(logs, comments):
+    items = []
+    for log in logs:
+        items.append(
+            {
+                "created_at": log.created_at,
+                "text": _humanize_action_log(log),
+                "detail": None,
+            }
+        )
+    for comment in comments:
+        author = _user_display_name(comment.user) or "Någon"
+        items.append(
+            {
+                "created_at": comment.created_at,
+                "text": f"{author} lade till en anteckning",
+                "detail": comment.body,
+            }
+        )
+    items.sort(key=lambda row: row["created_at"], reverse=True)
+    return items[:25]
+
+
+def _build_action_blockers(action, comment_count):
+    blockers = []
+    if not action.responsible_user_id:
+        blockers.append({"icon": "fa-user", "text": "Ansvarig saknas", "kind": "warn"})
+    if not action.deadline:
+        blockers.append({"icon": "fa-calendar", "text": "Ingen tidsplan satt", "kind": "neutral"})
+    if comment_count == 0:
+        blockers.append({"icon": "fa-comment", "text": "Inga anteckningar ännu", "kind": "neutral"})
+    if not action.water_body_id:
+        blockers.append({"icon": "fa-water", "text": "Inget vattendrag kopplat", "kind": "neutral"})
+    if not (action.description or "").strip():
+        blockers.append({"icon": "fa-file-lines", "text": "Ingen beskrivning av insatsen", "kind": "neutral"})
+    return blockers
 
 
 @login_required
@@ -886,8 +1082,16 @@ def action_detail(request, pk):
 
         return redirect("fisheries:action_detail", pk=action.pk)
 
-    comments = action.comments.select_related("user").order_by("-created_at")
-    logs = action.logs.select_related("user").order_by("-created_at")
+    comments = list(action.comments.select_related("user").order_by("-created_at"))
+    logs = list(action.logs.select_related("user").order_by("-created_at"))
+    today = timezone.localdate()
+
+    status_choices_labeled = [
+        (value, get_action_status_label(value)) for value, _ in status_choices
+    ]
+    priority_choices_labeled = [
+        (value, get_action_priority_label(value)) for value, _ in priority_choices
+    ]
 
     return render(
         request,
@@ -897,7 +1101,23 @@ def action_detail(request, pk):
             "comments": comments,
             "logs": logs,
             "status_choices": status_choices,
+            "status_choices_labeled": status_choices_labeled,
             "priority_choices": priority_choices,
+            "priority_choices_labeled": priority_choices_labeled,
             "responsible_users": responsible_users,
+            "header_badges": _build_action_header_badges(action),
+            "next_step": _build_action_next_step(action, today),
+            "flow_steps": _build_fisheries_flow_steps(action.status),
+            "status_label": get_action_status_label(action.status),
+            "priority_label": get_action_priority_label(action.priority),
+            "responsible_label": _user_display_name(action.responsible_user),
+            "activity_feed": _build_activity_feed(logs, comments),
+            "blockers": _build_action_blockers(action, len(comments)),
+            "deadline_short": _format_short_date(action.deadline) if action.deadline else None,
+            "is_overdue": bool(
+                action.deadline
+                and action.deadline < today
+                and action.status != ActionStatus.COMPLETED
+            ),
         },
     )

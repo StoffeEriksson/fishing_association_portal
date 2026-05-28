@@ -1,240 +1,321 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
-{% block title %}Åtgärdsdetalj{% endblock %}
+{% block title %}{{ action.name }}{% endblock %}
 
-{% block content %}
-  <div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-      <h1 class="h3 mb-1">{{ action.name }}</h1>
-      <div class="text-muted small">Detaljvy för fiskevårdsåtgärd.</div>
-    </div>
-    <div class="d-flex gap-2">
-      <a href="{% url 'maps:map_page' %}?action_id={{ action.pk }}" class="btn btn-outline-secondary btn-sm">
-        Visa på karta
-      </a>
-      <a href="{% url 'fisheries:action_list' %}" class="btn btn-outline-secondary btn-sm">
-        Tillbaka till lista
-      </a>
-    </div>
-  </div>
-
-  <div class="card shadow-soft mb-4">
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <div class="small text-muted">Status</div>
-          <div class="fw-semibold">{{ action.get_status_display }}</div>
-          <form method="post" class="mt-2 d-flex gap-2 align-items-center flex-wrap">
-            {% csrf_token %}
-            <input type="hidden" name="action_type" value="change_status">
-            <label for="id_status" class="visually-hidden">Status</label>
-            <select id="id_status" name="status" class="form-select form-select-sm">
-              {% for value, label in status_choices %}
-                <option value="{{ value }}" {% if value == action.status %}selected{% endif %}>
-                  {{ label }}
-                </option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-outline-secondary btn-sm">Uppdatera status</button>
-          </form>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Skapad</div>
-          <div class="fw-semibold">{{ action.created_at|date:"Y-m-d H:i" }}</div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Skapad av</div>
-          <div class="fw-semibold">
-            {% if action.created_by %}
-              {{ action.created_by.email|default:action.created_by.username }}
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Uppdaterad</div>
-          <div class="fw-semibold">{{ action.updated_at|date:"Y-m-d H:i" }}</div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Vatten</div>
-          <div class="fw-semibold">
-            {% if action.water_body %}
-              {{ action.water_body.name }}
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Ansvarig</div>
-          <div class="fw-semibold">
-            {% if action.responsible_user %}
-              {{ action.responsible_user.email|default:action.responsible_user.username }}
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Prioritet</div>
-          <div class="fw-semibold">{{ action.get_priority_display }}</div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Deadline</div>
-          <div class="fw-semibold">
-            {% if action.deadline %}
-              {{ action.deadline|date:"Y-m-d" }}
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Budget</div>
-          <div class="fw-semibold">
-            {% if action.estimated_cost %}
-              {{ action.estimated_cost|floatformat:2 }} kr
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Utfall</div>
-          <div class="fw-semibold">
-            {% if action.actual_cost %}
-              {{ action.actual_cost|floatformat:2 }} kr
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Uppdaterad av</div>
-          <div class="fw-semibold">
-            {% if action.updated_by %}
-              {{ action.updated_by.email|default:action.updated_by.username }}
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-12">
-          <div class="small text-muted">Beskrivning</div>
-          <div class="fw-normal">{{ action.description|default:"Ingen beskrivning angiven." }}</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card shadow-soft">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Kommentarer</h2>
-      <form method="post" class="mb-3">
-        {% csrf_token %}
-        <input type="hidden" name="action_type" value="add_comment">
-        <div class="mb-2">
-          <label for="id_body" class="form-label small text-muted mb-1">Ny kommentar</label>
-          <textarea id="id_body" name="body" class="form-control" rows="3" placeholder="Skriv en kommentar..."></textarea>
-        </div>
-        <button type="submit" class="btn btn-dark btn-sm">Lägg till kommentar</button>
-      </form>
-      {% if comments %}
-        <div class="list-group list-group-flush">
-          {% for comment in comments %}
-            <div class="list-group-item px-0">
-              <div class="d-flex justify-content-between align-items-start gap-3">
-                <div>
-                  <div class="fw-semibold">
-                    {% if comment.user %}
-                      {{ comment.user.email|default:comment.user.username }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="small text-muted">{{ comment.created_at|date:"Y-m-d H:i" }}</div>
-                </div>
-              </div>
-              <div class="mt-2">{{ comment.body }}</div>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="alert alert-secondary mb-0" role="status">
-          Inga kommentarer ännu.
-        </div>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="card shadow-soft mt-4">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Redigera åtgärd</h2>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="action_type" value="update_fields">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label for="id_responsible_user" class="form-label small text-muted mb-1">Ansvarig</label>
-            <select id="id_responsible_user" name="responsible_user" class="form-select form-select-sm">
-              <option value="">—</option>
-              {% for user in responsible_users %}
-                <option value="{{ user.pk }}" {% if action.responsible_user and action.responsible_user.pk == user.pk %}selected{% endif %}>
-                  {{ user.email|default:user.username }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label for="id_priority" class="form-label small text-muted mb-1">Prioritet</label>
-            <select id="id_priority" name="priority" class="form-select form-select-sm">
-              {% for value, label in priority_choices %}
-                <option value="{{ value }}" {% if value == action.priority %}selected{% endif %}>
-                  {{ label }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label for="id_deadline" class="form-label small text-muted mb-1">Deadline</label>
-            <input id="id_deadline" name="deadline" type="date" class="form-control form-control-sm" value="{{ action.deadline|date:'Y-m-d' }}">
-          </div>
-        </div>
-        <button type="submit" class="btn btn-dark btn-sm mt-3">Spara ändringar</button>
-      </form>
-    </div>
-  </div>
-
-  <div class="card shadow-soft mt-4">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Historik</h2>
-      {% if logs %}
-        <div class="list-group list-group-flush">
-          {% for log in logs %}
-            <div class="list-group-item px-0">
-              <div class="d-flex justify-content-between align-items-start gap-3">
-                <div>
-                  <div class="fw-semibold">
-                    {% if log.user %}
-                      {{ log.user.email|default:log.user.username }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="small text-muted">{{ log.created_at|date:"Y-m-d H:i" }}</div>
-                </div>
-              </div>
-              <div class="mt-2">{{ log.message|default:"—" }}</div>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="alert alert-secondary mb-0" role="status">
-          Ingen historik ännu.
-        </div>
-      {% endif %}
-    </div>
-  </div>
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
 {% endblock %}
 
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-shell fisheries-shell fv-detail-shell">
+  <header class="fv-detail-header">
+    <div class="fv-detail-header-top">
+      <a href="{% url 'fisheries:action_list' %}" class="fv-detail-back">← Alla insatser</a>
+      <div class="fv-detail-header-actions">
+        <a href="{% url 'maps:map_page' %}?action_id={{ action.pk }}" class="fv-detail-link-btn">Visa på karta</a>
+      </div>
+    </div>
+    <h1 class="ccv2-title mb-1">{{ action.name }}</h1>
+    <p class="ccv2-subtitle mb-2">
+      {% if action.water_body %}
+        {{ action.water_body.name }}
+      {% else %}
+        Inget vattendrag kopplat
+      {% endif %}
+      · {{ status_label }}
+      · {{ priority_label }} prioritet
+      {% if responsible_label %}
+        · {{ responsible_label }}
+      {% else %}
+        · Ingen ansvarig
+      {% endif %}
+    </p>
+  </header>
+
+  <div class="fisheries-meta-badges fv-detail-badges">
+    {% for badge in header_badges %}
+      <span class="fisheries-meta-badge{% if badge.muted %} fisheries-meta-badge--muted{% endif %}{% if badge.emphasis %} fisheries-meta-badge--emphasis{% endif %}">
+        {% if badge.icon %}
+          <i class="fa-solid {{ badge.icon }}" aria-hidden="true"></i>
+        {% endif %}
+        <span>{{ badge.label }}</span>
+      </span>
+    {% endfor %}
+  </div>
+
+  <section class="fv-next-step-box" aria-labelledby="fv-next-step-heading">
+    <div class="fv-next-step-head">
+      <h2 id="fv-next-step-heading" class="fv-next-step-title">{{ next_step.title }}</h2>
+      <span class="fv-next-pill {{ next_step.pill_class }}">{{ next_step.pill_label }}</span>
+    </div>
+    <p class="fv-next-step-body">{{ next_step.body }}</p>
+    {% if next_step.cta_label and next_step.cta_href %}
+      <a href="{{ next_step.cta_href }}" class="fv-next-step-cta">{{ next_step.cta_label }}</a>
+    {% endif %}
+  </section>
+
+  <div class="fisheries-workflow fv-detail-flow" aria-label="Var i fiskevårdsprocessen insatsen befinner sig">
+    <p class="fisheries-workflow-tagline">Fiskevårdsflöde</p>
+    <div class="fisheries-workflow-steps fv-flow-steps">
+      {% for step in flow_steps %}
+        <span class="fv-flow-step fv-flow-step--{{ step.state }}">
+          {% if step.state == "done" %}
+            <i class="fa-solid fa-check fv-flow-icon" aria-hidden="true"></i>
+          {% elif step.state == "active" %}
+            <span class="fv-flow-dot" aria-hidden="true"></span>
+          {% else %}
+            <span class="fv-flow-circle" aria-hidden="true">○</span>
+          {% endif %}
+          {{ step.label }}
+        </span>
+        {% if not forloop.last %}
+          <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="fv-detail-grid">
+    <div class="fv-detail-main">
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Om insatsen</h2>
+        <dl class="fv-fact-list">
+          <div class="fv-fact-row">
+            <dt>Beskrivning</dt>
+            <dd>
+              {% if action.description %}
+                {{ action.description|linebreaksbr }}
+              {% else %}
+                <span class="ccv2-muted">Ingen beskrivning ännu.</span>
+              {% endif %}
+            </dd>
+          </div>
+          <div class="fv-fact-row">
+            <dt>Vattendrag</dt>
+            <dd>
+              {% if action.water_body %}
+                {{ action.water_body.name }}
+              {% else %}
+                <span class="ccv2-muted">Ej kopplat</span>
+              {% endif %}
+            </dd>
+          </div>
+          <div class="fv-fact-row">
+            <dt>Ansvarig</dt>
+            <dd>
+              {% if responsible_label %}
+                {{ responsible_label }}
+              {% else %}
+                <span class="ccv2-muted">Ingen ansvarig utsedd</span>
+              {% endif %}
+            </dd>
+          </div>
+          <div class="fv-fact-row">
+            <dt>Deadline</dt>
+            <dd>
+              {% if action.deadline %}
+                {{ action.deadline|date:"l j F Y" }}
+                {% if is_overdue %}
+                  <span class="fv-inline-warn"> · Försenad</span>
+                {% endif %}
+              {% else %}
+                <span class="ccv2-muted">Ingen tidsplan satt</span>
+              {% endif %}
+            </dd>
+          </div>
+          {% if action.estimated_cost or action.actual_cost %}
+            <div class="fv-fact-row">
+              <dt>Budget / utfall</dt>
+              <dd>
+                {% if action.estimated_cost %}
+                  Planerat {{ action.estimated_cost|floatformat:0 }} kr
+                {% endif %}
+                {% if action.actual_cost %}
+                  {% if action.estimated_cost %} · {% endif %}
+                  Utfall {{ action.actual_cost|floatformat:0 }} kr
+                {% endif %}
+              </dd>
+            </div>
+          {% endif %}
+        </dl>
+      </article>
+
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Aktivitet</h2>
+        {% if activity_feed %}
+          <ul class="fv-activity-list">
+            {% for item in activity_feed %}
+              <li class="fv-activity-item">
+                <div class="fv-activity-text">{{ item.text }}</div>
+                {% if item.detail %}
+                  <div class="fv-activity-detail">{{ item.detail|linebreaksbr }}</div>
+                {% endif %}
+                <div class="ccv2-muted fv-activity-time">{{ item.created_at|date:"Y-m-d H:i" }}</div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="fisheries-card-empty fisheries-card-empty--compact">
+            <p class="fisheries-card-empty-title mb-1">Ingen aktivitet registrerad ännu</p>
+            <p class="fisheries-card-empty-text mb-0">Här visas ändringar och anteckningar när ni börjar arbeta med insatsen.</p>
+          </div>
+        {% endif %}
+      </article>
+    </div>
+
+    <aside class="fv-detail-aside">
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Lägesbild</h2>
+        <dl class="fv-snapshot-list">
+          <div class="fv-snapshot-row">
+            <dt>Status</dt>
+            <dd>{{ status_label }}</dd>
+          </div>
+          <div class="fv-snapshot-row">
+            <dt>Prioritet</dt>
+            <dd>{{ priority_label }}</dd>
+          </div>
+          <div class="fv-snapshot-row">
+            <dt>Deadline</dt>
+            <dd>
+              {% if action.deadline %}
+                {{ action.deadline|date:"Y-m-d" }}
+              {% else %}
+                <span class="ccv2-muted">—</span>
+              {% endif %}
+            </dd>
+          </div>
+          <div class="fv-snapshot-row">
+            <dt>Skapad</dt>
+            <dd>{{ action.created_at|date:"Y-m-d H:i" }}</dd>
+          </div>
+          <div class="fv-snapshot-row">
+            <dt>Senast uppdaterad</dt>
+            <dd>{{ action.updated_at|date:"Y-m-d H:i" }}</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Att tänka på</h2>
+        {% if blockers %}
+          <ul class="fv-blocker-list">
+            {% for blocker in blockers %}
+              <li class="fv-blocker-item fv-blocker-item--{{ blocker.kind }}">
+                <i class="fa-solid {{ blocker.icon }}" aria-hidden="true"></i>
+                <span>{{ blocker.text }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="fv-blocker-ok mb-0">Inget som blockerar just nu.</p>
+        {% endif %}
+      </article>
+    </aside>
+  </div>
+
+  <section id="fv-manage-insats" class="fv-manage-section">
+    <details class="fv-manage-panel">
+      <summary class="fv-manage-summary">Hantera insats</summary>
+      <div class="fv-manage-body">
+        <article class="ccv2-card fv-detail-card fv-manage-card">
+          <h3 class="fv-manage-card-title">Uppdatera status</h3>
+          <form method="post" class="fv-manage-form">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="change_status">
+            <div class="fv-manage-form-row">
+              <label for="id_status" class="fv-manage-label">Status</label>
+              <select id="id_status" name="status" class="form-select form-select-sm">
+                {% for value, label in status_choices_labeled %}
+                  <option value="{{ value }}" {% if value == action.status %}selected{% endif %}>
+                    {{ label }}
+                  </option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Spara status</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="ccv2-card fv-detail-card fv-manage-card">
+          <h3 class="fv-manage-card-title">Plan och ansvar</h3>
+          <form method="post" class="fv-manage-form">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="update_fields">
+            <div class="row g-2">
+              <div class="col-md-4">
+                <label for="id_responsible_user" class="fv-manage-label">Ansvarig</label>
+                <select id="id_responsible_user" name="responsible_user" class="form-select form-select-sm">
+                  <option value="">—</option>
+                  {% for user in responsible_users %}
+                    <option value="{{ user.pk }}" {% if action.responsible_user and action.responsible_user.pk == user.pk %}selected{% endif %}>
+                      {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.email|default:user.username }}{% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label for="id_priority" class="fv-manage-label">Prioritet</label>
+                <select id="id_priority" name="priority" class="form-select form-select-sm">
+                  {% for value, label in priority_choices_labeled %}
+                    <option value="{{ value }}" {% if value == action.priority %}selected{% endif %}>
+                      {{ label }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label for="id_deadline" class="fv-manage-label">Deadline</label>
+                <input id="id_deadline" name="deadline" type="date" class="form-control form-control-sm" value="{{ action.deadline|date:'Y-m-d' }}">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Spara plan</button>
+          </form>
+        </article>
+
+        <article class="ccv2-card fv-detail-card fv-manage-card">
+          <h3 class="fv-manage-card-title">Anteckningar</h3>
+          <form method="post" class="fv-manage-form mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="add_comment">
+            <label for="id_body" class="fv-manage-label">Ny anteckning</label>
+            <textarea id="id_body" name="body" class="form-control form-control-sm" rows="3" placeholder="Skriv vad styrelsen behöver veta…"></textarea>
+            <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Lägg till anteckning</button>
+          </form>
+          {% if comments %}
+            <ul class="fv-comment-list">
+              {% for comment in comments %}
+                <li class="fv-comment-item">
+                  <div class="fv-activity-text">
+                    {% if comment.user %}
+                      {% if comment.user.get_full_name %}
+                        {{ comment.user.get_full_name }}
+                      {% else %}
+                        {{ comment.user.email|default:comment.user.username }}
+                      {% endif %}
+                    {% else %}
+                      Okänd
+                    {% endif %}
+                  </div>
+                  <div class="fv-activity-detail">{{ comment.body|linebreaksbr }}</div>
+                  <div class="ccv2-muted fv-activity-time">{{ comment.created_at|date:"Y-m-d H:i" }}</div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="ccv2-muted mb-0 small">Inga anteckningar ännu.</p>
+          {% endif %}
+        </article>
+      </div>
+    </details>
+  </section>
+</div>
+
+{% endblock %}
