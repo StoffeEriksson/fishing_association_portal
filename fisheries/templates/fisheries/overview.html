@@ -1,199 +1,273 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
-{% block title %}Fiskevård – översikt{% endblock %}
+{% block title %}Fiskevård{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
+{% endblock %}
 
 {% block content %}
-  <div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-      <h1 class="h3 mb-1">Fiskevård – översikt</h1>
-      <div class="text-muted small">Snabb överblick av observationer och åtgärder.</div>
+
+<div class="dashboard-shell fisheries-shell">
+  <header class="ccv2-header">
+    <h1 class="ccv2-title mb-1">Läget i fiskevården</h1>
+    <p class="ccv2-subtitle mb-2">Här driver ni årets fiskevårdsarbete — från beslut till insatser i vattnen.</p>
+    <div class="ccv2-status-chips">
+      <a href="{% url 'fisheries:action_list' %}?sort=deadline_asc" class="ccv2-chip text-decoration-none">
+        Försenade: {{ overdue_actions }}
+      </a>
+      <a href="{% url 'fisheries:action_list' %}" class="ccv2-chip text-decoration-none">
+        Saknar ansvarig: {{ actions_without_responsible }}
+      </a>
+      <a href="{% url 'fisheries:action_list' %}?status=urgent" class="ccv2-chip text-decoration-none">
+        Akuta: {{ urgent_actions }}
+      </a>
+      <a href="{% url 'fisheries:action_list' %}?status=in_progress" class="ccv2-chip text-decoration-none">
+        Pågår: {{ in_progress_actions }}
+      </a>
+      {% if next_deadline_action %}
+        <a href="{% url 'fisheries:action_detail' next_deadline_action.pk %}" class="ccv2-chip text-decoration-none">
+          Nästa insats: {{ next_deadline_chip_label }}
+        </a>
+      {% else %}
+        <span class="ccv2-chip">Nästa insats: Ingen planerad</span>
+      {% endif %}
     </div>
-    <div class="d-flex gap-2">
-      <a href="{% url 'fisheries:action_list' %}" class="btn btn-outline-secondary btn-sm">Åtgärder</a>
-      <a href="{% url 'fisheries:observation_list' %}" class="btn btn-outline-secondary btn-sm">Observationer</a>
+  </header>
+
+  <div class="fisheries-workflow" aria-label="Så driver ni fiskevårdsarbetet">
+    <p class="fisheries-workflow-tagline">Från observation till genomförd åtgärd.</p>
+    <div class="fisheries-workflow-steps">
+      <span class="fisheries-workflow-step">Observation</span>
+      <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+      <span class="fisheries-workflow-step">Beslut</span>
+      <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+      <span class="fisheries-workflow-step">Åtgärd</span>
+      <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+      <span class="fisheries-workflow-step">Uppföljning</span>
     </div>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-md-4 col-lg-2">
-      <a href="{% url 'fisheries:observation_list' %}" class="text-decoration-none text-reset">
-        <div class="card shadow-soft h-100"><div class="card-body"><div class="small text-muted">Totalt observationer</div><div class="h4 mb-0">{{ total_observations }}</div></div></div>
-      </a>
-    </div>
-    <div class="col-md-4 col-lg-2">
-      <a href="{% url 'fisheries:observation_list' %}?status=new" class="text-decoration-none text-reset">
-        <div class="card shadow-soft h-100"><div class="card-body"><div class="small text-muted">Nya</div><div class="h4 mb-0">{{ new_observations }}</div></div></div>
-      </a>
-    </div>
-    <div class="col-md-4 col-lg-2">
-      <a href="{% url 'fisheries:observation_list' %}?status=under_review" class="text-decoration-none text-reset">
-        <div class="card shadow-soft h-100"><div class="card-body"><div class="small text-muted">Under review</div><div class="h4 mb-0">{{ under_review_observations }}</div></div></div>
-      </a>
-    </div>
-    <div class="col-md-4 col-lg-2">
-      <a href="{% url 'fisheries:action_list' %}" class="text-decoration-none text-reset">
-        <div class="card shadow-soft h-100"><div class="card-body"><div class="small text-muted">Totalt åtgärder</div><div class="h4 mb-0">{{ total_actions }}</div></div></div>
-      </a>
-    </div>
-    <div class="col-md-4 col-lg-2">
-      <a href="{% url 'fisheries:action_list' %}?status=urgent" class="text-decoration-none text-reset">
-        <div class="card shadow-soft h-100"><div class="card-body"><div class="small text-muted">Akuta åtgärder</div><div class="h4 mb-0">{{ urgent_actions }}</div></div></div>
-      </a>
-    </div>
-    <div class="col-md-4 col-lg-2">
-      <a href="{% url 'fisheries:action_list' %}?status=in_progress" class="text-decoration-none text-reset">
-        <div class="card shadow-soft h-100"><div class="card-body"><div class="small text-muted">Pågående åtgärder</div><div class="h4 mb-0">{{ in_progress_actions }}</div></div></div>
-      </a>
+  <div class="fisheries-year-program" aria-label="Årets fiskevård">
+    <span class="fisheries-year-program-title">Årets fiskevård</span>
+    <div class="fisheries-year-program-stats">
+      {% for stat in fisheries_year_stats %}
+        <span class="fisheries-year-stat">
+          <span class="fisheries-year-stat-value">{{ stat.value }}</span>
+          {{ stat.label }}
+        </span>
+      {% empty %}
+        <span class="fisheries-year-stat fisheries-year-stat--muted">Inga insatser registrerade ännu</span>
+      {% endfor %}
     </div>
   </div>
 
-  <div class="card shadow-soft mb-4">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Att göra nu</h2>
-      <div class="row g-3">
-        <div class="col-lg-4">
-          <div class="small text-muted mb-2">Akuta åtgärder</div>
-          {% if urgent_actions_list %}
-            <div class="list-group list-group-flush">
-              {% for action in urgent_actions_list %}
-                <div class="list-group-item px-0">
-                  <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
-                    {{ action.name }}
-                  </a>
-                  <div class="small text-muted">{{ action.get_status_display }}</div>
-                </div>
-              {% endfor %}
+  <section class="ccv2-hero-layout">
+    <article class="ccv2-section ccv2-attention">
+      <div class="ccv2-section-head">
+        <h2 class="ccv2-section-title">Kräver uppmärksamhet</h2>
+        <span class="fisheries-attention-count">{{ attention_total_count }} att ta tag i</span>
+      </div>
+      {% if attention_items %}
+        <div class="ccv2-action-list">
+          {% for item in attention_items %}
+            <div class="ccv2-action-row {{ item.priority_class }}">
+              <div class="ccv2-action-main">
+                <div class="ccv2-action-label">{{ item.label }}</div>
+                <div class="ccv2-action-title">{{ item.action.name }}</div>
+                <div class="fisheries-action-next-step">{{ item.next_step_text }}</div>
+                {% if item.meta_badges %}
+                  <div class="fisheries-meta-badges">
+                    {% for badge in item.meta_badges %}
+                      <span class="fisheries-meta-badge{% if badge.muted %} fisheries-meta-badge--muted{% endif %}">
+                        {% if badge.icon %}
+                          <i class="fa-solid {{ badge.icon }}" aria-hidden="true"></i>
+                        {% endif %}
+                        <span>{{ badge.label }}</span>
+                      </span>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+              <a href="{{ item.url }}" class="ccv2-open-link">Öppna <span aria-hidden="true">→</span></a>
             </div>
-          {% else %}
-            <div class="text-muted small">Inget att åtgärda</div>
-          {% endif %}
+          {% endfor %}
         </div>
-        <div class="col-lg-4">
-          <div class="small text-muted mb-2">Försenade åtgärder</div>
-          {% if overdue_actions_list %}
-            <div class="list-group list-group-flush">
-              {% for action in overdue_actions_list %}
-                <div class="list-group-item px-0">
-                  <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
-                    {{ action.name }}
-                  </a>
-                  <div class="small text-muted">
-                    Deadline: {{ action.deadline|date:"Y-m-d" }}
+        {% if attention_total_count > 8 %}
+          <div class="fisheries-show-more">
+            <a href="{% url 'fisheries:action_list' %}">Visa alla som kräver uppmärksamhet →</a>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="ccv2-empty-state fisheries-empty-calm">
+          <span class="fisheries-empty-title">Fiskevården ser stabil ut just nu.</span>
+          <span>Planera nästa insats när ni är redo.</span>
+          <a href="{% url 'fisheries:action_create' %}" class="fisheries-empty-cta">Planera insats</a>
+        </div>
+      {% endif %}
+    </article>
+
+    <aside class="ccv2-sidebar">
+      <article class="ccv2-card">
+        <h3 class="ccv2-card-title">Nästa planerade insats</h3>
+        {% if next_deadline_action %}
+          <div class="fisheries-sidebar-action-title">{{ next_deadline_action.name }}</div>
+          <div class="ccv2-muted">{{ next_deadline_action.deadline|date:"l j F" }}</div>
+          <div class="ccv2-muted">
+            {% if next_deadline_action.responsible_user %}
+              Ansvarig:
+              {% if next_deadline_action.responsible_user.get_full_name %}
+                {{ next_deadline_action.responsible_user.get_full_name }}
+              {% else %}
+                {{ next_deadline_action.responsible_user.email|default:next_deadline_action.responsible_user.username }}
+              {% endif %}
+            {% else %}
+              Ingen ansvarig utsedd än
+            {% endif %}
+          </div>
+          <a href="{% url 'fisheries:action_detail' next_deadline_action.pk %}" class="ccv2-inline-link">Gå till insatsen</a>
+        {% else %}
+          <div class="fisheries-card-empty fisheries-card-empty--compact">
+            <p class="fisheries-card-empty-title mb-1">Ingen planerad insats med datum ännu.</p>
+            <a href="{% url 'fisheries:action_create' %}" class="fisheries-empty-cta">Skapa planerad insats</a>
+          </div>
+        {% endif %}
+      </article>
+
+      <article class="ccv2-card">
+        <h3 class="ccv2-card-title">Planerade insatser</h3>
+        {% if planned_now_actions %}
+          <ul class="ccv2-list">
+            {% for row in planned_now_actions %}
+              <li class="ccv2-list-row">
+                <div class="ccv2-list-main">
+                  <div class="ccv2-list-title">
+                    <a href="{% url 'fisheries:action_detail' row.action.pk %}" class="text-decoration-none text-reset">
+                      {{ row.action.name }}
+                    </a>
+                  </div>
+                  <div class="ccv2-muted">
+                    {{ row.status_label }}
+                    {% if row.action.deadline %}
+                      · Deadline {{ row.action.deadline|date:"j M" }}
+                    {% endif %}
                   </div>
                 </div>
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="text-muted small">Inget att åtgärda</div>
-          {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+          <a href="{% url 'fisheries:action_list' %}" class="ccv2-inline-link">Se alla insatser</a>
+        {% else %}
+          <div class="fisheries-card-empty fisheries-card-empty--compact">
+            <p class="fisheries-card-empty-title mb-1">Inga planerade insatser med datum ännu.</p>
+            <a href="{% url 'fisheries:action_create' %}" class="fisheries-empty-cta">Skapa planerad insats</a>
+          </div>
+        {% endif %}
+      </article>
+    </aside>
+  </section>
+
+  <section class="ccv2-grid ccv2-grid-secondary">
+    <article class="ccv2-card">
+      <h3 class="ccv2-card-title">Senast i fiskevården</h3>
+      {% if recent_fisheries_logs %}
+        <ul class="ccv2-list">
+          {% for log in recent_fisheries_logs %}
+            <li class="ccv2-list-row">
+              <div class="ccv2-list-main">
+                <div class="fisheries-log-message">
+                  {% if log.message %}
+                    {{ log.message }}
+                  {% elif log.action_area %}
+                    {{ log.action_area.name }}
+                  {% else %}
+                    Aktivitet registrerad
+                  {% endif %}
+                </div>
+                <div class="ccv2-muted">
+                  {% if log.user %}
+                    av
+                    {% if log.user.get_full_name %}
+                      {{ log.user.get_full_name }}
+                    {% else %}
+                      {{ log.user.email|default:log.user.username }}
+                    {% endif %}
+                    ·
+                  {% endif %}
+                  {{ log.created_at|date:"Y-m-d H:i" }}
+                </div>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="fisheries-card-empty fisheries-card-empty--compact">
+          <p class="ccv2-muted mb-0">Här visas aktivitet när styrelsen börjar arbeta i modulen.</p>
         </div>
-        <div class="col-lg-4">
-          <div class="small text-muted mb-2">Saknar ansvarig</div>
-          {% if unassigned_actions_list %}
-            <div class="list-group list-group-flush">
-              {% for action in unassigned_actions_list %}
-                <div class="list-group-item px-0">
-                  <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
-                    {{ action.name }}
+      {% endif %}
+    </article>
+
+    <article class="ccv2-card">
+      <h3 class="ccv2-card-title">Det händer i vattnen</h3>
+      {% if in_progress_sidebar %}
+        <ul class="ccv2-list">
+          {% for row in in_progress_sidebar %}
+            <li class="ccv2-list-row">
+              <div class="ccv2-list-main">
+                <div class="ccv2-list-title">
+                  <a href="{% url 'fisheries:action_detail' row.action.pk %}" class="text-decoration-none text-reset">
+                    {{ row.action.name }}
                   </a>
                 </div>
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="text-muted small">Inget att åtgärda</div>
-          {% endif %}
+                <div class="ccv2-muted">
+                  {% if row.action.responsible_user %}
+                    Ansvarig:
+                    {% if row.action.responsible_user.get_full_name %}
+                      {{ row.action.responsible_user.get_full_name }}
+                    {% else %}
+                      {{ row.action.responsible_user.email|default:row.action.responsible_user.username }}
+                    {% endif %}
+                  {% else %}
+                    Ingen ansvarig
+                  {% endif %}
+                  {% if row.action.deadline %}
+                    · Deadline {{ row.action.deadline|date:"j M" }}
+                  {% endif %}
+                </div>
+              </div>
+              <a href="{% url 'fisheries:action_detail' row.action.pk %}" class="ccv2-inline-link">Öppna</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="fisheries-card-empty fisheries-card-empty--compact">
+          <i class="fa-solid fa-water fisheries-card-empty-icon" aria-hidden="true"></i>
+          <p class="fisheries-card-empty-title mb-1">Lugnt i vattnen just nu</p>
+          <p class="fisheries-card-empty-text mb-2">Inga pågående insatser är aktiva.</p>
+          <a href="{% url 'fisheries:action_create' %}" class="fisheries-empty-cta">Planera insats</a>
         </div>
-      </div>
-    </div>
-  </div>
+      {% endif %}
+    </article>
+  </section>
 
-  <div class="card shadow-soft mb-4">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Varningar / arbetsläge</h2>
-      <ul class="mb-0">
-        <li>Åtgärder utan ansvarig: {{ actions_without_responsible }}</li>
-        <li>Försenade åtgärder: {{ overdue_actions }}</li>
-        <li>Åtgärder utan kopplat vatten: {{ actions_without_water }}</li>
-      </ul>
-    </div>
-  </div>
+  <section class="ccv2-quick-access">
+    <div class="ccv2-quick-label">Arbeta med fiskevård</div>
+    <a href="{% url 'fisheries:action_create' %}" class="ccv2-quick-link">
+      <i class="fa-solid fa-plus" aria-hidden="true"></i> Planera insats
+    </a>
+    <a href="{% url 'fisheries:action_list' %}" class="ccv2-quick-link">
+      <i class="fa-solid fa-list" aria-hidden="true"></i> Alla insatser
+    </a>
+    <a href="{% url 'fisheries:action_list' %}?status=in_progress" class="ccv2-quick-link">
+      <i class="fa-solid fa-water" aria-hidden="true"></i> Pågår i vattnen
+    </a>
+  </section>
+</div>
 
-  <div class="row g-3">
-    <div class="col-lg-6">
-      <div class="card shadow-soft h-100">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Senaste observationer</h2>
-          {% if latest_observations %}
-            <div class="table-responsive">
-              <table class="table align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>Titel</th>
-                    <th>Status</th>
-                    <th>Vatten</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for observation in latest_observations %}
-                    <tr>
-                      <td>
-                        <a href="{% url 'fisheries:observation_detail' observation.pk %}" class="text-decoration-none">
-                          {{ observation.title }}
-                        </a>
-                      </td>
-                      <td>{{ observation.get_status_display }}</td>
-                      <td>{% if observation.water_body %}{{ observation.water_body.name }}{% else %}—{% endif %}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% else %}
-            <div class="alert alert-secondary mb-0" role="status">Inga observationer ännu.</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-6">
-      <div class="card shadow-soft h-100">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Senaste åtgärder</h2>
-          {% if latest_actions %}
-            <div class="table-responsive">
-              <table class="table align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>Namn</th>
-                    <th>Status</th>
-                    <th>Ansvarig</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for action in latest_actions %}
-                    <tr>
-                      <td>
-                        <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
-                          {{ action.name }}
-                        </a>
-                      </td>
-                      <td>{{ action.get_status_display }}</td>
-                      <td>
-                        {% if action.responsible_user %}
-                          {{ action.responsible_user.email|default:action.responsible_user.username }}
-                        {% else %}
-                          —
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% else %}
-            <div class="alert alert-secondary mb-0" role="status">Inga åtgärder ännu.</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
 {% endblock %}

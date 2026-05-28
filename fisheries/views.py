@@ -1,11 +1,15 @@
+from datetime import date, timedelta
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import F, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from maps.models import WaterBody
 from core.models import Membership
 
+from .labels import get_action_status_label
 from .models import (
     ActionArea,
     ActionComment,
@@ -20,6 +24,143 @@ from .models import (
 )
 
 User = get_user_model()
+
+_MONTHS_SV = (
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "maj",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "okt",
+    "nov",
+    "dec",
+)
+
+_ATTENTION_NEXT_STEP_BY_RANK = {
+    0: "Nästa steg: Uppdatera planen",
+    1: "Nästa steg: Ta upp i styrelsen",
+    2: "Nästa steg: Kontrollera läget",
+    3: "Nästa steg: Tilldela ansvarig",
+    4: "Nästa steg: Besluta om åtgärd",
+}
+
+
+def _format_short_date(value):
+    return f"{value.day} {_MONTHS_SV[value.month - 1]}"
+
+
+def _user_display_name(user):
+    if not user:
+        return None
+    full_name = (user.get_full_name() or "").strip()
+    if full_name:
+        return full_name
+    return user.email or user.get_username()
+
+
+def _attention_rank_for_action(action, today, week_end):
+    if action.deadline and action.deadline < today:
+        return 0, "FÖRSENAD", "ccv2-priority-critical"
+    if action.status == ActionStatus.URGENT:
+        return 1, "AKUT", "ccv2-priority-critical"
+    if action.deadline and today <= action.deadline <= week_end:
+        return 2, "DEADLINE SNART", "ccv2-priority-deadline"
+    if action.responsible_user_id is None:
+        return 3, "SAKNAR ANSVARIG", "ccv2-priority-high"
+    if action.status == ActionStatus.NEEDS_ACTION:
+        return 4, "BEHÖVER BESLUT", "ccv2-priority-normal"
+    return None
+
+
+def _build_action_meta_badges(action):
+    badges = []
+    if action.deadline:
+        badges.append(
+            {
+                "icon": "fa-calendar",
+                "label": _format_short_date(action.deadline),
+            }
+        )
+    if action.responsible_user:
+        badges.append(
+            {
+                "icon": "fa-user",
+                "label": _user_display_name(action.responsible_user),
+            }
+        )
+    else:
+        badges.append(
+            {
+                "icon": "fa-user",
+                "label": "Saknar ansvarig",
+                "muted": True,
+            }
+        )
+    if action.status in (ActionStatus.NEEDS_ACTION, ActionStatus.URGENT):
+        badges.append(
+            {
+                "icon": "fa-scale-balanced",
+                "label": "Beslut krävs",
+            }
+        )
+    elif action.status not in (ActionStatus.COMPLETED,):
+        badges.append(
+            {
+                "icon": "fa-circle-info",
+                "label": get_action_status_label(action.status),
+            }
+        )
+    if action.water_body:
+        badges.append(
+            {
+                "icon": "fa-water",
+                "label": action.water_body.name,
+            }
+        )
+    return badges
+
+
+def _actions_with_status_label(actions):
+    return [
+        {
+            "action": action,
+            "status_label": get_action_status_label(action.status),
+        }
+        for action in actions
+    ]
+
+
+def _build_attention_items(active_actions, today, week_end):
+    items_by_pk = {}
+    for action in active_actions:
+        ranked = _attention_rank_for_action(action, today, week_end)
+        if ranked is None:
+            continue
+        rank, label, priority_class = ranked
+        existing = items_by_pk.get(action.pk)
+        if existing is not None and existing["rank"] <= rank:
+            continue
+        items_by_pk[action.pk] = {
+            "action": action,
+            "rank": rank,
+            "label": label,
+            "priority_class": priority_class,
+            "meta_badges": _build_action_meta_badges(action),
+            "next_step_text": _ATTENTION_NEXT_STEP_BY_RANK[rank],
+            "url": reverse("fisheries:action_detail", args=[action.pk]),
+        }
+
+    def sort_key(item):
+        action = item["action"]
+        deadline_ord = action.deadline.toordinal() if action.deadline else date.max.toordinal()
+        return (item["rank"], deadline_ord, action.created_at)
+
+    sorted_items = sorted(items_by_pk.values(), key=sort_key)
+    return sorted_items[:8], len(items_by_pk)
 
 
 @login_required
@@ -350,29 +491,37 @@ def observation_create(request):
 def overview(request):
     org = getattr(request, "org", None)
     today = timezone.localdate()
+    week_end = today + timedelta(days=7)
 
-    if org is None:
-        total_observations = 0
-        new_observations = 0
-        under_review_observations = 0
-        linked_observations = 0
+    attention_items = []
+    attention_total_count = 0
+    next_deadline_action = None
+    next_deadline_chip_label = "Ingen deadline"
+    planned_now_actions = []
+    in_progress_sidebar = []
+    recent_fisheries_logs = []
 
-        total_actions = 0
-        urgent_actions = 0
-        planned_actions = 0
-        in_progress_actions = 0
-        completed_actions = 0
+    total_observations = 0
+    new_observations = 0
+    under_review_observations = 0
+    linked_observations = 0
+    total_actions = 0
+    urgent_actions = 0
+    planned_actions = 0
+    in_progress_actions = 0
+    completed_actions = 0
+    actions_without_responsible = 0
+    overdue_actions = 0
+    actions_without_water = 0
+    needs_decision_actions = 0
+    fisheries_year_stats = []
+    latest_observations = Observation.objects.none()
+    latest_actions = ActionArea.objects.none()
+    urgent_actions_list = ActionArea.objects.none()
+    overdue_actions_list = ActionArea.objects.none()
+    unassigned_actions_list = ActionArea.objects.none()
 
-        actions_without_responsible = 0
-        overdue_actions = 0
-        actions_without_water = 0
-
-        latest_observations = Observation.objects.none()
-        latest_actions = ActionArea.objects.none()
-        urgent_actions_list = ActionArea.objects.none()
-        overdue_actions_list = ActionArea.objects.none()
-        unassigned_actions_list = ActionArea.objects.none()
-    else:
+    if org is not None:
         observation_qs = Observation.objects.for_org(org).filter(is_active=True)
         action_qs = ActionArea.objects.for_org(org).filter(is_active=True)
 
@@ -388,14 +537,65 @@ def overview(request):
         completed_actions = action_qs.filter(status=ActionStatus.COMPLETED).count()
 
         actions_without_responsible = action_qs.filter(responsible_user__isnull=True).count()
-        overdue_actions = action_qs.filter(deadline__isnull=False, deadline__lt=today).count()
+        overdue_actions = action_qs.filter(
+            deadline__isnull=False,
+            deadline__lt=today,
+        ).exclude(status=ActionStatus.COMPLETED).count()
         actions_without_water = action_qs.filter(water_body__isnull=True).count()
+        needs_decision_actions = action_qs.filter(
+            status__in=[ActionStatus.URGENT, ActionStatus.NEEDS_ACTION],
+        ).count()
+
+        fisheries_year_stats = [
+            {"label": "insatser totalt", "value": total_actions},
+            {"label": "pågår", "value": in_progress_actions},
+            {"label": "klara", "value": completed_actions},
+            {"label": "kräver beslut", "value": needs_decision_actions},
+        ]
 
         latest_observations = observation_qs.select_related("water_body", "linked_action").order_by("-created_at")[:5]
         latest_actions = action_qs.select_related("water_body", "responsible_user").order_by("-created_at")[:5]
         urgent_actions_list = action_qs.filter(status=ActionStatus.URGENT).order_by("-created_at")[:5]
         overdue_actions_list = action_qs.filter(deadline__isnull=False, deadline__lt=today).order_by("deadline")[:5]
         unassigned_actions_list = action_qs.filter(responsible_user__isnull=True).order_by("-created_at")[:5]
+
+        active_actions = (
+            action_qs.exclude(status=ActionStatus.COMPLETED)
+            .select_related("water_body", "responsible_user")
+        )
+        attention_items, attention_total_count = _build_attention_items(
+            active_actions,
+            today,
+            week_end,
+        )
+
+        next_deadline_action = (
+            action_qs.filter(deadline__isnull=False, deadline__gte=today)
+            .exclude(status=ActionStatus.COMPLETED)
+            .select_related("responsible_user", "water_body")
+            .order_by("deadline")
+            .first()
+        )
+        if next_deadline_action:
+            next_deadline_chip_label = _format_short_date(next_deadline_action.deadline)
+
+        planned_now_actions = _actions_with_status_label(
+            action_qs.filter(status__in=[ActionStatus.PLANNED, ActionStatus.IN_PROGRESS])
+            .select_related("responsible_user")
+            .order_by(F("deadline").asc(nulls_last=True), "-created_at")[:4]
+        )
+
+        in_progress_sidebar = _actions_with_status_label(
+            action_qs.filter(status=ActionStatus.IN_PROGRESS)
+            .select_related("responsible_user")
+            .order_by(F("deadline").asc(nulls_last=True), "-created_at")[:5]
+        )
+
+        recent_fisheries_logs = list(
+            ActionLog.objects.for_org(org)
+            .select_related("user", "action_area")
+            .order_by("-created_at")[:6]
+        )
 
     return render(
         request,
@@ -418,6 +618,16 @@ def overview(request):
             "urgent_actions_list": urgent_actions_list,
             "overdue_actions_list": overdue_actions_list,
             "unassigned_actions_list": unassigned_actions_list,
+            "attention_items": attention_items,
+            "attention_total_count": attention_total_count,
+            "next_deadline_action": next_deadline_action,
+            "next_deadline_chip_label": next_deadline_chip_label,
+            "planned_now_actions": planned_now_actions,
+            "in_progress_sidebar": in_progress_sidebar,
+            "recent_fisheries_logs": recent_fisheries_logs,
+            "needs_decision_actions": needs_decision_actions,
+            "fisheries_year_stats": fisheries_year_stats,
+            "today": today,
         },
     )
 
