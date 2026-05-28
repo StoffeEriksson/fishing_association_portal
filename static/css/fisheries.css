@@ -908,6 +908,82 @@
   line-height: 1.3;
 }
 
+/* —— Insatser (lista) —— */
+
+.fv-action-list-shell {
+  max-width: 1120px;
+}
+
+.fv-action-list-card {
+  margin: 0;
+}
+
+.fv-action-list .fv-action-row {
+  align-items: center;
+  padding: 0.44rem 0.64rem;
+}
+
+.fv-action-row-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.22rem;
+  flex-shrink: 0;
+}
+
+.fv-action-status-form {
+  margin: 0;
+  line-height: 1;
+}
+
+.fv-action-status-select {
+  width: auto;
+  min-width: 6.8rem;
+  max-width: 8.8rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.2;
+  padding: 0.1rem 1.35rem 0.1rem 0.38rem;
+  color: #475569;
+  border-color: rgba(148, 163, 184, 0.28);
+  background-color: #f8fafc;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.fv-action-status-select:hover {
+  border-color: rgba(148, 163, 184, 0.45);
+  background-color: #fff;
+}
+
+.fv-action-row-aside .fv-obs-row-cta {
+  min-height: auto;
+  padding: 0.1rem 0.2rem;
+}
+
+@media (max-width: 991.98px) {
+  .fv-action-list .fv-action-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 0.32rem;
+  }
+
+  .fv-action-row-aside {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding-top: 0.12rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+  }
+
+  .fv-action-status-select {
+    min-width: 7.5rem;
+    max-width: 10rem;
+  }
+}
+
 @media (max-width: 991.98px) {
   .fv-obs-header-row {
     flex-direction: column;

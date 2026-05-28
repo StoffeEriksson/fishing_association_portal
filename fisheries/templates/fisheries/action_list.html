@@ -1,115 +1,146 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
-{% block title %}Fiskevårdsåtgärder{% endblock %}
+{% block title %}Insatser{% endblock %}
 
-{% block content %}
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h1 class="h3 mb-1">Fiskevårdsåtgärder</h1>
-      <div class="text-muted small">Aktiva åtgärdsområden för vald organisation.</div>
-    </div>
-    <div class="d-flex gap-2">
-      <a href="{% url 'fisheries:action_board' %}" class="btn btn-outline-secondary btn-sm">
-        Kanban-vy
-      </a>
-      <a href="{% url 'fisheries:action_create' %}" class="btn btn-dark btn-sm">
-        Ny åtgärd
-      </a>
-    </div>
-  </div>
-  <form method="get" class="d-flex gap-2 align-items-center mb-2 flex-wrap">
-    {% if selected_status %}
-      <input type="hidden" name="status" value="{{ selected_status }}">
-    {% endif %}
-    <label for="id_action_q" class="visually-hidden">Sök</label>
-    <input
-      id="id_action_q"
-      type="text"
-      name="q"
-      class="form-control form-control-sm"
-      placeholder="Sök i namn eller beskrivning..."
-      value="{{ search_query }}"
-    >
-    <label for="id_action_sort" class="visually-hidden">Sortering</label>
-    <select id="id_action_sort" name="sort" class="form-select form-select-sm">
-      <option value="created_desc" {% if selected_sort == "created_desc" %}selected{% endif %}>Nyast först</option>
-      <option value="created_asc" {% if selected_sort == "created_asc" %}selected{% endif %}>Äldst först</option>
-      <option value="deadline_asc" {% if selected_sort == "deadline_asc" %}selected{% endif %}>Deadline (tidigast först)</option>
-      <option value="priority" {% if selected_sort == "priority" %}selected{% endif %}>Prioritet</option>
-      <option value="status" {% if selected_sort == "status" %}selected{% endif %}>Status</option>
-    </select>
-    <button type="submit" class="btn btn-outline-secondary btn-sm">Sök</button>
-  </form>
-  {% if selected_status %}
-    <div class="small text-muted mb-2">Filtrerad på status: {{ selected_status }}</div>
-  {% endif %}
-  {% if search_query %}
-    <div class="small text-muted mb-2">Sökning: {{ search_query }}</div>
-  {% endif %}
-  <div class="small text-muted mb-2">Sortering: {{ selected_sort }}</div>
-
-  {% if actions %}
-    <div class="card shadow-soft">
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Namn</th>
-                <th>Status</th>
-                <th>Skapad av</th>
-                <th>Uppdaterad av</th>
-                <th>Skapad</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for action in actions %}
-                <tr>
-                  <td>
-                    <a href="{% url 'fisheries:action_detail' action.pk %}" class="text-decoration-none">
-                      {{ action.name }}
-                    </a>
-                  </td>
-                  <td>
-                    <form method="post">
-                      {% csrf_token %}
-                      <input type="hidden" name="action_type" value="update_status_inline">
-                      <input type="hidden" name="action_id" value="{{ action.pk }}">
-                      <select name="status" onchange="this.form.submit()" class="form-select form-select-sm">
-                        {% for value, label in status_choices %}
-                          <option value="{{ value }}" {% if value == action.status %}selected{% endif %}>
-                            {{ label }}
-                          </option>
-                        {% endfor %}
-                      </select>
-                    </form>
-                  </td>
-                  <td>
-                    {% if action.created_by %}
-                      {{ action.created_by.email|default:action.created_by.username }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
-                  <td>
-                    {% if action.updated_by %}
-                      {{ action.updated_by.email|default:action.updated_by.username }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
-                  <td>{{ action.created_at|date:"Y-m-d H:i" }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  {% else %}
-    <div class="alert alert-secondary mb-0" role="status">
-      Inga aktiva fiskevårdsåtgärder att visa ännu.
-    </div>
-  {% endif %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
 {% endblock %}
 
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-shell fisheries-shell fv-action-list-shell">
+  <header class="ccv2-header fv-obs-header">
+    <div class="fv-obs-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Insatser</h1>
+        <p class="ccv2-subtitle mb-0">Planerade, pågående och genomförda fiskevårdsåtgärder.</p>
+      </div>
+      <div class="fv-obs-header-actions">
+        <a href="{% url 'fisheries:action_create' %}" class="fv-next-step-cta">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i> Planera insats
+        </a>
+        <a href="{% url 'fisheries:action_board' %}" class="fv-obs-back-link">Kanban-vy</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="ccv2-card fv-obs-filter-panel">
+    <h2 class="fv-obs-filter-label">Filtrera insatser</h2>
+    <form method="get" class="fv-obs-filter">
+      <label for="id_action_q" class="visually-hidden">Sök</label>
+      <input
+        id="id_action_q"
+        type="text"
+        name="q"
+        class="form-control form-control-sm"
+        placeholder="Sök i namn eller beskrivning…"
+        value="{{ search_query }}"
+      >
+      <label for="id_action_status" class="visually-hidden">Status</label>
+      <select id="id_action_status" name="status" class="form-select form-select-sm">
+        <option value="">Alla statusar</option>
+        {% for value, label in status_choices_labeled %}
+          <option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <label for="id_action_sort" class="visually-hidden">Sortering</label>
+      <select id="id_action_sort" name="sort" class="form-select form-select-sm">
+        <option value="created_desc" {% if selected_sort == "created_desc" %}selected{% endif %}>Nyast först</option>
+        <option value="created_asc" {% if selected_sort == "created_asc" %}selected{% endif %}>Äldst först</option>
+        <option value="deadline_asc" {% if selected_sort == "deadline_asc" %}selected{% endif %}>Deadline (tidigast först)</option>
+        <option value="priority" {% if selected_sort == "priority" %}selected{% endif %}>Prioritet</option>
+        <option value="status" {% if selected_sort == "status" %}selected{% endif %}>Status</option>
+      </select>
+      <button type="submit" class="btn btn-outline-secondary btn-sm fv-obs-filter-btn">Filtrera</button>
+    </form>
+  </article>
+
+  {% if action_rows %}
+    <section class="ccv2-section ccv2-attention fv-action-list-card">
+      <div class="ccv2-section-head">
+        <h2 class="ccv2-section-title">Alla insatser</h2>
+        <span class="fisheries-attention-count">{{ action_rows|length }}</span>
+      </div>
+      <div class="ccv2-action-list fv-action-list">
+        {% for row in action_rows %}
+          {% with action=row.action %}
+          <div class="ccv2-action-row ccv2-priority-normal fv-action-row">
+            <div class="ccv2-action-main">
+              <div class="ccv2-action-title">
+                <a href="{% url 'fisheries:action_detail' action.pk %}" class="fv-obs-row-title">
+                  {{ action.name }}
+                </a>
+              </div>
+              <div class="fisheries-meta-badges">
+                <span class="fisheries-meta-badge">
+                  <i class="fa-solid fa-circle-dot" aria-hidden="true"></i>
+                  <span>{{ row.status_label }}</span>
+                </span>
+                <span class="fisheries-meta-badge">
+                  <i class="fa-solid fa-flag" aria-hidden="true"></i>
+                  <span>{{ row.priority_label }}</span>
+                </span>
+                {% if row.responsible_label %}
+                  <span class="fisheries-meta-badge">
+                    <i class="fa-solid fa-user" aria-hidden="true"></i>
+                    <span>{{ row.responsible_label }}</span>
+                  </span>
+                {% else %}
+                  <span class="fisheries-meta-badge fisheries-meta-badge--muted">
+                    <i class="fa-solid fa-user" aria-hidden="true"></i>
+                    <span>Saknar ansvarig</span>
+                  </span>
+                {% endif %}
+                {% if row.deadline_short %}
+                  <span class="fisheries-meta-badge">
+                    <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+                    <span>Deadline {{ row.deadline_short }}</span>
+                  </span>
+                {% endif %}
+                {% if action.water_body %}
+                  <span class="fisheries-meta-badge">
+                    <i class="fa-solid fa-water" aria-hidden="true"></i>
+                    <span>{{ action.water_body.name }}</span>
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="fv-action-row-aside">
+              <form method="post" class="fv-action-status-form">
+                {% csrf_token %}
+                <input type="hidden" name="action_type" value="update_status_inline">
+                <input type="hidden" name="action_id" value="{{ action.pk }}">
+                <label class="visually-hidden" for="id_status_{{ action.pk }}">Status</label>
+                <select id="id_status_{{ action.pk }}" name="status" class="form-select form-select-sm fv-action-status-select" onchange="this.form.submit()" title="Ändra status">
+                  {% for value, label in status_choices_labeled %}
+                    <option value="{{ value }}" {% if value == action.status %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+              <a href="{% url 'fisheries:action_detail' action.pk %}" class="ccv2-open-link fv-obs-row-cta">Öppna <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+          {% endwith %}
+        {% endfor %}
+      </div>
+    </section>
+  {% else %}
+    <article class="ccv2-card fv-obs-empty">
+      <div class="fisheries-card-empty fisheries-card-empty--compact">
+        <p class="fisheries-card-empty-title mb-1">Inga insatser finns ännu.</p>
+        <p class="fisheries-card-empty-text mb-3">Planera första fiskevårdsinsatsen när ni är redo.</p>
+        <a href="{% url 'fisheries:action_create' %}" class="fv-next-step-cta">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i> Planera insats
+        </a>
+      </div>
+    </article>
+  {% endif %}
+</div>
+
+{% endblock %}

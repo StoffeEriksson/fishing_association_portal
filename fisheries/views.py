@@ -676,7 +676,7 @@ def action_list(request):
         actions = (
             ActionArea.objects.for_org(org)
             .filter(is_active=True)
-            .select_related("created_by", "updated_by")
+            .select_related("created_by", "updated_by", "water_body", "responsible_user")
         )
         if selected_status in valid_status_values:
             actions = actions.filter(status=selected_status)
@@ -690,15 +690,31 @@ def action_list(request):
             selected_sort = "created_desc"
         actions = actions.order_by(allowed_sort_values[selected_sort])
 
+    status_choices_labeled = [
+        (value, get_action_status_label(value)) for value, _ in status_choices
+    ]
+    action_rows = [
+        {
+            "action": action,
+            "status_label": get_action_status_label(action.status),
+            "priority_label": get_action_priority_label(action.priority),
+            "responsible_label": _user_display_name(action.responsible_user),
+            "deadline_short": _format_short_date(action.deadline) if action.deadline else None,
+        }
+        for action in actions
+    ]
+
     return render(
         request,
         "fisheries/action_list.html",
         {
             "actions": actions,
+            "action_rows": action_rows,
             "selected_status": selected_status,
             "search_query": search_query,
             "selected_sort": selected_sort,
             "status_choices": status_choices,
+            "status_choices_labeled": status_choices_labeled,
         },
     )
 
