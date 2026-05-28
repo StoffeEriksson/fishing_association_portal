@@ -967,14 +967,23 @@ a.portal-sidebar-settings .portal-sidebar-ico {
     border-radius: 999px;
     text-decoration: none;
     color: rgba(255, 255, 255, 0.92);
+    background: transparent;
     border: 1px solid transparent;
     transition: background-color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
+.portal-account-trigger.dropdown-toggle::after {
+    display: none;
+}
+
+.portal-account-dropdown .dropdown-menu {
+    margin-top: 0.5rem;
+}
+
 .portal-account-trigger:hover,
 .portal-account-trigger:focus-visible {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(47, 107, 255, 0.22);
+    border-color: rgba(96, 165, 250, 0.38);
     box-shadow: 0 2px 10px rgba(15, 23, 42, 0.18);
     color: #fff;
     text-decoration: none;
@@ -1041,6 +1050,55 @@ a.portal-sidebar-settings .portal-sidebar-ico {
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
+}
+
+.portal-account-menu {
+    min-width: 13.5rem;
+    padding: 0.4rem;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+}
+
+.portal-account-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    border-radius: 9px;
+    padding: 0.45rem 0.65rem;
+    color: #0f172a;
+    font-size: 0.84rem;
+    font-weight: 500;
+}
+
+.portal-account-menu-item i {
+    width: 1rem;
+    color: #334155;
+}
+
+.portal-account-menu-item:hover,
+.portal-account-menu-item:focus {
+    background: rgba(37, 99, 235, 0.1);
+    color: #0f172a;
+}
+
+.portal-account-menu-item-danger {
+    color: #b91c1c;
+}
+
+.portal-account-menu-item-danger i {
+    color: #b91c1c;
+}
+
+.portal-account-menu-item-danger:hover,
+.portal-account-menu-item-danger:focus {
+    background: rgba(185, 28, 28, 0.1);
+    color: #991b1b;
+}
+
+.portal-account-menu-divider {
+    margin: 0.35rem 0;
 }
 
 .portal-topbar .top-meta {
@@ -1339,6 +1397,10 @@ body.portal-app-body .shadow-soft {
 
     .portal-account-trigger {
         padding: 0.15rem;
+    }
+
+    .portal-account-menu {
+        min-width: 12.25rem;
     }
 }
 

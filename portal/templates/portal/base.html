@@ -192,36 +192,56 @@
             </span>
           {% endif %}
 
-          <a
-            href="{% url 'portal:my_account' %}"
-            class="portal-account-trigger"
-            aria-label="Mitt konto"
-            title="Mitt konto"
-          >
-            {% if portal_account_has_avatar %}
-              <img
-                src="{{ portal_account_profile.avatar.url }}"
-                alt=""
-                class="portal-account-avatar"
-                width="38"
-                height="38"
-              >
-            {% else %}
-              <span class="portal-account-avatar portal-account-initials" aria-hidden="true">
-                <span class="portal-account-initials-text">{{ portal_account_initials|default:"?" }}</span>
+          <div class="dropdown portal-account-dropdown">
+            <button
+              type="button"
+              class="portal-account-trigger dropdown-toggle"
+              data-bs-toggle="dropdown"
+              data-bs-auto-close="true"
+              aria-expanded="false"
+              aria-label="Öppna kontomeny"
+              title="Mitt konto"
+            >
+              {% if portal_account_has_avatar %}
+                <img
+                  src="{{ portal_account_profile.avatar.url }}"
+                  alt=""
+                  class="portal-account-avatar"
+                  width="38"
+                  height="38"
+                >
+              {% else %}
+                <span class="portal-account-avatar portal-account-initials" aria-hidden="true">
+                  <span class="portal-account-initials-text">{{ portal_account_initials|default:"?" }}</span>
+                </span>
+              {% endif %}
+              <span class="portal-account-meta d-none d-md-flex">
+                <span class="portal-account-meta-label">Mitt konto</span>
+                <span class="portal-account-meta-name">{{ portal_account_display_name }}</span>
               </span>
-            {% endif %}
-            <span class="portal-account-meta d-none d-md-flex">
-              <span class="portal-account-meta-label">Mitt konto</span>
-              <span class="portal-account-meta-name">{{ portal_account_display_name }}</span>
-            </span>
-          </a>
-
-          <a class="btn btn-outline-secondary btn-sm portal-topbar-logout" href="{% url 'account_logout' %}" title="Logga ut">
-            <span class="d-none d-sm-inline">Logga ut</span>
-            <i class="fa-solid fa-right-from-bracket d-sm-none" aria-hidden="true"></i>
-            <span class="visually-hidden d-sm-none">Logga ut</span>
-          </a>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end portal-account-menu">
+              <li>
+                <a class="dropdown-item portal-account-menu-item" href="{% url 'portal:my_account' %}">
+                  <i class="fa-solid fa-user me-2" aria-hidden="true"></i>
+                  Mitt konto
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item portal-account-menu-item" href="{% url 'account_change_password' %}">
+                  <i class="fa-solid fa-key me-2" aria-hidden="true"></i>
+                  Byt lösenord
+                </a>
+              </li>
+              <li><hr class="dropdown-divider portal-account-menu-divider"></li>
+              <li>
+                <a class="dropdown-item portal-account-menu-item portal-account-menu-item-danger" href="{% url 'account_logout' %}">
+                  <i class="fa-solid fa-right-from-bracket me-2" aria-hidden="true"></i>
+                  Logga ut
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </header>

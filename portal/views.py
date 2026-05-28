@@ -339,6 +339,39 @@ def dashboard(request):
         event_type="meeting",
     ).count()
 
+    next_meeting = (
+        Meeting.objects.filter(org=org, meeting_date__gte=now)
+        .order_by("meeting_date")
+        .first()
+    )
+    open_matters_count = BoardMatter.objects.filter(org=org).exclude(
+        status__in=["closed", "decided"]
+    ).count()
+    next_meeting_open_matters_count = 0
+    if next_meeting:
+        next_meeting_open_matters_count = BoardMatter.objects.filter(
+            org=org,
+            meeting=next_meeting,
+        ).exclude(status__in=["closed", "decided"]).count()
+
+    pending_protocol_count = pending_approvals.count() + pending_signatures.count()
+    overdue_actions_count = sum(
+        1
+        for item in important_actions
+        if item.get("due_at") and item["due_at"] < today
+    )
+    week_end = today + timedelta(days=7)
+    weekly_deadlines = [
+        item
+        for item in important_actions
+        if item.get("due_at") and item["due_at"] <= week_end
+    ][:5]
+    this_week_events = [
+        event
+        for event in upcoming_events
+        if timezone.localtime(event.start_at).date() <= week_end
+    ][:5]
+
     news_feed = (
         DocumentActivity.objects.filter(
             document__org=org,
@@ -359,7 +392,14 @@ def dashboard(request):
             "important_actions": important_actions,
             "document_count": document_count,
             "upcoming_events": upcoming_events,
+            "this_week_events": this_week_events,
+            "weekly_deadlines": weekly_deadlines,
             "upcoming_meetings_count": upcoming_meetings_count,
+            "next_meeting": next_meeting,
+            "open_matters_count": open_matters_count,
+            "next_meeting_open_matters_count": next_meeting_open_matters_count,
+            "pending_protocol_count": pending_protocol_count,
+            "overdue_actions_count": overdue_actions_count,
             "news_feed": news_feed,
             "calendar_widget": calendar_widget,
         },
