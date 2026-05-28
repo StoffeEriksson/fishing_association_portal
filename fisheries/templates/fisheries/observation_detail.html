@@ -1,213 +1,276 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
-{% block title %}Observationsdetalj{% endblock %}
+{% block title %}{{ observation.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
+{% endblock %}
 
 {% block content %}
-  <div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-      <h1 class="h3 mb-1">{{ observation.title }}</h1>
-      <div class="text-muted small">Detaljvy för observation.</div>
-    </div>
-    <div class="d-flex gap-2">
-      {% if observation.linked_action %}
-        <a href="{% url 'maps:map_page' %}?action_id={{ observation.linked_action.pk }}" class="btn btn-outline-secondary btn-sm">
-          Visa på karta
-        </a>
-      {% elif observation.water_body %}
-        <a href="{% url 'maps:map_page' %}?water_id={{ observation.water_body.pk }}" class="btn btn-outline-secondary btn-sm">
-          Visa på karta
-        </a>
-      {% endif %}
-      <a href="{% url 'fisheries:observation_list' %}" class="btn btn-outline-secondary btn-sm">
-        Tillbaka till lista
-      </a>
-    </div>
-  </div>
 
-  <div class="card shadow-soft">
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <div class="small text-muted">Kategori</div>
-          <div class="fw-semibold">{{ observation.get_category_display }}</div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Status</div>
-          <div class="fw-semibold">{{ observation.get_status_display }}</div>
-          <form method="post" class="mt-2 d-flex gap-2 align-items-center flex-wrap">
-            {% csrf_token %}
-            <input type="hidden" name="action_type" value="change_status">
-            <label for="id_status" class="visually-hidden">Status</label>
-            <select id="id_status" name="status" class="form-select form-select-sm">
-              {% for value, label in status_choices %}
-                <option value="{{ value }}" {% if value == observation.status %}selected{% endif %}>
-                  {{ label }}
-                </option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-outline-secondary btn-sm">Uppdatera status</button>
-          </form>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Vatten</div>
-          <div class="fw-semibold">
-            {% if observation.water_body %}
-              {{ observation.water_body.name }}
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Skapad</div>
-          <div class="fw-semibold">{{ observation.created_at|date:"Y-m-d H:i" }}</div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Skapad av</div>
-          <div class="fw-semibold">
-            {% if observation.created_by %}
-              {{ observation.created_by.email|default:observation.created_by.username }}
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="small text-muted">Uppdaterad av</div>
-          <div class="fw-semibold">
-            {% if observation.updated_by %}
-              {{ observation.updated_by.email|default:observation.updated_by.username }}
-            {% else %}
-              —
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-12">
-          <div class="small text-muted">Beskrivning</div>
-          <div class="fw-normal">{{ observation.description|default:"Ingen beskrivning angiven." }}</div>
-        </div>
-        <div class="col-12">
-          <div class="small text-muted">Kopplad åtgärd</div>
-          <div class="fw-semibold">
-            {% if observation.linked_action %}
-              <a href="{% url 'fisheries:action_detail' observation.linked_action.pk %}" class="text-decoration-none">
-                {{ observation.linked_action.name }}
-              </a>
-            {% else %}
-              Ingen åtgärd kopplad
-            {% endif %}
-          </div>
-        </div>
+<div class="dashboard-shell fisheries-shell fv-detail-shell fv-obs-detail-shell">
+  <header class="fv-detail-header">
+    <div class="fv-detail-header-top">
+      <a href="{% url 'fisheries:observation_list' %}" class="fv-detail-back">← Alla observationer</a>
+      <div class="fv-detail-header-actions">
+        {% if observation.linked_action %}
+          <a href="{% url 'maps:map_page' %}?action_id={{ observation.linked_action.pk }}" class="fv-detail-link-btn">Visa på karta</a>
+        {% elif observation.water_body %}
+          <a href="{% url 'maps:map_page' %}?water_id={{ observation.water_body.pk }}" class="fv-detail-link-btn">Visa på karta</a>
+        {% endif %}
       </div>
     </div>
+    <h1 class="ccv2-title mb-1">{{ observation.title }}</h1>
+    <p class="ccv2-subtitle mb-2">
+      {{ category_label }}
+      · {{ status_label }}
+      {% if observation.water_body %}
+        · {{ observation.water_body.name }}
+      {% else %}
+        · Vattendrag saknas
+      {% endif %}
+    </p>
+  </header>
+
+  <div class="fisheries-meta-badges fv-detail-badges">
+    {% for badge in header_badges %}
+      <span class="fisheries-meta-badge{% if badge.muted %} fisheries-meta-badge--muted{% endif %}">
+        {% if badge.icon %}
+          <i class="fa-solid {{ badge.icon }}" aria-hidden="true"></i>
+        {% endif %}
+        <span>{{ badge.label }}</span>
+      </span>
+    {% endfor %}
   </div>
 
-  <div class="card shadow-soft mt-4">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Redigera observation</h2>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="action_type" value="update_fields">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label for="id_category" class="form-label small text-muted mb-1">Kategori</label>
-            <select id="id_category" name="category" class="form-select form-select-sm">
-              {% for value, label in category_choices %}
-                <option value="{{ value }}" {% if value == observation.category %}selected{% endif %}>
-                  {{ label }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label for="id_water_body" class="form-label small text-muted mb-1">Vatten</label>
-            <select id="id_water_body" name="water_body" class="form-select form-select-sm">
-              <option value="">—</option>
-              {% for water in water_bodies %}
-                <option value="{{ water.pk }}" {% if observation.water_body and observation.water_body.pk == water.pk %}selected{% endif %}>
-                  {{ water.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-12">
-            <label for="id_description_edit" class="form-label small text-muted mb-1">Beskrivning</label>
-            <textarea id="id_description_edit" name="description" class="form-control" rows="4">{{ observation.description }}</textarea>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-dark btn-sm mt-3">Spara ändringar</button>
-      </form>
+  <section class="fv-next-step-box" aria-labelledby="fv-obs-next-step-heading">
+    <div class="fv-next-step-head">
+      <h2 id="fv-obs-next-step-heading" class="fv-next-step-title">{{ next_step.title }}</h2>
+      <span class="fv-next-pill {{ next_step.pill_class }}">{{ next_step.pill_label }}</span>
     </div>
+    <p class="fv-next-step-body">{{ next_step.body }}</p>
+  </section>
+
+  {% if next_step.ctas %}
+    <div class="fv-obs-cta-row">
+      {% for cta in next_step.ctas %}
+        {% if cta.kind == "link" %}
+          <a href="{{ cta.url }}" class="fv-next-step-cta">{{ cta.label }}</a>
+        {% elif cta.kind == "create_action" %}
+          <form method="post" action="{{ cta.url }}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="fv-next-step-cta fv-next-step-cta--btn">{{ cta.label }}</button>
+          </form>
+        {% elif cta.kind == "change_status" %}
+          <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="change_status">
+            <input type="hidden" name="status" value="{{ cta.status }}">
+            <button type="submit" class="fv-next-step-cta fv-next-step-cta--secondary">{{ cta.label }}</button>
+          </form>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="fv-detail-grid">
+    <div class="fv-detail-main">
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Beskrivning</h2>
+        {% if observation.description %}
+          <div class="fv-obs-description">{{ observation.description|linebreaksbr }}</div>
+        {% else %}
+          <p class="ccv2-muted mb-0">Ingen beskrivning ännu.</p>
+        {% endif %}
+      </article>
+
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Aktivitet</h2>
+        {% if activity_feed %}
+          <ul class="fv-activity-list">
+            {% for item in activity_feed %}
+              <li class="fv-activity-item">
+                <div class="fv-activity-text">{{ item.text }}</div>
+                {% if item.detail %}
+                  <div class="fv-activity-detail">{{ item.detail|linebreaksbr }}</div>
+                {% endif %}
+                <div class="ccv2-muted fv-activity-time">{{ item.created_at|date:"Y-m-d H:i" }}</div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="fisheries-card-empty fisheries-card-empty--compact">
+            <p class="fisheries-card-empty-title mb-1">Ingen aktivitet registrerad ännu</p>
+            <p class="fisheries-card-empty-text mb-0">Här visas ändringar och anteckningar när styrelsen börjar granska.</p>
+          </div>
+        {% endif %}
+      </article>
+    </div>
+
+    <aside class="fv-detail-aside">
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Lägesbild</h2>
+        <dl class="fv-snapshot-list">
+          <div class="fv-snapshot-row">
+            <dt>Status</dt>
+            <dd>{{ status_label }}</dd>
+          </div>
+          <div class="fv-snapshot-row">
+            <dt>Kategori</dt>
+            <dd>{{ category_label }}</dd>
+          </div>
+          <div class="fv-snapshot-row">
+            <dt>Vattendrag</dt>
+            <dd>
+              {% if observation.water_body %}
+                {{ observation.water_body.name }}
+              {% else %}
+                <span class="ccv2-muted">Vattendrag saknas</span>
+              {% endif %}
+            </dd>
+          </div>
+          <div class="fv-snapshot-row">
+            <dt>Skapad</dt>
+            <dd>{{ observation.created_at|date:"Y-m-d H:i" }}</dd>
+          </div>
+          <div class="fv-snapshot-row">
+            <dt>Senast uppdaterad</dt>
+            <dd>{{ observation.updated_at|date:"Y-m-d H:i" }}</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Kopplad åtgärd</h2>
+        {% if observation.linked_action %}
+          <p class="fv-obs-linked-title mb-1">
+            <a href="{% url 'fisheries:action_detail' observation.linked_action.pk %}" class="text-decoration-none">
+              {{ observation.linked_action.name }}
+            </a>
+          </p>
+          <a href="{% url 'fisheries:action_detail' observation.linked_action.pk %}" class="fisheries-empty-cta">Öppna åtgärd →</a>
+        {% else %}
+          <p class="ccv2-muted mb-2">Ingen åtgärd skapad ännu.</p>
+          {% if observation.status != "closed" and not observation.linked_action %}
+            <form method="post" action="{{ create_action_url }}">
+              {% csrf_token %}
+              <button type="submit" class="fv-next-step-cta fv-next-step-cta--btn">Skapa åtgärd</button>
+            </form>
+          {% endif %}
+        {% endif %}
+      </article>
+
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Att tänka på</h2>
+        {% if blockers %}
+          <ul class="fv-blocker-list">
+            {% for blocker in blockers %}
+              <li class="fv-blocker-item fv-blocker-item--{{ blocker.kind }}">
+                <i class="fa-solid {{ blocker.icon }}" aria-hidden="true"></i>
+                <span>{{ blocker.text }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="fv-blocker-ok mb-0">Inget som blockerar just nu.</p>
+        {% endif %}
+      </article>
+    </aside>
   </div>
 
-  <div class="card shadow-soft mt-4">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Kommentarer</h2>
-      <form method="post" class="mb-3">
-        {% csrf_token %}
-        <input type="hidden" name="action_type" value="add_comment">
-        <div class="mb-2">
-          <label for="id_body" class="form-label small text-muted mb-1">Ny kommentar</label>
-          <textarea id="id_body" name="body" class="form-control" rows="3" placeholder="Skriv en kommentar..."></textarea>
-        </div>
-        <button type="submit" class="btn btn-dark btn-sm">Lägg till kommentar</button>
-      </form>
-      {% if comments %}
-        <div class="list-group list-group-flush">
-          {% for comment in comments %}
-            <div class="list-group-item px-0">
-              <div class="d-flex justify-content-between align-items-start gap-3">
-                <div>
-                  <div class="fw-semibold">
+  <section id="fv-manage-observation" class="fv-manage-section">
+    <details class="fv-manage-panel">
+      <summary class="fv-manage-summary">Hantera observation</summary>
+      <div class="fv-manage-body">
+        <article class="ccv2-card fv-detail-card fv-manage-card">
+          <h3 class="fv-manage-card-title">Uppdatera status</h3>
+          <form method="post" class="fv-manage-form">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="change_status">
+            <div class="fv-manage-form-row">
+              <label for="id_status" class="fv-manage-label">Status</label>
+              <select id="id_status" name="status" class="form-select form-select-sm">
+                {% for value, label in status_choices_labeled %}
+                  <option value="{{ value }}" {% if value == observation.status %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Spara status</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="ccv2-card fv-detail-card fv-manage-card">
+          <h3 class="fv-manage-card-title">Uppdatera uppgifter</h3>
+          <form method="post" class="fv-manage-form">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="update_fields">
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label for="id_category" class="fv-manage-label">Kategori</label>
+                <select id="id_category" name="category" class="form-select form-select-sm">
+                  {% for value, label in category_choices_labeled %}
+                    <option value="{{ value }}" {% if value == observation.category %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="id_water_body" class="fv-manage-label">Vattendrag</label>
+                <select id="id_water_body" name="water_body" class="form-select form-select-sm">
+                  <option value="">—</option>
+                  {% for water in water_bodies %}
+                    <option value="{{ water.pk }}" {% if observation.water_body and observation.water_body.pk == water.pk %}selected{% endif %}>
+                      {{ water.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12">
+                <label for="id_description_edit" class="fv-manage-label">Beskrivning</label>
+                <textarea id="id_description_edit" name="description" class="form-control form-control-sm" rows="4">{{ observation.description }}</textarea>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Spara uppgifter</button>
+          </form>
+        </article>
+
+        <article class="ccv2-card fv-detail-card fv-manage-card">
+          <h3 class="fv-manage-card-title">Anteckningar</h3>
+          <form method="post" class="fv-manage-form mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="add_comment">
+            <label for="id_body" class="fv-manage-label">Ny anteckning</label>
+            <textarea id="id_body" name="body" class="form-control form-control-sm" rows="3" placeholder="Skriv vad styrelsen behöver veta…"></textarea>
+            <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Lägg till anteckning</button>
+          </form>
+          {% if comments %}
+            <ul class="fv-comment-list">
+              {% for comment in comments %}
+                <li class="fv-comment-item">
+                  <div class="fv-activity-text">
                     {% if comment.user %}
-                      {{ comment.user.email|default:comment.user.username }}
+                      {% if comment.user.get_full_name %}{{ comment.user.get_full_name }}{% else %}{{ comment.user.email|default:comment.user.username }}{% endif %}
                     {% else %}
-                      —
+                      Okänd
                     {% endif %}
                   </div>
-                  <div class="small text-muted">{{ comment.created_at|date:"Y-m-d H:i" }}</div>
-                </div>
-              </div>
-              <div class="mt-2">{{ comment.body }}</div>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="alert alert-secondary mb-0" role="status">
-          Inga kommentarer ännu.
-        </div>
-      {% endif %}
-    </div>
-  </div>
+                  <div class="fv-activity-detail">{{ comment.body|linebreaksbr }}</div>
+                  <div class="ccv2-muted fv-activity-time">{{ comment.created_at|date:"Y-m-d H:i" }}</div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="ccv2-muted mb-0 small">Inga anteckningar ännu.</p>
+          {% endif %}
+        </article>
+      </div>
+    </details>
+  </section>
+</div>
 
-  <div class="card shadow-soft mt-4">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Historik</h2>
-      {% if logs %}
-        <div class="list-group list-group-flush">
-          {% for log in logs %}
-            <div class="list-group-item px-0">
-              <div class="d-flex justify-content-between align-items-start gap-3">
-                <div>
-                  <div class="fw-semibold">
-                    {% if log.user %}
-                      {{ log.user.email|default:log.user.username }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </div>
-                  <div class="small text-muted">{{ log.created_at|date:"Y-m-d H:i" }}</div>
-                </div>
-              </div>
-              <div class="mt-2">{{ log.message|default:"—" }}</div>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="alert alert-secondary mb-0" role="status">
-          Ingen historik ännu.
-        </div>
-      {% endif %}
-    </div>
-  </div>
 {% endblock %}

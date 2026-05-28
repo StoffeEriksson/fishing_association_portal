@@ -1,131 +1,134 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
 {% block title %}Observationer{% endblock %}
 
-{% block content %}
-  <div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-      <h1 class="h3 mb-1">Observationer</h1>
-      <div class="text-muted small">Översikt över registrerade observationer.</div>
-    </div>
-    <a href="{% url 'fisheries:observation_create' %}" class="btn btn-dark btn-sm">
-      Ny observation
-    </a>
-  </div>
-  <form method="get" class="d-flex gap-2 align-items-center mb-2 flex-wrap">
-    {% if selected_status %}
-      <input type="hidden" name="status" value="{{ selected_status }}">
-    {% endif %}
-    <label for="id_observation_q" class="visually-hidden">Sök</label>
-    <input
-      id="id_observation_q"
-      type="text"
-      name="q"
-      class="form-control form-control-sm"
-      placeholder="Sök i titel eller beskrivning..."
-      value="{{ search_query }}"
-    >
-    <label for="id_observation_sort" class="visually-hidden">Sortering</label>
-    <select id="id_observation_sort" name="sort" class="form-select form-select-sm">
-      <option value="created_desc" {% if selected_sort == "created_desc" %}selected{% endif %}>Nyast först</option>
-      <option value="created_asc" {% if selected_sort == "created_asc" %}selected{% endif %}>Äldst först</option>
-      <option value="status" {% if selected_sort == "status" %}selected{% endif %}>Status</option>
-      <option value="category" {% if selected_sort == "category" %}selected{% endif %}>Kategori</option>
-    </select>
-    <button type="submit" class="btn btn-outline-secondary btn-sm">Sök</button>
-  </form>
-  {% if selected_status %}
-    <div class="small text-muted mb-2">Filtrerad på status: {{ selected_status }}</div>
-  {% endif %}
-  {% if search_query %}
-    <div class="small text-muted mb-2">Sökning: {{ search_query }}</div>
-  {% endif %}
-  <div class="small text-muted mb-2">Sortering: {{ selected_sort }}</div>
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
+{% endblock %}
 
-  <div class="card shadow-soft">
-    <div class="card-body">
-      {% if observations %}
-        <div class="table-responsive">
-          <table class="table align-middle mb-0">
-            <thead>
-              <tr>
-                <th>Titel</th>
-                <th>Kategori</th>
-                <th>Status</th>
-                <th>Vatten</th>
-                <th>Kopplad åtgärd</th>
-                <th>Åtgärd</th>
-                <th>Skapad av</th>
-                <th>Skapad</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for observation in observations %}
-                <tr>
-                  <td>
-                    <a href="{% url 'fisheries:observation_detail' observation.pk %}" class="text-decoration-none">
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-shell fisheries-shell fv-obs-shell">
+  <header class="ccv2-header fv-obs-header">
+    <div class="fv-obs-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Observationer</h1>
+        <p class="ccv2-subtitle mb-0">Signaler från fältet som kan bli fiskevårdsåtgärder.</p>
+      </div>
+      <div class="fv-obs-header-actions">
+        <a href="{% url 'fisheries:observation_create' %}" class="fv-next-step-cta">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i> Ny observation
+        </a>
+        <a href="{% url 'fisheries:overview' %}" class="fv-obs-back-link">← Till fiskevård</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="ccv2-card fv-obs-filter-panel">
+    <h2 class="fv-obs-filter-label">Filtrera observationer</h2>
+    <form method="get" class="fv-obs-filter">
+      <label for="id_observation_q" class="visually-hidden">Sök</label>
+      <input
+        id="id_observation_q"
+        type="text"
+        name="q"
+        class="form-control form-control-sm"
+        placeholder="Sök i titel eller beskrivning…"
+        value="{{ search_query }}"
+      >
+      <label for="id_observation_status" class="visually-hidden">Status</label>
+      <select id="id_observation_status" name="status" class="form-select form-select-sm">
+        <option value="">Alla statusar</option>
+        {% for value, label in status_choices_labeled %}
+          <option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <label for="id_observation_sort" class="visually-hidden">Sortering</label>
+      <select id="id_observation_sort" name="sort" class="form-select form-select-sm">
+        <option value="created_desc" {% if selected_sort == "created_desc" %}selected{% endif %}>Nyast först</option>
+        <option value="created_asc" {% if selected_sort == "created_asc" %}selected{% endif %}>Äldst först</option>
+        <option value="status" {% if selected_sort == "status" %}selected{% endif %}>Status</option>
+        <option value="category" {% if selected_sort == "category" %}selected{% endif %}>Kategori</option>
+      </select>
+      <button type="submit" class="btn btn-outline-secondary btn-sm fv-obs-filter-btn">Filtrera</button>
+    </form>
+  </article>
+
+  {% if observation_groups %}
+    <div class="fv-obs-groups">
+      {% for group in observation_groups %}
+        <section class="ccv2-section ccv2-attention fv-obs-group-card{% if group.status == 'new' %} fv-obs-group-card--highlight{% endif %}">
+          <div class="ccv2-section-head">
+            <h2 class="ccv2-section-title">{{ group.label }}</h2>
+            <span class="fisheries-attention-count">{{ group.items|length }}</span>
+          </div>
+          <div class="ccv2-action-list fv-obs-list">
+            {% for row in group.items %}
+              {% with observation=row.observation %}
+              <div class="ccv2-action-row ccv2-priority-normal fv-obs-row">
+                <div class="ccv2-action-main">
+                  <div class="ccv2-action-title">
+                    <a href="{% url 'fisheries:observation_detail' observation.pk %}" class="fv-obs-row-title">
                       {{ observation.title }}
                     </a>
-                  </td>
-                  <td>{{ observation.get_category_display }}</td>
-                  <td>
-                    <form method="post">
-                      {% csrf_token %}
-                      <input type="hidden" name="action_type" value="update_status_inline">
-                      <input type="hidden" name="observation_id" value="{{ observation.pk }}">
-                      <select name="status" onchange="this.form.submit()" class="form-select form-select-sm">
-                        {% for value, label in status_choices %}
-                          <option value="{{ value }}" {% if value == observation.status %}selected{% endif %}>
-                            {{ label }}
-                          </option>
-                        {% endfor %}
-                      </select>
-                    </form>
-                  </td>
-                  <td>
+                  </div>
+                  <div class="fisheries-meta-badges">
+                    <span class="fisheries-meta-badge">
+                      <i class="fa-solid fa-tag" aria-hidden="true"></i>
+                      <span>{{ row.category_label }}</span>
+                    </span>
                     {% if observation.water_body %}
-                      {{ observation.water_body.name }}
+                      <span class="fisheries-meta-badge">
+                        <i class="fa-solid fa-water" aria-hidden="true"></i>
+                        <span>{{ observation.water_body.name }}</span>
+                      </span>
                     {% else %}
-                      —
+                      <span class="fisheries-meta-badge fisheries-meta-badge--muted">
+                        <i class="fa-solid fa-water" aria-hidden="true"></i>
+                        <span>Vattendrag saknas</span>
+                      </span>
                     {% endif %}
-                  </td>
-                  <td>
+                    <span class="fisheries-meta-badge">
+                      <i class="fa-solid fa-circle-dot" aria-hidden="true"></i>
+                      <span>{{ group.label }}</span>
+                    </span>
+                    <span class="fisheries-meta-badge">
+                      <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+                      <span>{{ observation.created_at|date:"j M Y" }}</span>
+                    </span>
                     {% if observation.linked_action %}
-                      {{ observation.linked_action.name }}
-                    {% else %}
-                      —
+                      <span class="fisheries-meta-badge">
+                        <i class="fa-solid fa-link" aria-hidden="true"></i>
+                        <span>{{ observation.linked_action.name }}</span>
+                      </span>
                     {% endif %}
-                  </td>
-                  <td>
-                    {% if observation.linked_action %}
-                      <a href="{% url 'fisheries:action_detail' observation.linked_action.pk %}" class="btn btn-outline-secondary btn-sm">
-                        Visa åtgärd
-                      </a>
-                    {% else %}
-                      <form method="post" action="{% url 'fisheries:create_action_from_observation' observation.pk %}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-dark btn-sm">Skapa åtgärd</button>
-                      </form>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {% if observation.created_by %}
-                      {{ observation.created_by.email|default:observation.created_by.username }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
-                  <td>{{ observation.created_at|date:"Y-m-d H:i" }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        <div class="alert alert-secondary mb-0" role="status">
-          Inga observationer ännu.
-        </div>
-      {% endif %}
+                  </div>
+                </div>
+                <a href="{% url 'fisheries:observation_detail' observation.pk %}" class="ccv2-open-link fv-obs-row-cta">Granska <span aria-hidden="true">→</span></a>
+              </div>
+              {% endwith %}
+            {% endfor %}
+          </div>
+        </section>
+      {% endfor %}
     </div>
-  </div>
+  {% else %}
+    <article class="ccv2-card fv-obs-empty">
+      <div class="fisheries-card-empty fisheries-card-empty--compact">
+        <p class="fisheries-card-empty-title mb-1">Inga observationer att granska just nu.</p>
+        <p class="fisheries-card-empty-text mb-3">Rapportera något från fältet när ni upptäcker något.</p>
+        <a href="{% url 'fisheries:observation_create' %}" class="fv-next-step-cta">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i> Ny observation
+        </a>
+      </div>
+    </article>
+  {% endif %}
+</div>
+
 {% endblock %}

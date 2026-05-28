@@ -44,7 +44,7 @@
   <div class="fisheries-workflow" aria-label="Så driver ni fiskevårdsarbetet">
     <p class="fisheries-workflow-tagline">Från observation till genomförd åtgärd.</p>
     <div class="fisheries-workflow-steps">
-      <span class="fisheries-workflow-step">Observation</span>
+      <a href="{% url 'fisheries:observation_list' %}" class="fisheries-workflow-step fisheries-workflow-step--link">Observation</a>
       <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
       <span class="fisheries-workflow-step">Beslut</span>
       <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
@@ -52,6 +52,9 @@
       <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
       <span class="fisheries-workflow-step">Uppföljning</span>
     </div>
+    <p class="fisheries-workflow-obs-cta">
+      <a href="{% url 'fisheries:observation_list' %}">Visa observationer</a>
+    </p>
   </div>
 
   <div class="fisheries-year-program" aria-label="Årets fiskevård">
@@ -266,6 +269,9 @@
     </a>
     <a href="{% url 'fisheries:action_list' %}?status=in_progress" class="ccv2-quick-link">
       <i class="fa-solid fa-water" aria-hidden="true"></i> Pågår i vattnen
+    </a>
+    <a href="{% url 'fisheries:observation_list' %}" class="ccv2-quick-link">
+      <i class="fa-solid fa-eye" aria-hidden="true"></i> Observationer
     </a>
   </section>
 </div>

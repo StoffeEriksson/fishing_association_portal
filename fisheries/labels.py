@@ -1,4 +1,4 @@
-from .models import ActionPriority, ActionStatus, ObservationStatus
+from .models import ActionPriority, ActionStatus, ObservationCategory, ObservationStatus
 
 ACTION_STATUS_LABELS = {
     ActionStatus.URGENT: "Akut",
@@ -22,6 +22,15 @@ OBSERVATION_STATUS_LABELS = {
     ObservationStatus.CLOSED: "Avslutad",
 }
 
+OBSERVATION_CATEGORY_LABELS = {
+    ObservationCategory.FISH_STOCK: "Fiskbestånd",
+    ObservationCategory.HABITAT: "Habitat",
+    ObservationCategory.WATER_QUALITY: "Vattenkvalitet",
+    ObservationCategory.ILLEGAL_FISHING: "Tjuvfiske",
+    ObservationCategory.INFRASTRUCTURE: "Infrastruktur",
+    ObservationCategory.OTHER: "Övrigt",
+}
+
 
 def get_action_status_label(value):
     return ACTION_STATUS_LABELS.get(value, value)
@@ -33,3 +42,7 @@ def get_action_priority_label(value):
 
 def get_observation_status_label(value):
     return OBSERVATION_STATUS_LABELS.get(value, value)
+
+
+def get_observation_category_label(value):
+    return OBSERVATION_CATEGORY_LABELS.get(value, value)

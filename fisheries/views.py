@@ -9,7 +9,12 @@ from django.utils import timezone
 from maps.models import WaterBody
 from core.models import Membership
 
-from .labels import get_action_priority_label, get_action_status_label
+from .labels import (
+    get_action_priority_label,
+    get_action_status_label,
+    get_observation_category_label,
+    get_observation_status_label,
+)
 from .models import (
     ActionArea,
     ActionComment,
@@ -359,6 +364,189 @@ def _build_action_blockers(action, comment_count):
     return blockers
 
 
+_OBSERVATION_STATUS_ORDER = (
+    ObservationStatus.NEW,
+    ObservationStatus.UNDER_REVIEW,
+    ObservationStatus.LINKED_TO_ACTION,
+    ObservationStatus.CLOSED,
+)
+
+_EMPTY_ACTION_GEOJSON = {"type": "FeatureCollection", "features": []}
+
+
+def _build_observation_next_step(observation):
+    status_label = get_observation_status_label(observation.status)
+
+    if observation.status == ObservationStatus.CLOSED:
+        return {
+            "title": "Nästa steg",
+            "body": "Observationen är avslutad.",
+            "pill_label": status_label,
+            "pill_class": "fv-next-pill--done",
+            "ctas": [],
+        }
+
+    if observation.status == ObservationStatus.LINKED_TO_ACTION and observation.linked_action_id:
+        return {
+            "title": "Nästa steg",
+            "body": "Observationen är kopplad till en åtgärd.",
+            "pill_label": status_label,
+            "pill_class": "fv-next-pill--neutral",
+            "ctas": [
+                {
+                    "label": "Öppna åtgärd",
+                    "kind": "link",
+                    "url": reverse("fisheries:action_detail", args=[observation.linked_action_id]),
+                },
+            ],
+        }
+
+    if observation.status == ObservationStatus.UNDER_REVIEW:
+        ctas = [
+            {
+                "label": "Skapa åtgärd",
+                "kind": "create_action",
+                "url": reverse("fisheries:create_action_from_observation", args=[observation.pk]),
+            },
+            {
+                "label": "Avsluta utan åtgärd",
+                "kind": "change_status",
+                "status": ObservationStatus.CLOSED,
+            },
+        ]
+        return {
+            "title": "Nästa steg",
+            "body": "Besluta om detta ska bli en åtgärd.",
+            "pill_label": status_label,
+            "pill_class": "fv-next-pill--decision",
+            "ctas": ctas,
+        }
+
+    if observation.status == ObservationStatus.NEW:
+        ctas = [
+            {
+                "label": "Markera under granskning",
+                "kind": "change_status",
+                "status": ObservationStatus.UNDER_REVIEW,
+            },
+            {
+                "label": "Skapa åtgärd",
+                "kind": "create_action",
+                "url": reverse("fisheries:create_action_from_observation", args=[observation.pk]),
+            },
+        ]
+        return {
+            "title": "Nästa steg",
+            "body": "Granska observationen.",
+            "pill_label": status_label,
+            "pill_class": "fv-next-pill--neutral",
+            "ctas": ctas,
+        }
+
+    return {
+        "title": "Nästa steg",
+        "body": "Fortsätt hantera observationen.",
+        "pill_label": status_label,
+        "pill_class": "fv-next-pill--neutral",
+        "ctas": [],
+    }
+
+
+def _build_observation_header_badges(observation):
+    badges = [
+        {
+            "icon": "fa-circle-dot",
+            "label": get_observation_status_label(observation.status),
+        },
+        {
+            "icon": "fa-tag",
+            "label": get_observation_category_label(observation.category),
+        },
+    ]
+    if observation.water_body:
+        badges.append({"icon": "fa-water", "label": observation.water_body.name})
+    else:
+        badges.append({"icon": "fa-water", "label": "Vattendrag saknas", "muted": True})
+    return badges
+
+
+def _humanize_observation_log(log):
+    user = _user_display_name(log.user) or "Någon"
+    if log.event_type == "comment_added":
+        return f"{user} lade till en anteckning"
+    if log.event_type == "status_changed":
+        return f"{user} uppdaterade status"
+    if log.event_type == "linked_to_action":
+        return f"{user} kopplade observationen till en åtgärd"
+    if log.event_type == "updated":
+        return f"{user} uppdaterade observationen"
+    if log.message:
+        return f"{user}: {log.message}"
+    return f"{user} registrerade aktivitet"
+
+
+def _build_observation_activity_feed(logs, comments):
+    items = []
+    for log in logs:
+        items.append(
+            {
+                "created_at": log.created_at,
+                "text": _humanize_observation_log(log),
+                "detail": log.message if log.event_type != "comment_added" else None,
+            }
+        )
+    for comment in comments:
+        author = _user_display_name(comment.user) or "Någon"
+        items.append(
+            {
+                "created_at": comment.created_at,
+                "text": f"{author} lade till en anteckning",
+                "detail": comment.body,
+            }
+        )
+    items.sort(key=lambda row: row["created_at"], reverse=True)
+    return items[:25]
+
+
+def _build_observation_blockers(observation, comment_count):
+    blockers = []
+    if not observation.water_body_id:
+        blockers.append({"icon": "fa-water", "text": "Vattendrag saknas", "kind": "neutral"})
+    if not (observation.description or "").strip():
+        blockers.append({"icon": "fa-file-lines", "text": "Ingen beskrivning ännu", "kind": "neutral"})
+    if not observation.linked_action_id and observation.status in (
+        ObservationStatus.NEW,
+        ObservationStatus.UNDER_REVIEW,
+    ):
+        blockers.append({"icon": "fa-list-check", "text": "Ingen åtgärd skapad ännu", "kind": "warn"})
+    if comment_count == 0:
+        blockers.append({"icon": "fa-comment", "text": "Inga anteckningar ännu", "kind": "neutral"})
+    return blockers
+
+
+def _group_observations_by_status(observations):
+    observations_list = list(observations)
+    groups = []
+    for status_value in _OBSERVATION_STATUS_ORDER:
+        items = [
+            {
+                "observation": row,
+                "category_label": get_observation_category_label(row.category),
+            }
+            for row in observations_list
+            if row.status == status_value
+        ]
+        if items:
+            groups.append(
+                {
+                    "status": status_value,
+                    "label": get_observation_status_label(status_value),
+                    "items": items,
+                }
+            )
+    return groups
+
+
 @login_required
 def action_list(request):
     org = getattr(request, "org", None)
@@ -600,15 +788,22 @@ def observation_list(request):
             selected_sort = "created_desc"
         observations = observations.order_by(allowed_sort_values[selected_sort])
 
+    status_choices_labeled = [
+        (value, get_observation_status_label(value)) for value, _ in status_choices
+    ]
+    observation_groups = _group_observations_by_status(observations) if org is not None else []
+
     return render(
         request,
         "fisheries/observation_list.html",
         {
             "observations": observations,
+            "observation_groups": observation_groups,
             "selected_status": selected_status,
             "search_query": search_query,
             "selected_sort": selected_sort,
             "status_choices": status_choices,
+            "status_choices_labeled": status_choices_labeled,
         },
     )
 
@@ -833,7 +1028,7 @@ def observation_detail(request, pk):
     org = getattr(request, "org", None)
     status_choices = Observation._meta.get_field("status").choices
     valid_status_values = {value for value, _ in status_choices}
-    status_labels = {value: label for value, label in status_choices}
+    status_labels = {value: get_observation_status_label(value) for value, _ in status_choices}
     category_choices = ObservationCategory.choices
     valid_category_values = {value for value, _ in category_choices}
     water_bodies = WaterBody.objects.for_org(org).filter(is_active=True).order_by("name")
@@ -913,8 +1108,15 @@ def observation_detail(request, pk):
                 )
         return redirect("fisheries:observation_detail", pk=observation.pk)
 
-    comments = observation.comments.select_related("user").order_by("-created_at")
-    logs = observation.logs.select_related("user").order_by("-created_at")
+    comments = list(observation.comments.select_related("user").order_by("-created_at"))
+    logs = list(observation.logs.select_related("user").order_by("-created_at"))
+
+    status_choices_labeled = [
+        (value, get_observation_status_label(value)) for value, _ in status_choices
+    ]
+    category_choices_labeled = [
+        (value, get_observation_category_label(value)) for value, _ in category_choices
+    ]
 
     return render(
         request,
@@ -924,8 +1126,20 @@ def observation_detail(request, pk):
             "comments": comments,
             "logs": logs,
             "status_choices": status_choices,
+            "status_choices_labeled": status_choices_labeled,
             "category_choices": category_choices,
+            "category_choices_labeled": category_choices_labeled,
             "water_bodies": water_bodies,
+            "header_badges": _build_observation_header_badges(observation),
+            "next_step": _build_observation_next_step(observation),
+            "status_label": get_observation_status_label(observation.status),
+            "category_label": get_observation_category_label(observation.category),
+            "activity_feed": _build_observation_activity_feed(logs, comments),
+            "blockers": _build_observation_blockers(observation, len(comments)),
+            "create_action_url": reverse(
+                "fisheries:create_action_from_observation",
+                args=[observation.pk],
+            ),
         },
     )
 
@@ -947,11 +1161,16 @@ def create_action_from_observation(request, pk):
     if observation.linked_action_id:
         return redirect("fisheries:action_detail", pk=observation.linked_action_id)
 
+    geojson = _EMPTY_ACTION_GEOJSON
+    if observation.water_body and observation.water_body.geojson:
+        geojson = observation.water_body.geojson
+
     action = ActionArea.objects.create(
         org=request.org,
         name=observation.title,
         description=observation.description,
         water_body=observation.water_body,
+        geojson=geojson,
         created_by=request.user,
         updated_by=request.user,
         status=ActionStatus.NEEDS_ACTION,

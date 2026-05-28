@@ -38,6 +38,31 @@
   color: #334155;
 }
 
+.fisheries-workflow-step--link {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.fisheries-workflow-step--link:hover {
+  color: #1e40af;
+  text-decoration: underline;
+}
+
+.fisheries-workflow-obs-cta {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+}
+
+.fisheries-workflow-obs-cta a {
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: none;
+}
+
+.fisheries-workflow-obs-cta a:hover {
+  color: #1d4ed8;
+}
+
 .fisheries-workflow-arrow {
   font-size: 0.68rem;
   color: #94a3b8;
@@ -626,5 +651,199 @@
   .fv-next-step-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* —— Observationer (lista) —— */
+
+.fv-obs-shell {
+  max-width: 1120px;
+}
+
+.fv-obs-header {
+  margin-bottom: 0.45rem;
+}
+
+.fv-obs-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.55rem 0.85rem;
+}
+
+.fv-obs-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+
+.fv-obs-back-link {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #475569;
+  text-decoration: none;
+}
+
+.fv-obs-back-link:hover {
+  color: #1d4ed8;
+}
+
+.fv-obs-filter-panel {
+  margin-bottom: 0.55rem;
+  padding: 0.52rem 0.65rem;
+}
+
+.fv-obs-filter-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.fv-obs-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: flex-end;
+}
+
+.fv-obs-filter .form-control,
+.fv-obs-filter .form-select {
+  min-width: 8.5rem;
+  flex: 1 1 8.5rem;
+  max-width: 14rem;
+}
+
+.fv-obs-filter-btn {
+  flex-shrink: 0;
+}
+
+.fv-obs-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.fv-obs-group-card {
+  margin: 0;
+}
+
+.fv-obs-group-card--highlight .ccv2-section-head {
+  background: linear-gradient(180deg, #f8fbff 0%, #fff 100%);
+}
+
+.fv-obs-list .ccv2-action-row {
+  padding: 0.48rem 0.68rem;
+  transition: background 0.12s ease;
+}
+
+.fv-obs-row:hover {
+  background: #f8fafc;
+}
+
+.fv-obs-row-title {
+  color: #0f172a;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.fv-obs-row-title:hover {
+  color: #1d4ed8;
+}
+
+.fv-obs-row-cta {
+  min-height: 2rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+}
+
+.fv-obs-empty {
+  padding: 0.55rem 0.72rem;
+}
+
+.fv-obs-empty .fv-next-step-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fv-obs-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: -0.15rem 0 0.55rem;
+}
+
+.fv-next-step-cta--btn {
+  border: none;
+  cursor: pointer;
+}
+
+.fv-next-step-cta--secondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.62rem;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #334155;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fv-next-step-cta--secondary:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.fv-obs-description {
+  font-size: 0.86rem;
+  color: #1e293b;
+  line-height: 1.45;
+}
+
+.fv-obs-linked-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+@media (max-width: 991.98px) {
+  .fv-obs-header-row {
+    flex-direction: column;
+  }
+
+  .fv-obs-header-actions {
+    width: 100%;
+  }
+
+  .fv-obs-header-actions .fv-next-step-cta {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .fv-obs-filter .form-control,
+  .fv-obs-filter .form-select,
+  .fv-obs-filter-btn {
+    max-width: 100%;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .fv-obs-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 0.35rem;
+  }
+
+  .fv-obs-row-cta {
+    justify-self: start;
+    padding: 0.28rem 0.1rem;
   }
 }

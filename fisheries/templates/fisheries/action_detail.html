@@ -204,6 +204,19 @@
       </article>
 
       <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Observation</h2>
+        {% for obs in action.observations.all %}
+          {% if forloop.first %}
+            <p class="fv-obs-linked-title mb-1">{{ obs.title }}</p>
+            <a href="{% url 'fisheries:observation_detail' obs.pk %}" class="fisheries-empty-cta">Öppna observation →</a>
+          {% endif %}
+        {% empty %}
+          <p class="ccv2-muted small mb-1">Observationer</p>
+          <a href="{% url 'fisheries:observation_list' %}" class="fisheries-empty-cta">Se inkomna observationer från fältet →</a>
+        {% endfor %}
+      </article>
+
+      <article class="ccv2-card fv-detail-card">
         <h2 class="ccv2-card-title">Att tänka på</h2>
         {% if blockers %}
           <ul class="fv-blocker-list">
