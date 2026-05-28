@@ -67,7 +67,19 @@ class ActionLogAdmin(admin.ModelAdmin):
 
 @admin.register(Observation)
 class ObservationAdmin(admin.ModelAdmin):
-    list_display = ("title", "org", "category", "status", "water_body", "linked_action", "is_active")
+    list_display = (
+        "title",
+        "org",
+        "category_display",
+        "status",
+        "water_body",
+        "linked_action",
+        "is_active",
+    )
+
+    @admin.display(description="Kategori", ordering="category")
+    def category_display(self, obj):
+        return obj.get_category_display()
     list_filter = ("org", "category", "status", "is_active")
     search_fields = ("title", "description", "water_body__name", "linked_action__name")
     fields = (

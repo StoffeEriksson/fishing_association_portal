@@ -24,10 +24,15 @@ OBSERVATION_STATUS_LABELS = {
 
 OBSERVATION_CATEGORY_LABELS = {
     ObservationCategory.FISH_STOCK: "Fiskbestånd",
-    ObservationCategory.HABITAT: "Habitat",
+    ObservationCategory.HABITAT: "Biotop & habitat",
     ObservationCategory.WATER_QUALITY: "Vattenkvalitet",
-    ObservationCategory.ILLEGAL_FISHING: "Tjuvfiske",
-    ObservationCategory.INFRASTRUCTURE: "Infrastruktur",
+    ObservationCategory.ILLEGAL_FISHING: "Misstänkt tjuvfiske",
+    ObservationCategory.INFRASTRUCTURE: "Anläggning & infrastruktur",
+    ObservationCategory.FISH_DEATH: "Fiskdöd",
+    ObservationCategory.ENVIRONMENT: "Miljö & nedskräpning",
+    ObservationCategory.WATER_LEVEL: "Vattennivå / erosion",
+    ObservationCategory.MEMBER_SUGGESTION: "Förslag från medlem",
+    ObservationCategory.NEEDS_ACTION: "Behöver beslut",
     ObservationCategory.OTHER: "Övrigt",
 }
 

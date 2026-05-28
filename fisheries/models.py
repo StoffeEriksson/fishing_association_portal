@@ -123,12 +123,17 @@ class ActionLog(OrgModel):
 
 
 class ObservationCategory(models.TextChoices):
-    FISH_STOCK = "fish_stock", "Fish stock"
-    HABITAT = "habitat", "Habitat"
-    WATER_QUALITY = "water_quality", "Water quality"
-    ILLEGAL_FISHING = "illegal_fishing", "Illegal fishing"
-    INFRASTRUCTURE = "infrastructure", "Infrastructure"
-    OTHER = "other", "Other"
+    FISH_STOCK = "fish_stock", "Fiskbestånd"
+    HABITAT = "habitat", "Biotop & habitat"
+    WATER_QUALITY = "water_quality", "Vattenkvalitet"
+    ILLEGAL_FISHING = "illegal_fishing", "Misstänkt tjuvfiske"
+    INFRASTRUCTURE = "infrastructure", "Anläggning & infrastruktur"
+    FISH_DEATH = "fish_death", "Fiskdöd"
+    ENVIRONMENT = "environment", "Miljö & nedskräpning"
+    WATER_LEVEL = "water_level", "Vattennivå / erosion"
+    MEMBER_SUGGESTION = "member_suggestion", "Förslag från medlem"
+    NEEDS_ACTION = "needs_action", "Behöver beslut"
+    OTHER = "other", "Övrigt"
 
 
 class ObservationStatus(models.TextChoices):

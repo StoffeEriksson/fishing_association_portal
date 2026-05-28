@@ -376,9 +376,8 @@ _EMPTY_ACTION_GEOJSON = {"type": "FeatureCollection", "features": []}
 _OBSERVATION_PROCESS_LABELS = ("Observation", "Granskning", "Beslut", "Insats")
 
 _OBSERVATION_IMPORTANCE_BY_CATEGORY = {
-    ObservationCategory.ILLEGAL_FISHING: (
-        "Observationer om misstänkt tjuvfiske bör följas upp snabbt eftersom de kan "
-        "påverka både fiskbestånd och förtroende för förvaltningen."
+    ObservationCategory.FISH_STOCK: (
+        "Observationer om fiskbestånd hjälper styrelsen att följa utvecklingen i vattnen över tid."
     ),
     ObservationCategory.HABITAT: (
         "Habitatobservationer kan vara viktiga underlag för framtida fiskevårdsinsatser."
@@ -386,12 +385,37 @@ _OBSERVATION_IMPORTANCE_BY_CATEGORY = {
     ObservationCategory.WATER_QUALITY: (
         "Vattenkvalitet kan påverka fiskbestånd och bör dokumenteras tydligt."
     ),
+    ObservationCategory.ILLEGAL_FISHING: (
+        "Observationer om misstänkt tjuvfiske bör följas upp snabbt eftersom de kan "
+        "påverka både fiskbestånd och förtroende för förvaltningen."
+    ),
+    ObservationCategory.INFRASTRUCTURE: (
+        "Observationer om anläggningar och infrastruktur hjälper styrelsen att upptäcka "
+        "behov av underhåll eller åtgärder."
+    ),
+    ObservationCategory.FISH_DEATH: (
+        "Fiskdöd bör dokumenteras och följas upp skyndsamt eftersom det kan tyda på "
+        "större problem i vattnet."
+    ),
+    ObservationCategory.ENVIRONMENT: (
+        "Miljö- och nedskräpningsobservationer hjälper föreningen att skydda vattenmiljön "
+        "och prioritera åtgärder."
+    ),
+    ObservationCategory.WATER_LEVEL: (
+        "Förändringar i vattennivå eller erosion kan påverka både habitat, tillgänglighet "
+        "och framtida fiskevårdsinsatser."
+    ),
+    ObservationCategory.MEMBER_SUGGESTION: (
+        "Förslag från medlemmar kan vara viktiga signaler om behov eller förbättringar i området."
+    ),
+    ObservationCategory.NEEDS_ACTION: (
+        "Observationen pekar på något som kan behöva beslut eller åtgärd från styrelsen."
+    ),
+    ObservationCategory.OTHER: (
+        "Observationen hjälper styrelsen att fånga upp signaler från fältet och bedöma "
+        "om en insats behövs."
+    ),
 }
-
-_OBSERVATION_IMPORTANCE_FALLBACK = (
-    "Observationen hjälper styrelsen att fånga upp signaler från fältet och bedöma "
-    "om en insats behövs."
-)
 
 
 def _observation_process_active_index(status):
@@ -429,7 +453,7 @@ def _build_observation_process_steps(status):
 def _build_observation_importance_text(observation):
     return _OBSERVATION_IMPORTANCE_BY_CATEGORY.get(
         observation.category,
-        _OBSERVATION_IMPORTANCE_FALLBACK,
+        _OBSERVATION_IMPORTANCE_BY_CATEGORY[ObservationCategory.OTHER],
     )
 
 
@@ -912,7 +936,10 @@ def observation_create(request):
         return redirect("fisheries:observation_list")
 
     water_bodies = WaterBody.objects.for_org(org).filter(is_active=True).order_by("name")
-    category_choices = Observation._meta.get_field("category").choices
+    category_choices = ObservationCategory.choices
+    category_choices_labeled = [
+        (value, get_observation_category_label(value)) for value, _ in category_choices
+    ]
     valid_category_values = {value for value, _ in category_choices}
 
     if request.method == "POST":
@@ -927,7 +954,7 @@ def observation_create(request):
                 "fisheries/observation_create.html",
                 {
                     "water_bodies": water_bodies,
-                    "category_choices": category_choices,
+                    "category_choices": category_choices_labeled,
                     "error": "Titel är obligatorisk.",
                     "form_data": {
                         "title": title,
@@ -969,7 +996,7 @@ def observation_create(request):
         "fisheries/observation_create.html",
         {
             "water_bodies": water_bodies,
-            "category_choices": category_choices,
+            "category_choices": category_choices_labeled,
             "form_data": {},
         },
     )
