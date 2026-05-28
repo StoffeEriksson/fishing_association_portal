@@ -373,6 +373,65 @@ _OBSERVATION_STATUS_ORDER = (
 
 _EMPTY_ACTION_GEOJSON = {"type": "FeatureCollection", "features": []}
 
+_OBSERVATION_PROCESS_LABELS = ("Observation", "Granskning", "Beslut", "Insats")
+
+_OBSERVATION_IMPORTANCE_BY_CATEGORY = {
+    ObservationCategory.ILLEGAL_FISHING: (
+        "Observationer om misstänkt tjuvfiske bör följas upp snabbt eftersom de kan "
+        "påverka både fiskbestånd och förtroende för förvaltningen."
+    ),
+    ObservationCategory.HABITAT: (
+        "Habitatobservationer kan vara viktiga underlag för framtida fiskevårdsinsatser."
+    ),
+    ObservationCategory.WATER_QUALITY: (
+        "Vattenkvalitet kan påverka fiskbestånd och bör dokumenteras tydligt."
+    ),
+}
+
+_OBSERVATION_IMPORTANCE_FALLBACK = (
+    "Observationen hjälper styrelsen att fånga upp signaler från fältet och bedöma "
+    "om en insats behövs."
+)
+
+
+def _observation_process_active_index(status):
+    if status == ObservationStatus.CLOSED:
+        return 4
+    if status == ObservationStatus.LINKED_TO_ACTION:
+        return 3
+    if status == ObservationStatus.UNDER_REVIEW:
+        return 1
+    if status == ObservationStatus.NEW:
+        return 0
+    return 0
+
+
+def _build_observation_process_steps(status):
+    active_index = _observation_process_active_index(status)
+    labels = list(_OBSERVATION_PROCESS_LABELS)
+    if status == ObservationStatus.CLOSED:
+        labels[-1] = "Klar / Avslutad"
+
+    steps = []
+    for index, label in enumerate(labels):
+        if active_index >= 4:
+            state = "done"
+        elif index < active_index:
+            state = "done"
+        elif index == active_index:
+            state = "active"
+        else:
+            state = "pending"
+        steps.append({"label": label, "state": state})
+    return steps
+
+
+def _build_observation_importance_text(observation):
+    return _OBSERVATION_IMPORTANCE_BY_CATEGORY.get(
+        observation.category,
+        _OBSERVATION_IMPORTANCE_FALLBACK,
+    )
+
 
 def _build_observation_next_step(observation):
     status_label = get_observation_status_label(observation.status)
@@ -380,7 +439,7 @@ def _build_observation_next_step(observation):
     if observation.status == ObservationStatus.CLOSED:
         return {
             "title": "Nästa steg",
-            "body": "Observationen är avslutad.",
+            "body": "Observationen är avslutad och kräver ingen åtgärd.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--done",
             "ctas": [],
@@ -389,7 +448,7 @@ def _build_observation_next_step(observation):
     if observation.status == ObservationStatus.LINKED_TO_ACTION and observation.linked_action_id:
         return {
             "title": "Nästa steg",
-            "body": "Observationen är kopplad till en åtgärd.",
+            "body": "Observationen är kopplad till en insats och kan följas där.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--neutral",
             "ctas": [
@@ -416,7 +475,7 @@ def _build_observation_next_step(observation):
         ]
         return {
             "title": "Nästa steg",
-            "body": "Besluta om detta ska bli en åtgärd.",
+            "body": "Avgör om observationen ska bli en fiskevårdsinsats.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--decision",
             "ctas": ctas,
@@ -437,7 +496,7 @@ def _build_observation_next_step(observation):
         ]
         return {
             "title": "Nästa steg",
-            "body": "Granska observationen.",
+            "body": "Granska signalen från fältet och avgör om styrelsen behöver agera.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--neutral",
             "ctas": ctas,
@@ -508,20 +567,42 @@ def _build_observation_activity_feed(logs, comments):
     return items[:25]
 
 
-def _build_observation_blockers(observation, comment_count):
-    blockers = []
-    if not observation.water_body_id:
-        blockers.append({"icon": "fa-water", "text": "Vattendrag saknas", "kind": "neutral"})
-    if not (observation.description or "").strip():
-        blockers.append({"icon": "fa-file-lines", "text": "Ingen beskrivning ännu", "kind": "neutral"})
-    if not observation.linked_action_id and observation.status in (
-        ObservationStatus.NEW,
-        ObservationStatus.UNDER_REVIEW,
-    ):
-        blockers.append({"icon": "fa-list-check", "text": "Ingen åtgärd skapad ännu", "kind": "warn"})
-    if comment_count == 0:
-        blockers.append({"icon": "fa-comment", "text": "Inga anteckningar ännu", "kind": "neutral"})
-    return blockers
+def _build_observation_checklist(observation, comment_count):
+    has_description = bool((observation.description or "").strip())
+    has_water = bool(observation.water_body_id)
+    has_action = bool(observation.linked_action_id)
+    has_comments = comment_count > 0
+
+    if observation.status == ObservationStatus.CLOSED:
+        return [
+            {
+                "text": "Observationen är avslutad",
+                "ok": True,
+            },
+            {
+                "text": "Insats kopplad" if has_action else "Avslutad utan insats",
+                "ok": True,
+            },
+        ]
+
+    return [
+        {
+            "text": "Insats kopplad" if has_action else "Åtgärd saknas",
+            "ok": has_action,
+        },
+        {
+            "text": "Beskrivning finns" if has_description else "Beskrivning saknas",
+            "ok": has_description,
+        },
+        {
+            "text": "Vattendrag kopplat" if has_water else "Vattendrag saknas",
+            "ok": has_water,
+        },
+        {
+            "text": "Anteckningar finns" if has_comments else "Anteckningar saknas",
+            "ok": has_comments,
+        },
+    ]
 
 
 def _group_observations_by_status(observations):
@@ -1135,7 +1216,9 @@ def observation_detail(request, pk):
             "status_label": get_observation_status_label(observation.status),
             "category_label": get_observation_category_label(observation.category),
             "activity_feed": _build_observation_activity_feed(logs, comments),
-            "blockers": _build_observation_blockers(observation, len(comments)),
+            "process_steps": _build_observation_process_steps(observation.status),
+            "importance_text": _build_observation_importance_text(observation),
+            "readiness_checklist": _build_observation_checklist(observation, len(comments)),
             "create_action_url": reverse(
                 "fisheries:create_action_from_observation",
                 args=[observation.pk],

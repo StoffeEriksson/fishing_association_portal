@@ -49,6 +49,27 @@
     {% endfor %}
   </div>
 
+  <div class="fisheries-workflow fv-detail-flow fv-obs-process" aria-label="Observationens plats i fiskevårdsflödet">
+    <p class="fisheries-workflow-tagline">Signal från fältet → granskning → beslut → insats</p>
+    <div class="fisheries-workflow-steps fv-flow-steps">
+      {% for step in process_steps %}
+        <span class="fv-flow-step fv-flow-step--{{ step.state }}">
+          {% if step.state == "done" %}
+            <i class="fa-solid fa-check fv-flow-icon" aria-hidden="true"></i>
+          {% elif step.state == "active" %}
+            <span class="fv-flow-dot" aria-hidden="true"></span>
+          {% else %}
+            <span class="fv-flow-circle" aria-hidden="true">○</span>
+          {% endif %}
+          {{ step.label }}
+        </span>
+        {% if not forloop.last %}
+          <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
   <section class="fv-next-step-box" aria-labelledby="fv-obs-next-step-heading">
     <div class="fv-next-step-head">
       <h2 id="fv-obs-next-step-heading" class="fv-next-step-title">{{ next_step.title }}</h2>
@@ -81,6 +102,11 @@
 
   <div class="fv-detail-grid">
     <div class="fv-detail-main">
+      <article class="ccv2-card fv-detail-card fv-obs-importance">
+        <h2 class="ccv2-card-title">Varför detta är viktigt</h2>
+        <p class="fv-obs-importance-text mb-0">{{ importance_text }}</p>
+      </article>
+
       <article class="ccv2-card fv-detail-card">
         <h2 class="ccv2-card-title">Beskrivning</h2>
         {% if observation.description %}
@@ -90,7 +116,7 @@
         {% endif %}
       </article>
 
-      <article class="ccv2-card fv-detail-card">
+      <article class="ccv2-card fv-detail-card fv-obs-activity-card">
         <h2 class="ccv2-card-title">Aktivitet</h2>
         {% if activity_feed %}
           <ul class="fv-activity-list">
@@ -105,10 +131,8 @@
             {% endfor %}
           </ul>
         {% else %}
-          <div class="fisheries-card-empty fisheries-card-empty--compact">
-            <p class="fisheries-card-empty-title mb-1">Ingen aktivitet registrerad ännu</p>
-            <p class="fisheries-card-empty-text mb-0">Här visas ändringar och anteckningar när styrelsen börjar granska.</p>
-          </div>
+          <p class="fv-obs-activity-empty-title mb-0">Ingen aktivitet ännu.</p>
+          <p class="fv-obs-activity-empty-text mb-0">Här visas ändringar när styrelsen börjar granska.</p>
         {% endif %}
       </article>
     </div>
@@ -167,26 +191,26 @@
       </article>
 
       <article class="ccv2-card fv-detail-card">
-        <h2 class="ccv2-card-title">Att tänka på</h2>
-        {% if blockers %}
-          <ul class="fv-blocker-list">
-            {% for blocker in blockers %}
-              <li class="fv-blocker-item fv-blocker-item--{{ blocker.kind }}">
-                <i class="fa-solid {{ blocker.icon }}" aria-hidden="true"></i>
-                <span>{{ blocker.text }}</span>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="fv-blocker-ok mb-0">Inget som blockerar just nu.</p>
-        {% endif %}
+        <h2 class="ccv2-card-title">Redo att agera?</h2>
+        <p class="fv-obs-checklist-intro mb-2">Är observationen tillräckligt tydlig för att styrelsen ska kunna agera?</p>
+        <ul class="fv-obs-checklist">
+          {% for item in readiness_checklist %}
+            <li class="fv-obs-checklist-item{% if item.ok %} fv-obs-checklist-item--ok{% else %} fv-obs-checklist-item--missing{% endif %}">
+              <i class="fa-solid {% if item.ok %}fa-check{% else %}fa-circle{% endif %}" aria-hidden="true"></i>
+              <span>{{ item.text }}</span>
+            </li>
+          {% endfor %}
+        </ul>
       </article>
     </aside>
   </div>
 
   <section id="fv-manage-observation" class="fv-manage-section">
-    <details class="fv-manage-panel">
-      <summary class="fv-manage-summary">Hantera observation</summary>
+    <details class="fv-manage-panel fv-manage-panel--obs">
+      <summary class="fv-manage-summary">
+        <span class="fv-manage-summary-title">Hantera observation</span>
+        <span class="fv-manage-summary-desc">Ändra status, komplettera uppgifter eller lägg till anteckning.</span>
+      </summary>
       <div class="fv-manage-body">
         <article class="ccv2-card fv-detail-card fv-manage-card">
           <h3 class="fv-manage-card-title">Uppdatera status</h3>
