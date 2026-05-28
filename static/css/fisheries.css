@@ -1017,3 +1017,205 @@
     padding: 0.28rem 0.1rem;
   }
 }
+
+/* —— Skapa observation / insats —— */
+
+.fv-create-shell {
+  max-width: 1120px;
+}
+
+.fv-create-flow {
+  margin-bottom: 0.45rem;
+  padding: 0.5rem 0.62rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.fv-create-flow .fisheries-workflow-tagline {
+  margin-bottom: 0.32rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #334155;
+}
+
+.fv-create-flow .fv-flow-steps {
+  gap: 0.28rem 0.55rem;
+}
+
+.fv-create-flow .fv-flow-step {
+  font-size: 0.74rem;
+}
+
+.fv-create-flow .fv-flow-step--active {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.fv-create-flow .fv-flow-step--active .fv-flow-dot {
+  width: 0.48rem;
+  height: 0.48rem;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.22);
+}
+
+.fv-create-flow .fisheries-workflow-arrow {
+  opacity: 0.55;
+}
+
+.fv-create-flow-note {
+  margin: 0.32rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.fv-create-form-card .ccv2-card-title {
+  margin-bottom: 0.42rem;
+}
+
+.fv-create-errors {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.52rem 0.62rem;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: linear-gradient(180deg, #fff5f5 0%, #fef2f2 100%);
+  color: #991b1b;
+}
+
+.fv-create-errors .fa-circle-exclamation {
+  margin-top: 0.1rem;
+  font-size: 0.88rem;
+  flex-shrink: 0;
+}
+
+.fv-create-errors-title {
+  margin: 0 0 0.08rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.fv-create-errors-body {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.fv-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.fv-create-field {
+  margin-bottom: 0.28rem;
+}
+
+.fv-create-field:last-of-type {
+  margin-bottom: 0.18rem;
+}
+
+.fv-create-label {
+  display: block;
+  margin-bottom: 0.06rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.fv-create-help {
+  margin: 0 0 0.14rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.32;
+}
+
+.fv-create-form .form-control,
+.fv-create-form .form-select {
+  padding-top: 0.34rem;
+  padding-bottom: 0.34rem;
+  border-color: rgba(148, 163, 184, 0.45);
+  font-size: 0.84rem;
+}
+
+.fv-create-form .form-control:focus,
+.fv-create-form .form-select:focus {
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.fv-create-form .form-control[aria-invalid="true"] {
+  border-color: rgba(220, 38, 38, 0.55);
+}
+
+.fv-create-actions {
+  margin-top: 0.28rem;
+  padding-top: 0.08rem;
+}
+
+.fv-create-submit {
+  border: none;
+  cursor: pointer;
+  padding: 0.46rem 0.95rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 4px 14px rgba(29, 78, 216, 0.22);
+}
+
+.fv-create-submit:hover {
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1), 0 6px 18px rgba(29, 78, 216, 0.28);
+}
+
+.fv-create-aside-card .ccv2-card-title {
+  margin-bottom: 0.38rem;
+}
+
+.fv-create-icon-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+}
+
+.fv-create-icon-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.42rem;
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.38;
+}
+
+.fv-create-icon-list i {
+  margin-top: 0.14rem;
+  width: 0.95rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.fv-create-icon-list--tips i {
+  color: #64748b;
+}
+
+@media (max-width: 991.98px) {
+  .fv-create-flow .fisheries-workflow-steps {
+    flex-wrap: wrap;
+  }
+
+  .fv-create-submit {
+    width: 100%;
+    justify-content: center;
+    padding: 0.48rem 0.75rem;
+  }
+}

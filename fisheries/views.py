@@ -743,27 +743,47 @@ def action_list(request):
     )
 
 
+def _board_action_rows(qs):
+    return [
+        {
+            "action": action,
+            "priority_label": get_action_priority_label(action.priority),
+        }
+        for action in qs
+    ]
+
+
 @login_required
 def action_board(request):
     org = getattr(request, "org", None)
 
     if org is None:
-        urgent_actions = ActionArea.objects.none()
-        needs_action_actions = ActionArea.objects.none()
-        planned_actions = ActionArea.objects.none()
-        in_progress_actions = ActionArea.objects.none()
-        completed_actions = ActionArea.objects.none()
+        urgent_actions = []
+        needs_action_actions = []
+        planned_actions = []
+        in_progress_actions = []
+        completed_actions = []
     else:
         base_qs = (
             ActionArea.objects.for_org(org)
             .filter(is_active=True)
-            .select_related("responsible_user")
+            .select_related("responsible_user", "water_body")
         )
-        urgent_actions = base_qs.filter(status=ActionStatus.URGENT).order_by("-created_at")
-        needs_action_actions = base_qs.filter(status=ActionStatus.NEEDS_ACTION).order_by("-created_at")
-        planned_actions = base_qs.filter(status=ActionStatus.PLANNED).order_by("-created_at")
-        in_progress_actions = base_qs.filter(status=ActionStatus.IN_PROGRESS).order_by("-created_at")
-        completed_actions = base_qs.filter(status=ActionStatus.COMPLETED).order_by("-created_at")
+        urgent_actions = _board_action_rows(
+            base_qs.filter(status=ActionStatus.URGENT).order_by("-created_at")
+        )
+        needs_action_actions = _board_action_rows(
+            base_qs.filter(status=ActionStatus.NEEDS_ACTION).order_by("-created_at")
+        )
+        planned_actions = _board_action_rows(
+            base_qs.filter(status=ActionStatus.PLANNED).order_by("-created_at")
+        )
+        in_progress_actions = _board_action_rows(
+            base_qs.filter(status=ActionStatus.IN_PROGRESS).order_by("-created_at")
+        )
+        completed_actions = _board_action_rows(
+            base_qs.filter(status=ActionStatus.COMPLETED).order_by("-created_at")
+        )
 
     return render(
         request,
@@ -786,6 +806,9 @@ def action_create(request):
 
     water_bodies = WaterBody.objects.for_org(org).filter(is_active=True).order_by("name")
     priority_choices = ActionPriority.choices
+    priority_choices_labeled = [
+        (value, get_action_priority_label(value)) for value, _ in priority_choices
+    ]
     valid_priority_values = {value for value, _ in priority_choices}
 
     if request.method == "POST":
@@ -801,7 +824,7 @@ def action_create(request):
                 "fisheries/action_create.html",
                 {
                     "water_bodies": water_bodies,
-                    "priority_choices": priority_choices,
+                    "priority_choices": priority_choices_labeled,
                     "error": "Namn är obligatoriskt.",
                     "form_data": {
                         "name": name,
@@ -845,7 +868,7 @@ def action_create(request):
         "fisheries/action_create.html",
         {
             "water_bodies": water_bodies,
-            "priority_choices": priority_choices,
+            "priority_choices": priority_choices_labeled,
             "form_data": {},
         },
     )
@@ -1331,7 +1354,9 @@ def action_detail(request, pk):
     org = getattr(request, "org", None)
     status_choices = ActionArea._meta.get_field("status").choices
     valid_status_values = {value for value, _ in status_choices}
-    status_labels = {value: label for value, label in status_choices}
+    status_labels = {
+        value: get_action_status_label(value) for value, _ in status_choices
+    }
     priority_choices = ActionPriority.choices
     valid_priority_values = {value for value, _ in priority_choices}
     responsible_users = (

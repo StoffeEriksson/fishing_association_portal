@@ -1,65 +1,202 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
-{% block title %}Ny åtgärd{% endblock %}
+{% block title %}Ny insats{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
+{% endblock %}
 
 {% block content %}
-  <div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-      <h1 class="h3 mb-1">Ny åtgärd</h1>
-      <div class="text-muted small">Skapa en ny fiskevårdsåtgärd.</div>
+
+<div class="dashboard-shell fisheries-shell fv-detail-shell fv-create-shell">
+  <header class="fv-detail-header">
+    <div class="fv-detail-header-top">
+      <a href="{% url 'fisheries:action_list' %}" class="fv-detail-back">← Till insatser</a>
     </div>
-    <a href="{% url 'fisheries:action_list' %}" class="btn btn-outline-secondary btn-sm">
-      Tillbaka till lista
-    </a>
+    <h1 class="ccv2-title mb-1">Ny insats</h1>
+    <p class="ccv2-subtitle mb-0">
+      Planera en fiskevårdsinsats som kan följas upp av styrelsen.
+    </p>
+  </header>
+
+  <div class="fisheries-workflow fv-detail-flow fv-create-flow" aria-label="Insatsens plats i fiskevårdsflödet">
+    <p class="fisheries-workflow-tagline">Beslut → Planerad → Pågår → Klar / Uppföljning</p>
+    <div class="fisheries-workflow-steps fv-flow-steps">
+      <span class="fv-flow-step fv-flow-step--pending">
+        <span class="fv-flow-circle" aria-hidden="true">○</span>
+        Beslut
+      </span>
+      <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+      <span class="fv-flow-step fv-flow-step--active">
+        <span class="fv-flow-dot" aria-hidden="true"></span>
+        Planerad
+      </span>
+      <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+      <span class="fv-flow-step fv-flow-step--pending">
+        <span class="fv-flow-circle" aria-hidden="true">○</span>
+        Pågår
+      </span>
+      <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+      <span class="fv-flow-step fv-flow-step--pending">
+        <span class="fv-flow-circle" aria-hidden="true">○</span>
+        Klar / Uppföljning
+      </span>
+    </div>
+    <p class="fv-create-flow-note">
+      Insatsen kan följas genom hela fiskevårdsarbetet.
+    </p>
   </div>
 
-  <div class="card shadow-soft">
-    <div class="card-body">
-      {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-      {% endif %}
-      <form method="post">
-        {% csrf_token %}
-        <div class="mb-3">
-          <label for="id_name" class="form-label">Namn</label>
-          <input id="id_name" name="name" type="text" class="form-control" value="{{ form_data.name|default:'' }}" required>
-        </div>
+  <div class="fv-detail-grid fv-create-grid">
+    <div class="fv-detail-main">
+      <article class="ccv2-card fv-detail-card fv-create-form-card">
+        <h2 class="ccv2-card-title">Planera insats</h2>
 
-        <div class="mb-3">
-          <label for="id_description" class="form-label">Beskrivning</label>
-          <textarea id="id_description" name="description" class="form-control" rows="4">{{ form_data.description|default:'' }}</textarea>
-        </div>
+        {% if error %}
+          <div class="fv-create-errors" role="alert">
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            <div>
+              <p class="fv-create-errors-title">Kunde inte spara</p>
+              <p class="fv-create-errors-body">{{ error }}</p>
+            </div>
+          </div>
+        {% endif %}
 
-        <div class="mb-3">
-          <label for="id_water_body" class="form-label">Vatten</label>
-          <select id="id_water_body" name="water_body" class="form-select">
-            <option value="">—</option>
-            {% for water in water_bodies %}
-              <option value="{{ water.pk }}" {% if form_data.water_body == water.pk|stringformat:"s" %}selected{% endif %}>
-                {{ water.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
+        <form method="post" class="fv-create-form" novalidate>
+          {% csrf_token %}
 
-        <div class="mb-3">
-          <label for="id_priority" class="form-label">Prioritet</label>
-          <select id="id_priority" name="priority" class="form-select">
-            {% for value, label in priority_choices %}
-              <option value="{{ value }}" {% if form_data.priority == value %}selected{% endif %}>
-                {{ label }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
+          <div class="fv-create-field">
+            <label for="id_name" class="fv-create-label">Namn</label>
+            <p class="fv-create-help" id="help_name">Ge insatsen ett tydligt namn.</p>
+            <input
+              id="id_name"
+              name="name"
+              type="text"
+              class="form-control"
+              value="{{ form_data.name|default:'' }}"
+              aria-describedby="help_name"
+              required
+              {% if error %}aria-invalid="true"{% endif %}
+            >
+          </div>
 
-        <div class="mb-3">
-          <label for="id_deadline" class="form-label">Deadline</label>
-          <input id="id_deadline" name="deadline" type="date" class="form-control" value="{{ form_data.deadline|default:'' }}">
-        </div>
+          <div class="fv-create-field">
+            <label for="id_description" class="fv-create-label">Beskrivning</label>
+            <p class="fv-create-help" id="help_description">
+              Beskriv vad som behöver göras och varför.
+            </p>
+            <textarea
+              id="id_description"
+              name="description"
+              class="form-control"
+              rows="4"
+              aria-describedby="help_description"
+            >{{ form_data.description|default:'' }}</textarea>
+          </div>
 
-        <button type="submit" class="btn btn-dark">Skapa åtgärd</button>
-      </form>
+          <div class="fv-create-field">
+            <label for="id_water_body" class="fv-create-label">Vatten</label>
+            <p class="fv-create-help" id="help_water_body">Koppla insatsen till rätt vattenområde.</p>
+            <select
+              id="id_water_body"
+              name="water_body"
+              class="form-select"
+              aria-describedby="help_water_body"
+            >
+              <option value="">— Välj vatten —</option>
+              {% for water in water_bodies %}
+                <option value="{{ water.pk }}" {% if form_data.water_body == water.pk|stringformat:"s" %}selected{% endif %}>
+                  {{ water.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="fv-create-field">
+            <label for="id_priority" class="fv-create-label">Prioritet</label>
+            <p class="fv-create-help" id="help_priority">Hjälper styrelsen att prioritera arbetet.</p>
+            <select
+              id="id_priority"
+              name="priority"
+              class="form-select"
+              aria-describedby="help_priority"
+            >
+              {% for value, label in priority_choices %}
+                <option value="{{ value }}" {% if form_data.priority == value %}selected{% endif %}>
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="fv-create-field">
+            <label for="id_deadline" class="fv-create-label">Deadline</label>
+            <p class="fv-create-help" id="help_deadline">Sätt ett datum om insatsen behöver följas upp.</p>
+            <input
+              id="id_deadline"
+              name="deadline"
+              type="date"
+              class="form-control"
+              value="{{ form_data.deadline|default:'' }}"
+              aria-describedby="help_deadline"
+            >
+          </div>
+
+          <div class="fv-create-actions">
+            <button type="submit" class="fv-next-step-cta fv-create-submit">Planera insats</button>
+          </div>
+        </form>
+      </article>
     </div>
+
+    <aside class="fv-detail-aside fv-create-aside">
+      <article class="ccv2-card fv-detail-card fv-create-aside-card">
+        <h2 class="ccv2-card-title">Vad händer sedan?</h2>
+        <ul class="fv-create-icon-list">
+          <li>
+            <i class="fa-solid fa-thumbtack" aria-hidden="true"></i>
+            <span>Insatsen planeras</span>
+          </li>
+          <li>
+            <i class="fa-solid fa-user-check" aria-hidden="true"></i>
+            <span>Ansvarig kan utses</span>
+          </li>
+          <li>
+            <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+            <span>Arbetet följs upp</span>
+          </li>
+        </ul>
+      </article>
+
+      <article class="ccv2-card fv-detail-card fv-create-aside-card">
+        <h2 class="ccv2-card-title">Bra att tänka på</h2>
+        <ul class="fv-create-icon-list fv-create-icon-list--tips">
+          <li>
+            <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
+            <span>Sätt tydlig deadline</span>
+          </li>
+          <li>
+            <i class="fa-solid fa-water" aria-hidden="true"></i>
+            <span>Koppla rätt vatten</span>
+          </li>
+          <li>
+            <i class="fa-solid fa-clipboard-list" aria-hidden="true"></i>
+            <span>Beskriv vad som ska göras</span>
+          </li>
+          <li>
+            <i class="fa-solid fa-signal" aria-hidden="true"></i>
+            <span>Prioritera rätt</span>
+          </li>
+        </ul>
+      </article>
+    </aside>
   </div>
+</div>
+
 {% endblock %}

@@ -1,58 +1,183 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
 {% block title %}Ny observation{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
+{% endblock %}
+
 {% block content %}
-  <div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-      <h1 class="h3 mb-1">Ny observation</h1>
-      <div class="text-muted small">Skapa en ny observation i fiskevårdsmodulen.</div>
+
+<div class="dashboard-shell fisheries-shell fv-detail-shell fv-create-shell">
+  <header class="fv-detail-header">
+    <div class="fv-detail-header-top">
+      <a href="{% url 'fisheries:observation_list' %}" class="fv-detail-back">← Till observationer</a>
     </div>
-    <a href="{% url 'fisheries:observation_list' %}" class="btn btn-outline-secondary btn-sm">
-      Tillbaka till lista
-    </a>
+    <h1 class="ccv2-title mb-1">Ny observation</h1>
+    <p class="ccv2-subtitle mb-0">
+      Rapportera en signal från fältet som styrelsen kan granska.
+    </p>
+  </header>
+
+  <div class="fisheries-workflow fv-detail-flow fv-create-flow" aria-label="Observationens plats i fiskevårdsflödet">
+    <p class="fisheries-workflow-tagline">Observation → Granskning → Beslut → Insats</p>
+    <div class="fisheries-workflow-steps fv-flow-steps">
+      <span class="fv-flow-step fv-flow-step--active">
+        <span class="fv-flow-dot" aria-hidden="true"></span>
+        Observation
+      </span>
+      <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+      <span class="fv-flow-step fv-flow-step--pending">
+        <span class="fv-flow-circle" aria-hidden="true">○</span>
+        Granskning
+      </span>
+      <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+      <span class="fv-flow-step fv-flow-step--pending">
+        <span class="fv-flow-circle" aria-hidden="true">○</span>
+        Beslut
+      </span>
+      <span class="fisheries-workflow-arrow" aria-hidden="true">→</span>
+      <span class="fv-flow-step fv-flow-step--pending">
+        <span class="fv-flow-circle" aria-hidden="true">○</span>
+        Insats
+      </span>
+    </div>
+    <p class="fv-create-flow-note">
+      Det du rapporterar här blir ett underlag för styrelsens fiskevårdsarbete.
+    </p>
   </div>
 
-  <div class="card shadow-soft">
-    <div class="card-body">
-      {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-      {% endif %}
-      <form method="post">
-        {% csrf_token %}
-        <div class="mb-3">
-          <label for="id_title" class="form-label">Titel</label>
-          <input id="id_title" name="title" type="text" class="form-control" value="{{ form_data.title|default:'' }}" required>
-        </div>
+  <div class="fv-detail-grid fv-create-grid">
+    <div class="fv-detail-main">
+      <article class="ccv2-card fv-detail-card fv-create-form-card">
+        <h2 class="ccv2-card-title">Rapportera observation</h2>
 
-        <div class="mb-3">
-          <label for="id_category" class="form-label">Kategori</label>
-          <select id="id_category" name="category" class="form-select">
-            {% for value, label in category_choices %}
-              <option value="{{ value }}" {% if form_data.category == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
+        {% if error %}
+          <div class="fv-create-errors" role="alert">
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            <div>
+              <p class="fv-create-errors-title">Kunde inte spara</p>
+              <p class="fv-create-errors-body">{{ error }}</p>
+            </div>
+          </div>
+        {% endif %}
 
-        <div class="mb-3">
-          <label for="id_water_body" class="form-label">Vatten</label>
-          <select id="id_water_body" name="water_body" class="form-select">
-            <option value="">—</option>
-            {% for water in water_bodies %}
-              <option value="{{ water.pk }}" {% if form_data.water_body == water.pk|stringformat:"s" %}selected{% endif %}>
-                {{ water.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
+        <form method="post" class="fv-create-form" novalidate>
+          {% csrf_token %}
 
-        <div class="mb-3">
-          <label for="id_description" class="form-label">Beskrivning</label>
-          <textarea id="id_description" name="description" class="form-control" rows="4">{{ form_data.description|default:'' }}</textarea>
-        </div>
+          <div class="fv-create-field">
+            <label for="id_title" class="fv-create-label">Titel</label>
+            <p class="fv-create-help" id="help_title">Skriv kort vad du har observerat.</p>
+            <input
+              id="id_title"
+              name="title"
+              type="text"
+              class="form-control"
+              value="{{ form_data.title|default:'' }}"
+              aria-describedby="help_title"
+              required
+              {% if error %}aria-invalid="true"{% endif %}
+            >
+          </div>
 
-        <button type="submit" class="btn btn-dark">Skapa observation</button>
-      </form>
+          <div class="fv-create-field">
+            <label for="id_category" class="fv-create-label">Kategori</label>
+            <p class="fv-create-help" id="help_category">Välj den kategori som bäst beskriver observationen.</p>
+            <select
+              id="id_category"
+              name="category"
+              class="form-select"
+              aria-describedby="help_category"
+            >
+              {% for value, label in category_choices %}
+                <option value="{{ value }}" {% if form_data.category == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="fv-create-field">
+            <label for="id_water_body" class="fv-create-label">Vatten</label>
+            <p class="fv-create-help" id="help_water_body">Koppla observationen till rätt vatten om möjligt.</p>
+            <select
+              id="id_water_body"
+              name="water_body"
+              class="form-select"
+              aria-describedby="help_water_body"
+            >
+              <option value="">— Välj vatten —</option>
+              {% for water in water_bodies %}
+                <option value="{{ water.pk }}" {% if form_data.water_body == water.pk|stringformat:"s" %}selected{% endif %}>
+                  {{ water.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="fv-create-field">
+            <label for="id_description" class="fv-create-label">Beskrivning</label>
+            <p class="fv-create-help" id="help_description">
+              Beskriv vad du såg, var det var och om något behöver följas upp.
+            </p>
+            <textarea
+              id="id_description"
+              name="description"
+              class="form-control"
+              rows="4"
+              aria-describedby="help_description"
+            >{{ form_data.description|default:'' }}</textarea>
+          </div>
+
+          <div class="fv-create-actions">
+            <button type="submit" class="fv-next-step-cta fv-create-submit">Rapportera observation</button>
+          </div>
+        </form>
+      </article>
     </div>
+
+    <aside class="fv-detail-aside fv-create-aside">
+      <article class="ccv2-card fv-detail-card fv-create-aside-card">
+        <h2 class="ccv2-card-title">Vad händer sedan?</h2>
+        <ul class="fv-create-icon-list">
+          <li>
+            <i class="fa-solid fa-thumbtack" aria-hidden="true"></i>
+            <span>Observationen sparas</span>
+          </li>
+          <li>
+            <i class="fa-solid fa-eye" aria-hidden="true"></i>
+            <span>Styrelsen granskar den</span>
+          </li>
+          <li>
+            <i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
+            <span>Kan bli en fiskevårdsinsats</span>
+          </li>
+        </ul>
+      </article>
+
+      <article class="ccv2-card fv-detail-card fv-create-aside-card">
+        <h2 class="ccv2-card-title">Tips för en bra observation</h2>
+        <ul class="fv-create-icon-list fv-create-icon-list--tips">
+          <li>
+            <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+            <span>Beskriv plats tydligt</span>
+          </li>
+          <li>
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            <span>Skriv om något är akut</span>
+          </li>
+          <li>
+            <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+            <span>Lägg till detaljer som hjälper styrelsen</span>
+          </li>
+        </ul>
+      </article>
+    </aside>
   </div>
+</div>
+
 {% endblock %}
