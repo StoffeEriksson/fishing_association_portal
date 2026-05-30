@@ -90,6 +90,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'portal.views.portal_account_topbar',
+                'fvo_portal.settings.fiskekartan_map_context',
             ],
         },
     },
@@ -164,3 +165,29 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+
+# Extern Fiskekarta / FVOF-overlay (maps)
+FISKEKARTAN_FVOF_ENABLED = os.getenv("FISKEKARTAN_FVOF_ENABLED", "True") == "True"
+FISKEKARTAN_FVOF_MAPSERVER_URL = os.getenv(
+    "FISKEKARTAN_FVOF_MAPSERVER_URL",
+    "https://ext-geodata-applikationer.lansstyrelsen.se/arcgis/rest/services/"
+    "SvenskaFiskekartan/lst_svenskafiskekartan_webbgis/MapServer",
+)
+FISKEKARTAN_FVOF_LAYER_ID = int(os.getenv("FISKEKARTAN_FVOF_LAYER_ID", "1"))
+FISKEKARTAN_FVOF_QUERY_ENABLED = os.getenv("FISKEKARTAN_FVOF_QUERY_ENABLED", "True") == "True"
+FISKEKARTAN_ATTRIBUTION = os.getenv(
+    "FISKEKARTAN_ATTRIBUTION",
+    "Källa: Länsstyrelsen / Fiskekartan (CC0)",
+)
+
+
+def fiskekartan_map_context(request):
+    return {
+        "fiskekartan_map_config": {
+            "enabled": FISKEKARTAN_FVOF_ENABLED,
+            "mapserver_url": FISKEKARTAN_FVOF_MAPSERVER_URL,
+            "layer_id": FISKEKARTAN_FVOF_LAYER_ID,
+            "attribution": FISKEKARTAN_ATTRIBUTION,
+        },
+    }

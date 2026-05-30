@@ -28,20 +28,72 @@
       </div>
     {% endif %}
 
-    <div class="map-layer-toggles mb-3" role="group" aria-label="Kartlager">
-      <div class="form-check form-check-inline">
-        <input class="form-check-input" type="checkbox" id="toggle-areas" checked>
-        <label class="form-check-label" for="toggle-areas">Visa områden</label>
+    <div class="map-layer-panel mb-3">
+      <div class="map-layer-panel-section" role="radiogroup" aria-label="Karttyp">
+        <div class="map-layer-panel-title">Karttyp</div>
+        <div class="map-layer-basemap-options">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="basemap-type"
+              id="basemap-topographic"
+              value="topographic"
+              checked
+            >
+            <label class="form-check-label" for="basemap-topographic">Topografisk</label>
+          </div>
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="radio"
+              name="basemap-type"
+              id="basemap-satellite"
+              value="satellite"
+            >
+            <label class="form-check-label" for="basemap-satellite">Satellit</label>
+          </div>
+        </div>
       </div>
-      <div class="form-check form-check-inline">
-        <input class="form-check-input" type="checkbox" id="toggle-waters" checked>
-        <label class="form-check-label" for="toggle-waters">Visa vatten</label>
-      </div>
-      <div class="form-check form-check-inline">
-        <input class="form-check-input" type="checkbox" id="toggle-actions" checked>
-        <label class="form-check-label" for="toggle-actions">Visa åtgärder</label>
+
+      {% if fiskekartan_map_config.enabled %}
+        <div class="map-layer-panel-section" role="group" aria-label="Officiella lager">
+          <div class="map-layer-panel-title">Officiella lager</div>
+          <div class="map-layer-toggles">
+            <div class="form-check form-check-inline">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="toggle-fvof"
+                checked
+              >
+              <label class="form-check-label" for="toggle-fvof">
+                FVO-gränser
+              </label>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="map-layer-panel-section" role="group" aria-label="Egna kartlager">
+        <div class="map-layer-panel-title">Ert arbete</div>
+        <div class="map-layer-toggles">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="toggle-areas" checked>
+            <label class="form-check-label" for="toggle-areas">Områden</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="toggle-waters" checked>
+            <label class="form-check-label" for="toggle-waters">Vatten</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="toggle-actions" checked>
+            <label class="form-check-label" for="toggle-actions">Åtgärder</label>
+          </div>
+        </div>
       </div>
     </div>
+
     <div class="map-action-status-toggles mb-3" role="group" aria-label="Åtgärdsstatus">
       <div class="form-check form-check-inline">
         <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-urgent" value="urgent" checked>
@@ -69,6 +121,8 @@
   </div>
 
   {{ geojson_data|json_script:"map-geojson-data" }}
+  {{ fvof_focus|json_script:"fvof-focus-data" }}
+  {{ fiskekartan_map_config|json_script:"fiskekartan-map-config" }}
   <script id="map-meta" type="application/json">
     {"has_org": {{ has_org|yesno:"true,false" }}, "org_name": "{{ org_name|escapejs }}", "selected_action_id": {% if selected_action_id %}{{ selected_action_id }}{% else %}null{% endif %}, "selected_water_id": {% if selected_water_id %}{{ selected_water_id }}{% else %}null{% endif %}}
   </script>
@@ -80,6 +134,11 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
+  {% if fiskekartan_map_config.enabled %}
+    <script
+      src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"
+      crossorigin=""
+    ></script>
+  {% endif %}
   <script src="{% static 'maps/js/map_page.js' %}"></script>
 {% endblock %}
-
