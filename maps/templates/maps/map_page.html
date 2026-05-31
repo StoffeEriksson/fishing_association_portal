@@ -1,7 +1,7 @@
 {% extends "portal/base.html" %}
 {% load static %}
 
-{% block title %}Kartvy{% endblock %}
+{% block title %}Karta{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'maps/css/map_page.css' %}">
@@ -14,13 +14,33 @@
 {% endblock %}
 
 {% block content %}
-  <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-start mb-3">
-      <div>
-        <h1 class="h3 mb-1">Kartvy</h1>
-        <p class="text-muted mb-0">MVP: testkarta med klickbar GeoJSON-yta.</p>
-      </div>
-    </div>
+  <div class="container py-3 py-md-4 map-page-shell">
+    <header class="map-page-header mb-3">
+      <h1 class="map-page-title mb-1">Karta</h1>
+      <p class="map-page-subtitle mb-0">
+        Se fiskevårdsområdet tillsammans med vatten, gränser och föreningens arbete.
+      </p>
+      {% if fvof_focus.found and fvof_focus.name %}
+        <p class="map-focus-chip mb-0" role="status">
+          Fokuserar på: {{ fvof_focus.name }}
+        </p>
+      {% endif %}
+      {% if has_org and fvof_focus.found %}
+        <form
+          method="post"
+          action="{% url 'maps:import_fvo_boundary' %}"
+          class="map-import-fvo-form"
+        >
+          {% csrf_token %}
+          <button type="submit" class="map-import-fvo-btn">
+            Importera FVO-gräns
+          </button>
+          <p class="map-import-fvo-help mb-0">
+            Hämtar den officiella gränsen från Fiskekartan och sparar som föreningens område.
+          </p>
+        </form>
+      {% endif %}
+    </header>
 
     {% if not has_org %}
       <div class="alert alert-secondary mb-3" role="status">
@@ -28,96 +48,156 @@
       </div>
     {% endif %}
 
-    <div class="map-layer-panel mb-3">
-      <div class="map-layer-panel-section" role="radiogroup" aria-label="Karttyp">
-        <div class="map-layer-panel-title">Karttyp</div>
-        <div class="map-layer-basemap-options">
-          <div class="form-check">
-            <input
-              class="form-check-input"
-              type="radio"
-              name="basemap-type"
-              id="basemap-topographic"
-              value="topographic"
-              checked
-            >
-            <label class="form-check-label" for="basemap-topographic">Topografisk</label>
-          </div>
-          <div class="form-check">
-            <input
-              class="form-check-input"
-              type="radio"
-              name="basemap-type"
-              id="basemap-satellite"
-              value="satellite"
-            >
-            <label class="form-check-label" for="basemap-satellite">Satellit</label>
-          </div>
-        </div>
-      </div>
-
-      {% if fiskekartan_map_config.enabled %}
-        <div class="map-layer-panel-section" role="group" aria-label="Officiella lager">
-          <div class="map-layer-panel-title">Officiella lager</div>
-          <div class="map-layer-toggles">
-            <div class="form-check form-check-inline">
+    <div class="map-workspace">
+      <aside class="map-control-card" aria-label="Kartinställningar">
+        <div class="map-layer-panel-section" role="radiogroup" aria-label="Karttyp">
+          <div class="map-layer-panel-title">Karttyp</div>
+          <div class="map-layer-basemap-options">
+            <div class="form-check">
               <input
                 class="form-check-input"
-                type="checkbox"
-                id="toggle-fvof"
+                type="radio"
+                name="basemap-type"
+                id="basemap-topographic"
+                value="topographic"
                 checked
               >
-              <label class="form-check-label" for="toggle-fvof">
-                FVO-gränser
-              </label>
+              <label class="form-check-label" for="basemap-topographic">Topografisk</label>
+            </div>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="radio"
+                name="basemap-type"
+                id="basemap-satellite"
+                value="satellite"
+              >
+              <label class="form-check-label" for="basemap-satellite">Satellit</label>
             </div>
           </div>
         </div>
-      {% endif %}
 
-      <div class="map-layer-panel-section" role="group" aria-label="Egna kartlager">
-        <div class="map-layer-panel-title">Ert arbete</div>
-        <div class="map-layer-toggles">
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="checkbox" id="toggle-areas" checked>
-            <label class="form-check-label" for="toggle-areas">Områden</label>
+        {% if fiskekartan_map_config.enabled %}
+          <div class="map-layer-panel-section" role="group" aria-label="Officiella lager">
+            <div class="map-layer-panel-title">Officiella lager</div>
+            <div class="map-layer-toggles">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="toggle-fvof"
+                  checked
+                >
+                <label class="form-check-label" for="toggle-fvof">
+                  FVO-gränser
+                </label>
+              </div>
+            </div>
           </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="checkbox" id="toggle-waters" checked>
-            <label class="form-check-label" for="toggle-waters">Vatten</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="checkbox" id="toggle-actions" checked>
-            <label class="form-check-label" for="toggle-actions">Åtgärder</label>
+        {% endif %}
+
+        <div class="map-layer-panel-section" role="group" aria-label="Föreningens lager">
+          <div class="map-layer-panel-title">Föreningens lager</div>
+          <div class="map-layer-toggles">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="toggle-areas" checked>
+              <label class="form-check-label" for="toggle-areas">Områden</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="toggle-waters" checked>
+              <label class="form-check-label" for="toggle-waters">Vatten</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="toggle-actions" checked>
+              <label class="form-check-label" for="toggle-actions">Insatser</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="toggle-observations" checked>
+              <label class="form-check-label" for="toggle-observations">Observationer</label>
+            </div>
           </div>
         </div>
+
+        {% if has_org and waterbodies and import_viss_waterbody_id %}
+          <div class="map-layer-panel-section map-import-viss-section" role="group" aria-label="Importera vatten">
+            <div class="map-layer-panel-title">Importera vatten</div>
+            <form
+              method="post"
+              id="map-import-viss-form"
+              class="map-import-viss-form"
+              action="{% url 'maps:import_waterbody_from_viss' import_viss_waterbody_id %}"
+            >
+              {% csrf_token %}
+              <label class="map-import-viss-label" for="map-import-viss-waterbody">Vatten</label>
+              <select
+                class="form-select form-select-sm map-import-viss-select"
+                id="map-import-viss-waterbody"
+                aria-label="Välj vatten"
+              >
+                {% for wb in waterbodies %}
+                  <option
+                    value="{{ wb.pk }}"
+                    data-import-url="{% url 'maps:import_waterbody_from_viss' wb.pk %}"
+                    {% if import_viss_waterbody_id == wb.pk %}selected{% endif %}
+                  >
+                    {{ wb.name }}
+                  </option>
+                {% endfor %}
+              </select>
+              <label class="map-import-viss-label" for="map-import-viss-ms-cd">MS_CD</label>
+              <input
+                type="text"
+                class="form-control form-control-sm map-import-viss-input"
+                id="map-import-viss-ms-cd"
+                name="viss_ms_cd"
+                form="map-import-viss-form"
+                value="{{ import_viss_ms_cd }}"
+                placeholder="t.ex. WA87530405"
+                maxlength="50"
+                autocomplete="off"
+                required
+              >
+              <button type="submit" class="map-import-viss-btn" form="map-import-viss-form">
+                Importera från VISS
+              </button>
+            </form>
+            <p class="map-import-viss-help mb-0">
+              Hämtar sjöpolygon från VISS/Länsstyrelsens karttjänst och sparar på valt vatten.
+            </p>
+          </div>
+        {% endif %}
+
+        <div class="map-layer-panel-section" role="group" aria-label="Status för insatser">
+          <div class="map-layer-panel-title">Status för insatser</div>
+          <div class="map-action-status-toggles">
+            <div class="form-check">
+              <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-urgent" value="urgent" checked>
+              <label class="form-check-label" for="toggle-action-status-urgent">Akut</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-needs-action" value="needs_action" checked>
+              <label class="form-check-label" for="toggle-action-status-needs-action">Behöver beslut</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-planned" value="planned" checked>
+              <label class="form-check-label" for="toggle-action-status-planned">Planerad</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-in-progress" value="in_progress" checked>
+              <label class="form-check-label" for="toggle-action-status-in-progress">Pågår</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-completed" value="completed" checked>
+              <label class="form-check-label" for="toggle-action-status-completed">Klar</label>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="map-canvas-wrap">
+        <div id="map-page-map" aria-label="Interaktiv karta"></div>
       </div>
     </div>
-
-    <div class="map-action-status-toggles mb-3" role="group" aria-label="Åtgärdsstatus">
-      <div class="form-check form-check-inline">
-        <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-urgent" value="urgent" checked>
-        <label class="form-check-label" for="toggle-action-status-urgent">Urgent</label>
-      </div>
-      <div class="form-check form-check-inline">
-        <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-needs-action" value="needs_action" checked>
-        <label class="form-check-label" for="toggle-action-status-needs-action">Needs action</label>
-      </div>
-      <div class="form-check form-check-inline">
-        <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-planned" value="planned" checked>
-        <label class="form-check-label" for="toggle-action-status-planned">Planned</label>
-      </div>
-      <div class="form-check form-check-inline">
-        <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-in-progress" value="in_progress" checked>
-        <label class="form-check-label" for="toggle-action-status-in-progress">In progress</label>
-      </div>
-      <div class="form-check form-check-inline">
-        <input class="form-check-input js-action-status-toggle" type="checkbox" id="toggle-action-status-completed" value="completed" checked>
-        <label class="form-check-label" for="toggle-action-status-completed">Completed</label>
-      </div>
-    </div>
-
-    <div id="map-page-map"></div>
   </div>
 
   {{ geojson_data|json_script:"map-geojson-data" }}
@@ -133,7 +213,8 @@
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
-  ></script>
+  >
+  </script>
   {% if fiskekartan_map_config.enabled %}
     <script
       src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"
@@ -141,4 +222,23 @@
     ></script>
   {% endif %}
   <script src="{% static 'maps/js/map_page.js' %}"></script>
+  {% if has_org and waterbodies and import_viss_waterbody_id %}
+    <script>
+      (function () {
+        var form = document.getElementById("map-import-viss-form");
+        var select = document.getElementById("map-import-viss-waterbody");
+        if (!form || !select) {
+          return;
+        }
+        function syncImportAction() {
+          var option = select.options[select.selectedIndex];
+          if (option && option.dataset.importUrl) {
+            form.action = option.dataset.importUrl;
+          }
+        }
+        select.addEventListener("change", syncImportAction);
+        syncImportAction();
+      })();
+    </script>
+  {% endif %}
 {% endblock %}
