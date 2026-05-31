@@ -31,11 +31,45 @@
         </div>
       </div>
       <div class="ccv2-status-chips">
-        <span class="ccv2-chip">Totalt: {{ water_count }}</span>
+        <span class="ccv2-chip">Totalt: {{ health_summary.total_water_count }}</span>
       </div>
     </header>
 
     {% if water_rows %}
+      <section class="waterbody-health-summary" aria-label="Vattenhälsa">
+        <div class="waterbody-health-summary-grid">
+          <div class="waterbody-health-summary-stat">
+            <span class="waterbody-health-summary-value">{{ health_summary.total_water_count }}</span>
+            <span class="waterbody-health-summary-label">Totalt vatten</span>
+          </div>
+          <div class="waterbody-health-summary-stat waterbody-health-summary-stat--good">
+            <span class="waterbody-health-summary-value">{{ health_summary.eco_good_count }}</span>
+            <span class="waterbody-health-summary-label">God status</span>
+          </div>
+          <div class="waterbody-health-summary-stat waterbody-health-summary-stat--moderate">
+            <span class="waterbody-health-summary-value">{{ health_summary.eco_moderate_count }}</span>
+            <span class="waterbody-health-summary-label">Måttlig status</span>
+          </div>
+          <div class="waterbody-health-summary-stat waterbody-health-summary-stat--bad">
+            <span class="waterbody-health-summary-value">{{ health_summary.eco_bad_count }}</span>
+            <span class="waterbody-health-summary-label">Otillfredsställande</span>
+          </div>
+          <div class="waterbody-health-summary-stat waterbody-health-summary-stat--risk">
+            <span class="waterbody-health-summary-value">{{ health_summary.risk_count }}</span>
+            <span class="waterbody-health-summary-label">Riskvatten</span>
+          </div>
+          <div class="waterbody-health-summary-stat waterbody-health-summary-stat--neutral">
+            <span class="waterbody-health-summary-value">{{ health_summary.unclassified_count }}</span>
+            <span class="waterbody-health-summary-label">Ej klassade</span>
+          </div>
+        </div>
+        {% if health_summary.health_snapshot_count == 0 %}
+          <p class="waterbody-health-summary-empty mb-0">
+            VISS-hälsa har inte hämtats ännu.
+          </p>
+        {% endif %}
+      </section>
+
       <article class="ccv2-card waterbody-list-card">
         <div class="table-responsive">
           <table class="table waterbody-list-table mb-0">
@@ -43,6 +77,7 @@
               <tr>
                 <th scope="col">Namn</th>
                 <th scope="col">Typ</th>
+                <th scope="col" class="waterbody-list-health-col">Hälsa</th>
                 <th scope="col">VISS-ID</th>
                 <th scope="col" class="text-end">Observationer</th>
                 <th scope="col" class="text-end">Insatser</th>
@@ -61,6 +96,23 @@
                     </a>
                   </td>
                   <td>{{ row.water_type_label }}</td>
+                  <td class="waterbody-list-health-cell">
+                    <span
+                      class="waterbody-list-health-indicator{% if row.has_risk %} waterbody-list-health-indicator--risk{% endif %}"
+                      title="Ekologisk status: {{ row.health_status_label }}{% if row.has_risk %}. Risk finns.{% endif %}"
+                      aria-label="Ekologisk status: {{ row.health_status_label }}{% if row.has_risk %}. Risk finns.{% endif %}"
+                    >
+                      <span
+                        class="waterbody-list-health-dot waterbody-list-health-dot--{{ row.health_tone }}"
+                        aria-hidden="true"
+                      ></span>
+                      {% if row.has_risk %}
+                        <span class="waterbody-list-health-risk-mark" aria-hidden="true">
+                          <i class="fa-solid fa-triangle-exclamation"></i>
+                        </span>
+                      {% endif %}
+                    </span>
+                  </td>
                   <td>
                     {% if row.water_body.viss_ms_cd %}
                       <code class="waterbody-detail-code">{{ row.water_body.viss_ms_cd }}</code>

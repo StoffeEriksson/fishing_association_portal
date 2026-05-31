@@ -21,7 +21,7 @@ from fisheries.labels import (
 )
 from fisheries.models import ActionArea, ActionStatus, Observation
 
-from .models import MapBoundary, WaterBody, WaterBodyType
+from .models import MapBoundary, WaterBody, WaterBodyHealthSnapshot, WaterBodyType
 from .services.fvo_onboarding import run_fvo_onboarding as execute_fvo_onboarding
 from .services.fvo_onboarding import save_fvo_boundary_for_org
 from .services.viss import (
@@ -866,6 +866,82 @@ def _format_external_source_label(external_source):
     return external_source
 
 
+def _health_snapshot_for_water_body(water_body):
+    try:
+        return water_body.health_snapshot
+    except WaterBodyHealthSnapshot.DoesNotExist:
+        return None
+
+
+def _water_health_row_display(snapshot):
+    if snapshot is None:
+        return {
+            "health_tone": "neutral",
+            "health_status_label": "Ej klassad",
+            "has_risk": False,
+        }
+
+    if (snapshot.fetch_error or "").strip():
+        return {
+            "health_tone": "neutral",
+            "health_status_label": "Status saknas",
+            "has_risk": False,
+        }
+
+    eco_tone = snapshot.eco_tone or "neutral"
+    eco_status = (snapshot.eco_status or "").strip()
+
+    if eco_tone == "neutral" or not eco_status:
+        health_status_label = "Ej klassad"
+    else:
+        health_status_label = eco_status
+
+    return {
+        "health_tone": eco_tone,
+        "health_status_label": health_status_label,
+        "has_risk": bool(snapshot.risk_flag),
+    }
+
+
+def _build_water_health_summary(water_bodies):
+    summary = {
+        "total_water_count": len(water_bodies),
+        "health_snapshot_count": 0,
+        "eco_good_count": 0,
+        "eco_moderate_count": 0,
+        "eco_bad_count": 0,
+        "risk_count": 0,
+        "unclassified_count": 0,
+    }
+
+    for water_body in water_bodies:
+        snapshot = _health_snapshot_for_water_body(water_body)
+        if snapshot is None:
+            summary["unclassified_count"] += 1
+            continue
+
+        summary["health_snapshot_count"] += 1
+
+        if (snapshot.fetch_error or "").strip():
+            summary["unclassified_count"] += 1
+            continue
+
+        eco_tone = snapshot.eco_tone or "neutral"
+        if eco_tone == "good":
+            summary["eco_good_count"] += 1
+        elif eco_tone == "moderate":
+            summary["eco_moderate_count"] += 1
+        elif eco_tone == "bad":
+            summary["eco_bad_count"] += 1
+        else:
+            summary["unclassified_count"] += 1
+
+        if snapshot.risk_flag:
+            summary["risk_count"] += 1
+
+    return summary
+
+
 @login_required
 def waterbody_list(request):
     org = getattr(request, "org", None)
@@ -879,6 +955,7 @@ def waterbody_list(request):
     water_bodies = (
         WaterBody.objects.for_org(org)
         .filter(is_active=True)
+        .select_related("health_snapshot")
         .annotate(
             observation_count=Count(
                 "observations",
@@ -900,19 +977,28 @@ def waterbody_list(request):
         .order_by("name", "id")
     )
 
-    water_rows = [
-        {
-            "water_body": water_body,
-            "water_type_label": water_body.get_water_type_display(),
-            "observation_count": water_body.observation_count,
-            "action_count": water_body.action_count,
-        }
-        for water_body in water_bodies
-    ]
+    water_bodies_list = list(water_bodies)
+    health_summary = _build_water_health_summary(water_bodies_list)
+
+    water_rows = []
+    for water_body in water_bodies_list:
+        health_display = _water_health_row_display(
+            _health_snapshot_for_water_body(water_body)
+        )
+        water_rows.append(
+            {
+                "water_body": water_body,
+                "water_type_label": water_body.get_water_type_display(),
+                "observation_count": water_body.observation_count,
+                "action_count": water_body.action_count,
+                **health_display,
+            }
+        )
 
     context = {
         "water_rows": water_rows,
         "water_count": len(water_rows),
+        "health_summary": health_summary,
     }
     return render(request, "maps/waterbody_list.html", context)
 
