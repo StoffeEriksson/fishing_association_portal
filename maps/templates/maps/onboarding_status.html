@@ -16,7 +16,7 @@
     <header class="viss-import-preview-header">
       <h1 class="viss-import-preview-title">FVO-onboarding</h1>
       <p class="viss-import-preview-subtitle mb-0">
-        Importerar FVO-gräns från Fiskekartan och vatten från VISS i ett steg.
+        Importerar FVO-gräns från Fiskekartan, vatten och VISS-hälsa i ett steg.
         {% if org_name %}
           <span class="viss-import-preview-org">{{ org_name }}</span>
         {% endif %}
@@ -56,6 +56,14 @@
           {% if result.waters_skipped %}
             <li>{{ result.waters_skipped }} hoppades över</li>
           {% endif %}
+          {% if result.health_skipped %}
+            <li>{{ result.health_skipped }} hälsoprofiler hoppades över (VISS API saknas)</li>
+          {% elif result.health_updated or result.health_failed %}
+            <li>{{ result.health_updated }} hälsoprofiler uppdaterade</li>
+            {% if result.health_failed %}
+              <li>{{ result.health_failed }} hälsoprofiler misslyckades</li>
+            {% endif %}
+          {% endif %}
         </ul>
 
         {% if result.errors %}
@@ -71,8 +79,8 @@
       </div>
     {% else %}
       <p class="text-secondary mb-3">
-        Processen hämtar officiell FVO-gräns baserat på organisationens namn och importerar
-        sedan alla vattenförekomster som skär gränsen från VISS.
+        Processen hämtar officiell FVO-gräns baserat på organisationens namn, importerar
+        alla vattenförekomster som skär gränsen från VISS och sparar VISS-hälsa lokalt.
       </p>
       <form method="post" action="{% url 'maps:run_fvo_onboarding' %}">
         {% csrf_token %}

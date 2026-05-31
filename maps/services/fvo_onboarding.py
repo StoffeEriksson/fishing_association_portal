@@ -1,8 +1,10 @@
 import json
 import logging
 
-from maps.models import MapBoundary
-from maps.services.viss import import_viss_waters_for_org
+from django.conf import settings
+
+from maps.models import MapBoundary, WaterBody
+from maps.services.viss import import_viss_waters_for_org, update_waterbody_health_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,9 @@ def _onboarding_result(
     waters_skipped=0,
     lakes=0,
     rivers=0,
+    health_updated=0,
+    health_failed=0,
+    health_skipped=0,
     errors=None,
 ):
     return {
@@ -34,6 +39,9 @@ def _onboarding_result(
         "waters_skipped": waters_skipped,
         "lakes": lakes,
         "rivers": rivers,
+        "health_updated": health_updated,
+        "health_failed": health_failed,
+        "health_skipped": health_skipped,
         "errors": list(errors or []),
     }
 
@@ -110,6 +118,74 @@ def save_fvo_boundary_for_org(org, matched_fvof):
     }
 
 
+def _prefetch_health_snapshots_for_org(org):
+    """
+    Best-effort: uppdatera VISS-hälsa för alla aktiva vatten i org.
+
+    Returnerar health_updated, health_failed, health_skipped och extra errors.
+    """
+    water_bodies = list(
+        WaterBody.objects.for_org(org).filter(is_active=True).order_by("name", "id")
+    )
+    total_waters = len(water_bodies)
+
+    api_key = (getattr(settings, "VISS_API_KEY", None) or "").strip()
+    if not api_key:
+        logger.info(
+            "FVO onboarding health prefetch skipped for org %r: VISS_API_KEY missing.",
+            org.pk,
+        )
+        return {
+            "health_updated": 0,
+            "health_failed": 0,
+            "health_skipped": total_waters,
+            "errors": [],
+        }
+
+    health_updated = 0
+    health_failed = 0
+    errors = []
+
+    for water_body in water_bodies:
+        label = (water_body.name or "").strip() or f"Vatten {water_body.pk}"
+        try:
+            snapshot, error_message = update_waterbody_health_snapshot(water_body)
+        except Exception as exc:
+            logger.warning(
+                "FVO onboarding health prefetch failed for water %r in org %r: %s",
+                water_body.pk,
+                org.pk,
+                exc,
+            )
+            health_failed += 1
+            errors.append(f"{label}: kunde inte spara hälsoprofil.")
+            continue
+
+        if error_message:
+            health_failed += 1
+            errors.append(f"{label}: {error_message}")
+            continue
+
+        if snapshot is None:
+            health_failed += 1
+            errors.append(f"{label}: hälsoprofil kunde inte skapas.")
+            continue
+
+        if (snapshot.fetch_error or "").strip():
+            health_failed += 1
+            errors.append(f"{label}: {snapshot.fetch_error}")
+            continue
+
+        health_updated += 1
+
+    return {
+        "health_updated": health_updated,
+        "health_failed": health_failed,
+        "health_skipped": 0,
+        "errors": errors,
+    }
+
+
 def run_fvo_onboarding(org):
     """
     Kör FVO-onboarding för en organisation:
@@ -117,6 +193,7 @@ def run_fvo_onboarding(org):
     1. Hitta FVO-gräns i Fiskekartan
     2. Spara MapBoundary
     3. Importera alla VISS-vatten inom gränsen
+    4. Hämta och spara VISS-hälsa (best effort)
     """
     if org is None:
         return _onboarding_result(errors=["Ingen organisation angiven."])
@@ -165,6 +242,13 @@ def run_fvo_onboarding(org):
     if waters_imported == 0 and errors:
         base["success"] = False
         return base
+
+    health_result = _prefetch_health_snapshots_for_org(org)
+    base["health_updated"] = health_result["health_updated"]
+    base["health_failed"] = health_result["health_failed"]
+    base["health_skipped"] = health_result["health_skipped"]
+    if health_result["errors"]:
+        base["errors"].extend(health_result["errors"])
 
     base["success"] = True
     return base
