@@ -5,7 +5,61 @@
   const areaToggle = document.getElementById("toggle-areas");
   const waterToggle = document.getElementById("toggle-waters");
   const actionToggle = document.getElementById("toggle-actions");
+  const observationToggle = document.getElementById("toggle-observations");
   const actionStatusToggles = document.querySelectorAll(".js-action-status-toggle");
+
+  const ACTION_STATUS_LABELS = {
+    urgent: "Akut",
+    needs_action: "Behöver beslut",
+    planned: "Planerad",
+    in_progress: "Pågår",
+    completed: "Klar",
+  };
+
+  function getActionStatusLabel(status) {
+    if (!status) {
+      return "Ej angiven";
+    }
+    return ACTION_STATUS_LABELS[status] || status;
+  }
+
+  const OBSERVATION_MARKER_STYLE = {
+    radius: 7,
+    color: "#ffffff",
+    weight: 2,
+    fillColor: "#9333ea",
+    fillOpacity: 0.9,
+  };
+
+  function buildObservationPopupHtml(properties) {
+    const title = properties?.title || "Observation";
+    const categoryLabel = properties?.category_label || "Ej angiven";
+    const statusLabel = properties?.status_label || "Ej angiven";
+    const waterName = properties?.water_body_name || "Ej kopplat";
+    const createdAt = properties?.created_at || "—";
+    const excerpt = (properties?.description_excerpt || "").trim();
+    const detailUrl = properties?.detail_url || "#";
+
+    let popupHtml =
+      `<div class="map-popup-observation">` +
+      `<strong>${title}</strong>` +
+      `<div class="map-popup-observation-meta">` +
+      `Kategori: ${categoryLabel}<br>` +
+      `Status: ${statusLabel}<br>` +
+      `Vatten: ${waterName}<br>` +
+      `Skapad: ${createdAt}` +
+      `</div>`;
+
+    if (excerpt) {
+      popupHtml += `<p class="map-popup-observation-excerpt">${excerpt}</p>`;
+    }
+
+    popupHtml +=
+      `<a class="map-popup-observation-link" href="${detailUrl}">Öppna observation →</a>` +
+      `</div>`;
+
+    return popupHtml;
+  }
 
   if (
     !mapElement ||
@@ -198,8 +252,23 @@
 
   initFvofOverlay();
 
+  const AREA_LAYER_STYLE = {
+    color: "#4f46e5",
+    weight: 2.5,
+    fillColor: "#a5b4fc",
+    fillOpacity: 0.1,
+    dashArray: "6 4",
+  };
+
+  function getAreaLayerStyle() {
+    return { ...AREA_LAYER_STYLE };
+  }
+
   function getFeatureStyle(feature) {
     const type = feature.properties?.type;
+    if (type === "area") {
+      return getAreaLayerStyle();
+    }
     if (type === "water") {
       return {
         color: "#0e7490",
@@ -254,12 +323,7 @@
         };
       }
     }
-    return {
-      color: "#1d4ed8",
-      weight: 2,
-      fillColor: "#60a5fa",
-      fillOpacity: 0.05,
-    };
+    return getAreaLayerStyle();
   }
 
   function bindFeatureInteractions(feature, featureLayer) {
@@ -270,16 +334,39 @@
       : [];
 
     let popupHtml = `<strong>${name}</strong>`;
-    if (type === "water") {
+    if (type === "area") {
+      popupHtml =
+        `<div class="map-popup-area">` +
+        `<div class="map-popup-area-label">Föreningens område</div>` +
+        `<strong>${name}</strong>` +
+        `</div>`;
+    } else if (type === "water") {
       const fishText = fish.length > 0 ? fish.join(", ") : "Inga registrerade arter";
       popupHtml += `<br>Fiskarter: ${fishText}`;
     } else if (type === "action") {
-      const statusLabel = feature.properties?.status_label || feature.properties?.status || "Ej angiven";
+      const statusLabel = getActionStatusLabel(feature.properties?.status);
       popupHtml += `<br>Status: ${statusLabel}`;
     }
     featureLayer.bindPopup(popupHtml);
 
-    if (type === "water") {
+    if (type === "area") {
+      featureLayer.on("mouseover", function () {
+        featureLayer.setStyle({
+          color: "#4338ca",
+          fillColor: "#a5b4fc",
+          weight: 3.5,
+          fillOpacity: 0.16,
+          dashArray: "6 4",
+        });
+        if (typeof featureLayer.bringToFront === "function") {
+          featureLayer.bringToFront();
+        }
+      });
+
+      featureLayer.on("mouseout", function () {
+        featureLayer.setStyle(getAreaLayerStyle());
+      });
+    } else if (type === "water") {
       featureLayer.on("mouseover", function () {
         featureLayer.setStyle({
           color: "#0f4c5c",
@@ -339,6 +426,11 @@
       return feature.properties?.type === "action";
     }
   );
+  const observationFeatures = (geojsonData.features || []).filter(
+    function (feature) {
+      return feature.properties?.type === "observation";
+    }
+  );
 
   const areaLayer = L.geoJSON(
     { type: "FeatureCollection", features: areaFeatures },
@@ -395,6 +487,65 @@
 
     if (shouldBeVisible) {
       actionLayer.addTo(map);
+    }
+  }
+
+  const observationLayer = L.layerGroup();
+
+  function buildObservationLayer() {
+    observationLayer.clearLayers();
+
+    observationFeatures.forEach(function (feature) {
+      const coordinates = feature.geometry?.coordinates;
+      if (!Array.isArray(coordinates) || coordinates.length < 2) {
+        return;
+      }
+
+      const lng = Number(coordinates[0]);
+      const lat = Number(coordinates[1]);
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+        return;
+      }
+
+      const marker = L.circleMarker([lat, lng], OBSERVATION_MARKER_STYLE);
+      marker.bindPopup(buildObservationPopupHtml(feature.properties || {}));
+
+      marker.on("mouseover", function () {
+        marker.setStyle({
+          radius: 9,
+          weight: 2,
+        });
+        if (typeof marker.bringToFront === "function") {
+          marker.bringToFront();
+        }
+      });
+
+      marker.on("mouseout", function () {
+        marker.setStyle({
+          radius: OBSERVATION_MARKER_STYLE.radius,
+          weight: OBSERVATION_MARKER_STYLE.weight,
+        });
+      });
+
+      observationLayer.addLayer(marker);
+    });
+  }
+
+  buildObservationLayer();
+
+  function updateObservationLayerVisibility() {
+    if (!observationToggle) {
+      return;
+    }
+    if (observationToggle.checked) {
+      if (!map.hasLayer(observationLayer)) {
+        observationLayer.addTo(map);
+        if (typeof observationLayer.bringToFront === "function") {
+          observationLayer.bringToFront();
+        }
+      }
+    } else if (map.hasLayer(observationLayer)) {
+      map.removeLayer(observationLayer);
     }
   }
 
@@ -504,6 +655,7 @@
     waterLayer.addTo(map);
   }
   rebuildActionLayer();
+  updateObservationLayerVisibility();
   applyInitialMapView();
 
   function updateLayerVisibility() {
@@ -530,11 +682,16 @@
     } else if (map.hasLayer(actionLayer)) {
       map.removeLayer(actionLayer);
     }
+
+    updateObservationLayerVisibility();
   }
 
   areaToggle.addEventListener("change", updateLayerVisibility);
   waterToggle.addEventListener("change", updateLayerVisibility);
   actionToggle.addEventListener("change", updateLayerVisibility);
+  if (observationToggle) {
+    observationToggle.addEventListener("change", updateLayerVisibility);
+  }
   actionStatusToggles.forEach(function (toggle) {
     toggle.addEventListener("change", function () {
       rebuildActionLayer();
