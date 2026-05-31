@@ -1,0 +1,154 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Papperskorg — fiskevård{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-shell fisheries-shell fv-trash-shell">
+  <header class="ccv2-header fv-obs-header">
+    <div class="fv-obs-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Papperskorg</h1>
+        <p class="ccv2-subtitle mb-0">
+          Borttagna observationer och insatser kan återställas eller raderas permanent.
+        </p>
+      </div>
+      <div class="fv-obs-header-actions">
+        <a href="{% url 'fisheries:observation_list' %}" class="fv-obs-back-link">Observationer</a>
+        <a href="{% url 'fisheries:action_list' %}" class="fv-obs-back-link">Insatser</a>
+        <a href="{% url 'fisheries:overview' %}" class="fv-obs-back-link">← Till fiskevård</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="ccv2-card fv-detail-card mb-3">
+    <h2 class="ccv2-card-title">Aktiva poster</h2>
+    <p class="mb-0 ccv2-muted">
+      {{ active_observation_count }} observationer och {{ active_action_count }} insatser är inte i papperskorgen.
+    </p>
+  </article>
+
+  {% if active_observation_count or active_action_count %}
+    <article class="ccv2-card fv-detail-card mb-3 fv-trash-bulk-card">
+      <h2 class="ccv2-card-title">Flytta allt till papperskorgen</h2>
+      <p class="fv-create-help mb-2">
+        Alla aktiva observationer och insatser flyttas hit så du kan återställa eller radera dem permanent senare.
+        Inget raderas direkt.
+      </p>
+      <form method="post" class="fv-trash-bulk-form">
+        {% csrf_token %}
+        <input type="hidden" name="action_type" value="move_all_to_trash">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="confirm" value="yes" id="confirm-move-all" required>
+          <label class="form-check-label" for="confirm-move-all">
+            Jag vill flytta {{ active_observation_count }} observationer och {{ active_action_count }} insatser till papperskorgen
+          </label>
+        </div>
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Flytta allt till papperskorgen</button>
+      </form>
+    </article>
+  {% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-lg-6">
+      <article class="ccv2-card fv-detail-card h-100">
+        <h2 class="ccv2-card-title">Observationer i papperskorgen ({{ trashed_observations|length }})</h2>
+        {% if trashed_observations %}
+          <ul class="fv-trash-list list-unstyled mb-0">
+            {% for observation in trashed_observations %}
+              <li class="fv-trash-item">
+                <div class="fv-trash-item-main">
+                  <strong>{{ observation.title }}</strong>
+                  <span class="ccv2-muted small d-block">
+                    Borttagen {{ observation.deleted_at|date:"Y-m-d H:i" }}
+                    {% if observation.deleted_by %}
+                      · {% if observation.deleted_by.get_full_name %}{{ observation.deleted_by.get_full_name }}{% else %}{{ observation.deleted_by.email|default:observation.deleted_by.username }}{% endif %}
+                    {% endif %}
+                  </span>
+                </div>
+                <div class="fv-trash-item-actions">
+                  <form method="post" action="{% url 'fisheries:restore_observation' observation.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">Återställ</button>
+                  </form>
+                  <form method="post" action="{% url 'fisheries:purge_observation' observation.pk %}" onsubmit="return confirm('Radera observationen permanent? Detta går inte att ångra.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Radera permanent</button>
+                  </form>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="ccv2-muted mb-0">Inga observationer i papperskorgen.</p>
+        {% endif %}
+      </article>
+    </div>
+    <div class="col-lg-6">
+      <article class="ccv2-card fv-detail-card h-100">
+        <h2 class="ccv2-card-title">Insatser i papperskorgen ({{ trashed_actions|length }})</h2>
+        {% if trashed_actions %}
+          <ul class="fv-trash-list list-unstyled mb-0">
+            {% for action in trashed_actions %}
+              <li class="fv-trash-item">
+                <div class="fv-trash-item-main">
+                  <strong>{{ action.name }}</strong>
+                  <span class="ccv2-muted small d-block">
+                    Borttagen {{ action.deleted_at|date:"Y-m-d H:i" }}
+                    {% if action.deleted_by %}
+                      · {% if action.deleted_by.get_full_name %}{{ action.deleted_by.get_full_name }}{% else %}{{ action.deleted_by.email|default:action.deleted_by.username }}{% endif %}
+                    {% endif %}
+                  </span>
+                </div>
+                <div class="fv-trash-item-actions">
+                  <form method="post" action="{% url 'fisheries:restore_action' action.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">Återställ</button>
+                  </form>
+                  <form method="post" action="{% url 'fisheries:purge_action' action.pk %}" onsubmit="return confirm('Radera insatsen permanent? Detta går inte att ångra.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Radera permanent</button>
+                  </form>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="ccv2-muted mb-0">Inga insatser i papperskorgen.</p>
+        {% endif %}
+      </article>
+    </div>
+  </div>
+
+  {% if trashed_observations or trashed_actions %}
+    <article class="ccv2-card fv-detail-card fv-trash-danger-card">
+      <h2 class="ccv2-card-title text-danger">Töm papperskorgen</h2>
+      <p class="fv-create-help mb-2">
+        Raderar permanent alla {{ trashed_observations|length }} observationer och {{ trashed_actions|length }} insatser i papperskorgen, inklusive loggar och anteckningar.
+      </p>
+      <form method="post" class="fv-trash-bulk-form">
+        {% csrf_token %}
+        <input type="hidden" name="action_type" value="empty_trash">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="confirm" value="yes" id="confirm-empty-trash" required>
+          <label class="form-check-label" for="confirm-empty-trash">
+            Jag förstår att detta inte går att ångra
+          </label>
+        </div>
+        <button type="submit" class="btn btn-danger btn-sm">Töm papperskorgen permanent</button>
+      </form>
+    </article>
+  {% endif %}
+</div>
+
+{% endblock %}

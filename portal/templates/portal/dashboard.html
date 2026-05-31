@@ -46,7 +46,9 @@
             <div class="ccv2-action-row {% if item.label == 'Förfallen fiskevårdsåtgärd' %}ccv2-priority-critical{% elif item.priority == 'critical' %}ccv2-priority-critical{% elif item.priority == 'high' %}ccv2-priority-high{% elif item.due_at %}ccv2-priority-deadline{% else %}ccv2-priority-normal{% endif %}">
               <div class="ccv2-action-main">
                 <div class="ccv2-action-label">
-                  {% if item.label == 'Förfallen fiskevårdsåtgärd' or item.priority == 'critical' %}
+                  {% if item.kind == "observation" %}
+                    🟡 KRÄVER UPPMÄRKSAMHET
+                  {% elif item.label == 'Förfallen fiskevårdsåtgärd' or item.priority == 'critical' %}
                     🔴 KRITISK
                   {% elif item.priority == 'high' %}
                     🟠 SNART DEADLINE
@@ -58,6 +60,12 @@
                 </div>
                 <div class="ccv2-action-title">{{ item.title }}</div>
                 <div class="ccv2-action-meta">
+                  {% if item.summary %}
+                    <span>{{ item.summary }}</span>
+                  {% endif %}
+                  {% if item.water_name %}
+                    <span>{{ item.water_name }}</span>
+                  {% endif %}
                   {% if item.label == 'Förfallen fiskevårdsåtgärd' %}
                     <span>Försenad åtgärd</span>
                   {% endif %}
@@ -66,6 +74,8 @@
                   {% endif %}
                   {% if item.source == "documents" %}
                     <span>Dokument</span>
+                  {% elif item.source_detail == "Observation" %}
+                    <span>Fiskevård · Observation</span>
                   {% elif item.source == "fisheries" %}
                     <span>Fiskevård</span>
                   {% endif %}

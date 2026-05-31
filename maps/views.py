@@ -28,6 +28,65 @@ from .services.viss import (
 
 logger = logging.getLogger(__name__)
 
+_VALID_MAP_PAGE_MODES = frozenset(
+    {
+        "create_observation",
+        "create_action",
+        "pick_observation",
+        "pick_action",
+    }
+)
+
+_MAP_PICK_RETURN_URLS = {
+    "pick_observation": "/fisheries/observations/create/",
+    "pick_action": "/fisheries/actions/create/",
+}
+
+_OBSERVATION_PICK_DETAIL_RE = re.compile(r"^/fisheries/observations/(\d+)/?$")
+_ACTION_PICK_DETAIL_RE = re.compile(r"^/fisheries/actions/(\d+)/?$")
+
+
+def _validate_pick_return_url(mode, return_url, org):
+    default = _MAP_PICK_RETURN_URLS.get(mode)
+    if not return_url:
+        return default
+
+    path = urllib.parse.urlparse(return_url).path
+    if not path.startswith("/fisheries/"):
+        return default
+
+    if mode == "pick_observation":
+        create_path = reverse("fisheries:observation_create")
+        if path == create_path or path == f"{create_path}/":
+            return path if path.endswith("/") else create_path
+        match = _OBSERVATION_PICK_DETAIL_RE.match(path)
+        if match and org is not None:
+            pk = int(match.group(1))
+            if Observation.objects.for_org(org).not_trashed().filter(pk=pk).exists():
+                return path
+    elif mode == "pick_action":
+        create_path = reverse("fisheries:action_create")
+        if path == create_path or path == f"{create_path}/":
+            return path if path.endswith("/") else create_path
+        match = _ACTION_PICK_DETAIL_RE.match(path)
+        if match and org is not None:
+            pk = int(match.group(1))
+            if ActionArea.objects.for_org(org).not_trashed().filter(pk=pk).exists():
+                return path
+
+    return default
+
+
+def _resolve_map_page_mode(request, org=None):
+    mode = (request.GET.get("mode") or "").strip()
+    if mode not in _VALID_MAP_PAGE_MODES:
+        return None, None
+    if mode.startswith("pick_"):
+        return_url = (request.GET.get("return") or "").strip()
+        validated = _validate_pick_return_url(mode, return_url, org)
+        return mode, validated
+    return mode, None
+
 FVOF_QUERY_TIMEOUT_SECONDS = 3
 VISS_LAKE_QUERY_TIMEOUT_SECONDS = 5
 VISS_LAKE_MAPSERVER_URL = (
@@ -128,23 +187,39 @@ def _observation_geometry_source(observation):
     return None
 
 
+def _observation_map_coordinates(observation):
+    if observation.latitude is not None and observation.longitude is not None:
+        return [float(observation.longitude), float(observation.latitude)]
+
+    geometry_source = _observation_geometry_source(observation)
+    if not geometry_source:
+        return None
+    return _geometry_bbox_center(geometry_source)
+
+
+def _action_map_geometry(action):
+    if action.latitude is not None and action.longitude is not None:
+        return {
+            "type": "Point",
+            "coordinates": [float(action.longitude), float(action.latitude)],
+        }
+    return action.geojson
+
+
 def _build_observation_map_features(org):
     if org is None:
         return []
 
     observations = (
         Observation.objects.for_org(org)
-        .filter(is_active=True)
-        .select_related("water_body", "linked_action")
+        .not_trashed()
+        .filter(linked_action__isnull=True)
+        .select_related("water_body")
     )
     features = []
 
     for observation in observations:
-        geometry_source = _observation_geometry_source(observation)
-        if not geometry_source:
-            continue
-
-        center = _geometry_bbox_center(geometry_source)
+        center = _observation_map_coordinates(observation)
         if not center:
             logger.info(
                 "Observation %s skipped on map: could not derive point from geometry.",
@@ -156,6 +231,9 @@ def _build_observation_map_features(org):
         if observation.water_body:
             water_body_name = observation.water_body.name
 
+        has_exact_position = (
+            observation.latitude is not None and observation.longitude is not None
+        )
         features.append(
             {
                 "type": "Feature",
@@ -165,6 +243,7 @@ def _build_observation_map_features(org):
                 },
                 "properties": {
                     "type": "observation",
+                    "exact_position": has_exact_position,
                     "id": observation.pk,
                     "title": observation.title,
                     "category": observation.category,
@@ -381,10 +460,22 @@ def map_page(request):
     org = getattr(request, "org", None)
     selected_action_id = None
     selected_water_id = None
+    selected_observation_id = None
+
+    observation_id = (request.GET.get("observation_id") or "").strip()
+    if org and observation_id.isdigit():
+        selected_observation = Observation.objects.for_org(org).not_trashed().filter(
+            pk=observation_id,
+        ).first()
+        if selected_observation:
+            if selected_observation.linked_action_id:
+                selected_action_id = selected_observation.linked_action_id
+            else:
+                selected_observation_id = selected_observation.pk
 
     action_id = (request.GET.get("action_id") or "").strip()
     if org and action_id.isdigit():
-        selected_action = ActionArea.objects.for_org(org).filter(pk=action_id, is_active=True).first()
+        selected_action = ActionArea.objects.for_org(org).not_trashed().filter(pk=action_id).first()
         if selected_action:
             selected_action_id = selected_action.pk
 
@@ -442,11 +533,15 @@ def map_page(request):
                 }
             )
 
-        action_areas = ActionArea.objects.for_org(org).filter(is_active=True)
+        action_areas = ActionArea.objects.for_org(org).not_trashed()
         for action in action_areas:
-            if not action.geojson:
+            geometry = _action_map_geometry(action)
+            if not geometry:
                 continue
             status_label = ActionStatus(action.status).label
+            has_exact_position = (
+                action.latitude is not None and action.longitude is not None
+            )
             features.append(
                 {
                     "type": "Feature",
@@ -457,8 +552,9 @@ def map_page(request):
                         "fish": [],
                         "status": action.status,
                         "status_label": status_label,
+                        "exact_position": has_exact_position,
                     },
-                    "geometry": action.geojson,
+                    "geometry": geometry,
                 }
             )
 
@@ -479,7 +575,12 @@ def map_page(request):
         "name": "",
         "geojson": None,
     }
-    if org and selected_action_id is None and selected_water_id is None:
+    if (
+        org
+        and selected_action_id is None
+        and selected_water_id is None
+        and selected_observation_id is None
+    ):
         matched_fvof = fetch_fvof_focus_for_org(org.name)
         if matched_fvof:
             fvof_focus = matched_fvof
@@ -502,6 +603,8 @@ def map_page(request):
 
     import_viss_ms_cd = (request.GET.get("viss_ms_cd") or "").strip()[:50]
 
+    map_create_mode, map_pick_return_url = _resolve_map_page_mode(request, org)
+
     has_map_boundary = False
     if org:
         has_map_boundary = MapBoundary.objects.for_org(org).filter(
@@ -516,9 +619,12 @@ def map_page(request):
         "org_name": org.name if org else "",
         "selected_action_id": selected_action_id,
         "selected_water_id": selected_water_id,
+        "selected_observation_id": selected_observation_id,
         "waterbodies": waterbodies,
         "import_viss_waterbody_id": import_viss_waterbody_id,
         "import_viss_ms_cd": import_viss_ms_cd,
+        "map_create_mode": map_create_mode,
+        "map_pick_return_url": map_pick_return_url,
     }
     response = render(request, "maps/map_page.html", context)
     response["Cache-Control"] = "no-store, max-age=0"
@@ -794,7 +900,8 @@ def waterbody_detail(request, waterbody_id):
 
     observations = (
         Observation.objects.for_org(org)
-        .filter(water_body=water_body, is_active=True)
+        .not_trashed()
+        .filter(water_body=water_body)
         .select_related("linked_action")
         .order_by("-created_at", "-id")
     )
@@ -809,7 +916,8 @@ def waterbody_detail(request, waterbody_id):
 
     actions = (
         ActionArea.objects.for_org(org)
-        .filter(water_body=water_body, is_active=True)
+        .not_trashed()
+        .filter(water_body=water_body)
         .select_related("responsible_user")
         .order_by("-created_at", "-id")
     )

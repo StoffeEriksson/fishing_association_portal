@@ -53,6 +53,13 @@ class ActionAreaAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "Kartposition",
+            {
+                "fields": ("latitude", "longitude"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
             "Planering",
             {
                 "fields": ("deadline", "estimated_cost", "actual_cost"),
@@ -126,17 +133,31 @@ class ObservationAdmin(admin.ModelAdmin):
 
     list_filter = ("org", "category", "status", "is_active")
     search_fields = ("title", "description", "water_body__name", "linked_action__name")
-    fields = (
-        "org",
-        "title",
-        "category",
-        "water_body",
-        "linked_action",
-        "description",
-        "status",
-        "created_by",
-        "updated_by",
-        "is_active",
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "org",
+                    "title",
+                    "category",
+                    "water_body",
+                    "linked_action",
+                    "description",
+                    "status",
+                    "created_by",
+                    "updated_by",
+                    "is_active",
+                ),
+            },
+        ),
+        (
+            "Kartposition",
+            {
+                "fields": ("latitude", "longitude"),
+                "classes": ("collapse",),
+            },
+        ),
     )
     raw_id_fields = ("water_body", "linked_action")
 

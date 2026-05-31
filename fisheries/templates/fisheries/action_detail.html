@@ -19,6 +19,11 @@
     <div class="fv-detail-header-top">
       <a href="{% url 'fisheries:action_list' %}" class="fv-detail-back">← Alla insatser</a>
       <div class="fv-detail-header-actions">
+        {% url 'fisheries:action_detail' action.pk as action_pick_return %}
+        <a href="{% url 'maps:map_page' %}?mode=pick_action&amp;return={{ action_pick_return|urlencode }}" class="fv-detail-link-btn">
+          <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+          Koppla till karta
+        </a>
         <a href="{% url 'maps:map_page' %}?action_id={{ action.pk }}" class="fv-detail-link-btn">Visa på karta</a>
       </div>
     </div>
@@ -104,6 +109,16 @@
                 {{ action.water_body.name }}
               {% else %}
                 <span class="ccv2-muted">Ej kopplat</span>
+              {% endif %}
+            </dd>
+          </div>
+          <div class="fv-fact-row">
+            <dt>Kartposition</dt>
+            <dd>
+              {% if action.has_exact_position %}
+                {{ action.latitude }}, {{ action.longitude }}
+              {% else %}
+                <span class="ccv2-muted">Ingen exakt plats</span>
               {% endif %}
             </dd>
           </div>
@@ -259,6 +274,20 @@
 
         <article class="ccv2-card fv-detail-card fv-manage-card">
           <h3 class="fv-manage-card-title">Plan och ansvar</h3>
+          <p class="fv-create-map-pick mb-2">
+            {% url 'fisheries:action_detail' action.pk as action_pick_return %}
+            <a href="{% url 'maps:map_page' %}?mode=pick_action&amp;return={{ action_pick_return|urlencode }}" class="fv-detail-link-btn">
+              <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+              Koppla till karta
+            </a>
+            <span class="fv-create-help d-block mt-1 mb-0">
+              {% if action.has_exact_position %}
+                Ändra eller sätt om exakt plats på kartan.
+              {% else %}
+                Välj exakt plats på kartan om den saknas eller behöver uppdateras.
+              {% endif %}
+            </span>
+          </p>
           <form method="post" class="fv-manage-form">
             {% csrf_token %}
             <input type="hidden" name="action_type" value="update_fields">
@@ -325,6 +354,19 @@
           {% else %}
             <p class="ccv2-muted mb-0 small">Inga anteckningar ännu.</p>
           {% endif %}
+        </article>
+
+        <article class="ccv2-card fv-detail-card fv-manage-card fv-trash-card">
+          <h3 class="fv-manage-card-title text-danger">Papperskorg</h3>
+          <p class="fv-create-help mb-2">
+            Flytta insatsen till papperskorgen om du vill ta bort den tillfälligt. Du kan återställa den under
+            <a href="{% url 'fisheries:trash' %}">Papperskorg</a>.
+          </p>
+          <form method="post" onsubmit="return confirm('Flytta insatsen till papperskorgen?');">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="trash">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Flytta till papperskorgen</button>
+          </form>
         </article>
       </div>
     </details>

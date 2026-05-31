@@ -58,6 +58,17 @@
       <article class="ccv2-card fv-detail-card fv-create-form-card">
         <h2 class="ccv2-card-title">Rapportera observation</h2>
 
+        <p class="fv-create-map-pick mb-3">
+          {% url 'fisheries:observation_create' as observation_create_return %}
+          <a href="{% url 'maps:map_page' %}?mode=pick_observation&amp;return={{ observation_create_return|urlencode }}" class="fv-detail-link-btn">
+            <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+            Koppla till karta
+          </a>
+          <span class="fv-create-help d-block mt-1 mb-0">
+            Välj plats på kartan och återvänd hit för att färdigställa observationen.
+          </span>
+        </p>
+
         {% if error %}
           <div class="fv-create-errors" role="alert">
             <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
@@ -132,6 +143,21 @@
               aria-describedby="help_description"
             >{{ form_data.description|default:'' }}</textarea>
           </div>
+
+          {% if map_position %}
+            <input type="hidden" name="latitude" value="{{ map_position.latitude_display }}">
+            <input type="hidden" name="longitude" value="{{ map_position.longitude_display }}">
+            <div class="fv-create-field" role="status">
+              <p class="fv-create-label">
+                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                Position vald på kartan
+              </p>
+              <p class="fv-create-help mb-0">
+                Latitud: {{ map_position.latitude_display }}<br>
+                Longitud: {{ map_position.longitude_display }}
+              </p>
+            </div>
+          {% endif %}
 
           <div class="fv-create-actions">
             <button type="submit" class="fv-next-step-cta fv-create-submit">Rapportera observation</button>

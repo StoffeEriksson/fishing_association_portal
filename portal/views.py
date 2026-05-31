@@ -27,7 +27,7 @@ from accounts.models import UserProfile
 from calendarapp.calendar_widget import build_dashboard_calendar_widget
 from calendarapp.models import CalendarEvent
 from core.models import Membership
-from fisheries.models import ActionArea, ActionPriority, ActionStatus
+from fisheries.models import ActionArea, ActionPriority, ActionStatus, Observation, ObservationStatus
 from fishingrights.models import FishingRightShare, Property, RightHolder
 from governance.models import BoardMembership, BoardMatter, Meeting
 from documents.forms import (
@@ -240,6 +240,7 @@ def dashboard(request):
                 "due_at": None,
                 "priority": "normal",
                 "created_at": approval.created_at,
+                "kind": "document",
             }
         )
 
@@ -253,6 +254,36 @@ def dashboard(request):
                 "due_at": None,
                 "priority": "normal",
                 "created_at": signature.created_at,
+                "kind": "document",
+            }
+        )
+
+    attention_observations = (
+        Observation.objects.for_org(org)
+        .not_trashed()
+        .filter(status__in=[ObservationStatus.NEW, ObservationStatus.UNDER_REVIEW])
+        .select_related("water_body")
+    )
+    for observation in attention_observations:
+        is_new = observation.status == ObservationStatus.NEW
+        important_actions.append(
+            {
+                "label": "Observation",
+                "title": observation.title,
+                "url": reverse("fisheries:observation_detail", args=[observation.pk]),
+                "source": "fisheries",
+                "source_detail": "Observation",
+                "due_at": None,
+                "priority": "high" if is_new else "normal",
+                "created_at": observation.created_at,
+                "kind": "observation",
+                "observation_status": observation.status,
+                "summary": (
+                    "Ny observation behöver granskas"
+                    if is_new
+                    else "Observation under granskning"
+                ),
+                "water_name": observation.water_body.name if observation.water_body else None,
             }
         )
 
@@ -264,7 +295,7 @@ def dashboard(request):
         | Q(responsible_user__isnull=True)
     )
     fisheries_actions = (
-        ActionArea.objects.filter(org=org, is_active=True)
+        ActionArea.objects.for_org(org).not_trashed()
         .filter(fisheries_relevant)
         .exclude(status=ActionStatus.COMPLETED)
         .order_by("created_at")
@@ -290,6 +321,7 @@ def dashboard(request):
                 "due_at": dl,
                 "priority": action.priority,
                 "created_at": action.created_at,
+                "kind": "fisheries_action",
             }
         )
 
@@ -302,17 +334,24 @@ def dashboard(request):
     }
 
     def important_actions_sort_key(item):
+        created = item["created_at"]
+        created_ts = created.timestamp() if hasattr(created, "timestamp") else 0
+
+        if item.get("kind") == "observation":
+            status_rank = (
+                0 if item.get("observation_status") == ObservationStatus.NEW else 1
+            )
+            return (0, status_rank, -created_ts)
+
         due = item.get("due_at")
         pr = item.get("priority") or "normal"
         pr_i = priority_rank.get(pr, 4)
-        created = item["created_at"]
-        created_ts = created.timestamp() if hasattr(created, "timestamp") else 0
 
         if due:
             due_ord = due.toordinal()
             if due < today:
-                return (0, due_ord, pr_i, created_ts)
-            return (1, due_ord, pr_i, created_ts)
+                return (1, 0, due_ord, pr_i, created_ts)
+            return (1, 1, due_ord, pr_i, created_ts)
         return (2, 0, pr_i, created_ts)
 
     important_actions = sorted(important_actions, key=important_actions_sort_key)[:6]
@@ -1050,7 +1089,7 @@ def _build_global_search_groups(org, q, limit_per_group=_SEARCH_DISPLAY_LIMIT):
         )
 
     action_candidates = list(
-        ActionArea.objects.filter(org=org, is_active=True)
+        ActionArea.objects.for_org(org).not_trashed()
         .filter(Q(name__icontains=q) | Q(description__icontains=q))
         .order_by("-updated_at")[:candidate_limit]
     )

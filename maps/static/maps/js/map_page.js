@@ -31,6 +31,216 @@
     fillOpacity: 0.9,
   };
 
+  const ACTION_POINT_MARKER_BASE = {
+    radius: 8,
+    color: "#ffffff",
+    weight: 2,
+    fillOpacity: 0.95,
+  };
+
+  const ACTION_POINT_MARKER_BY_STATUS = {
+    urgent: { fillColor: "#ef4444" },
+    needs_action: { fillColor: "#fb923c" },
+    planned: { fillColor: "#eab308" },
+    in_progress: { fillColor: "#3b82f6" },
+    completed: { fillColor: "#22c55e" },
+  };
+
+  function getActionPointMarkerStyle(status) {
+    const statusStyle = ACTION_POINT_MARKER_BY_STATUS[status] || ACTION_POINT_MARKER_BY_STATUS.needs_action;
+    return { ...ACTION_POINT_MARKER_BASE, ...statusStyle };
+  }
+
+  function isExactActionPointFeature(feature) {
+    return (
+      feature.properties?.type === "action" &&
+      feature.properties?.exact_position === true &&
+      feature.geometry?.type === "Point"
+    );
+  }
+
+  function buildActionPointPopupHtml(properties) {
+    const name = properties?.name || "Insats";
+    const statusLabel = getActionStatusLabel(properties?.status);
+    return (
+      `<div class="map-popup-action-point">` +
+      `<strong>${name}</strong>` +
+      `<div class="map-popup-water-meta">Status: ${statusLabel}</div>` +
+      `</div>`
+    );
+  }
+
+  const OBSERVATION_CREATE_BASE = "/fisheries/observations/create/";
+  const ACTION_CREATE_BASE = "/fisheries/actions/create/";
+
+  function formatMapCoord(value) {
+    return Number(value).toFixed(6);
+  }
+
+  function pointInRing(lng, lat, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = Number(ring[i][0]);
+      const yi = Number(ring[i][1]);
+      const xj = Number(ring[j][0]);
+      const yj = Number(ring[j][1]);
+      if (!Number.isFinite(xi) || !Number.isFinite(yi) || !Number.isFinite(xj) || !Number.isFinite(yj)) {
+        continue;
+      }
+      const intersects =
+        yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+      if (intersects) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  function geometryContainsLatLng(geometry, latlng) {
+    if (!geometry || !geometry.type || !geometry.coordinates) {
+      return false;
+    }
+    const lat = latlng.lat;
+    const lng = latlng.lng;
+    const geomType = geometry.type;
+    const coordinates = geometry.coordinates;
+
+    if (geomType === "Polygon") {
+      if (!Array.isArray(coordinates[0])) {
+        return false;
+      }
+      return pointInRing(lng, lat, coordinates[0]);
+    }
+    if (geomType === "MultiPolygon") {
+      return coordinates.some(function (polygon) {
+        return Array.isArray(polygon[0]) && pointInRing(lng, lat, polygon[0]);
+      });
+    }
+    return false;
+  }
+
+  function buildCreateUrl(baseUrl, lat, lng, waterId) {
+    const params = new URLSearchParams();
+    params.set("lat", String(lat));
+    params.set("lng", String(lng));
+    if (waterId !== null && waterId !== undefined && waterId !== "") {
+      params.set("water_id", String(waterId));
+    }
+    return baseUrl + "?" + params.toString();
+  }
+
+  function buildCreateLinksHtml(lat, lng, waterId) {
+    const observationUrl = buildCreateUrl(
+      OBSERVATION_CREATE_BASE,
+      lat,
+      lng,
+      waterId
+    );
+    const actionUrl = buildCreateUrl(ACTION_CREATE_BASE, lat, lng, waterId);
+    return (
+      '<div class="map-create-popup-links">' +
+      `<a class="map-create-popup-link" href="${observationUrl}">Skapa observation här</a>` +
+      `<a class="map-create-popup-link" href="${actionUrl}">Planera insats här</a>` +
+      "</div>"
+    );
+  }
+
+  function getModeCreateConfig() {
+    const isObservation = mapCreateMode === "create_observation";
+    return {
+      baseUrl: isObservation ? OBSERVATION_CREATE_BASE : ACTION_CREATE_BASE,
+      title: isObservation ? "Ny observation" : "Ny insats",
+      linkLabel: isObservation ? "Skapa observation här" : "Planera insats här",
+      helpText: isObservation
+        ? "Platsen blir observationens exakta position på kartan."
+        : "Platsen blir insatsens exakta position på kartan.",
+    };
+  }
+
+  function buildModeCreateLinkHtml(lat, lng, waterId) {
+    const config = getModeCreateConfig();
+    const url = buildCreateUrl(config.baseUrl, lat, lng, waterId);
+    return (
+      `<a class="map-create-popup-link map-create-popup-link--primary" href="${url}">` +
+      `${config.linkLabel}</a>`
+    );
+  }
+
+  function buildModeCreatePopupHtml(lat, lng, waterId) {
+    const config = getModeCreateConfig();
+    return (
+      '<div class="map-create-popup">' +
+      `<p class="map-create-popup-title">${config.title}</p>` +
+      `<p class="map-create-popup-help">${config.helpText}</p>` +
+      '<div class="map-create-popup-links">' +
+      buildModeCreateLinkHtml(lat, lng, waterId) +
+      "</div></div>"
+    );
+  }
+
+  function buildMapClickPopupHtml(lat, lng, waterId) {
+    if (mapCreateMode) {
+      return buildModeCreatePopupHtml(lat, lng, waterId);
+    }
+    return (
+      '<div class="map-create-popup">' +
+      '<p class="map-create-popup-title">Skapa här</p>' +
+      buildCreateLinksHtml(lat, lng, waterId) +
+      "</div>"
+    );
+  }
+
+  function navigateToPickReturn(lat, lng, waterId) {
+    if (!mapPickReturnUrl) {
+      return;
+    }
+    window.location.href = buildCreateUrl(mapPickReturnUrl, lat, lng, waterId);
+  }
+
+  function openMapCreatePopup(latlng, lat, lng, waterId) {
+    const resolvedWaterId =
+      waterId !== null && waterId !== undefined && waterId !== ""
+        ? waterId
+        : findWaterIdAtLatLng(latlng);
+    L.popup({ className: "map-create-popup-leaflet" })
+      .setLatLng(latlng)
+      .setContent(buildMapClickPopupHtml(lat, lng, resolvedWaterId))
+      .openOn(map);
+  }
+
+  function buildWaterPopupHtml(properties, lat, lng) {
+    const name = properties?.name || "Vatten";
+    const fish = Array.isArray(properties?.fish) ? properties.fish : [];
+    const fishText = fish.length > 0 ? fish.join(", ") : "Inga registrerade arter";
+    const detailUrl = properties?.detail_url || "";
+    const waterId =
+      properties?.type === "water" && properties?.id != null
+        ? properties.id
+        : null;
+
+    let popupHtml =
+      `<div class="map-popup-water">` +
+      `<strong>${name}</strong>` +
+      `<div class="map-popup-water-meta">Fiskarter: ${fishText}</div>`;
+    if (detailUrl) {
+      popupHtml +=
+        `<a class="map-popup-water-link" href="${detailUrl}">Öppna vatten →</a>`;
+    }
+    popupHtml += '<div class="map-create-popup map-create-popup--inline">';
+    if (mapCreateMode) {
+      const config = getModeCreateConfig();
+      popupHtml +=
+        `<p class="map-create-popup-help">${config.helpText}</p>` +
+        '<div class="map-create-popup-links">' +
+        buildModeCreateLinkHtml(lat, lng, waterId) +
+        "</div>";
+    } else {
+      popupHtml += buildCreateLinksHtml(lat, lng, waterId);
+    }
+    popupHtml += "</div></div>";
+    return popupHtml;
+  }
+
   function buildObservationPopupHtml(properties) {
     const title = properties?.title || "Observation";
     const categoryLabel = properties?.category_label || "Ej angiven";
@@ -75,6 +285,16 @@
 
   const geojsonData = JSON.parse(geojsonScript.textContent);
   const meta = JSON.parse(metaScript.textContent);
+  const mapCreateMode =
+    meta.map_create_mode === "create_observation" ||
+    meta.map_create_mode === "create_action" ||
+    meta.map_create_mode === "pick_observation" ||
+    meta.map_create_mode === "pick_action"
+      ? meta.map_create_mode
+      : null;
+  const isPickMode =
+    mapCreateMode === "pick_observation" || mapCreateMode === "pick_action";
+  const mapPickReturnUrl = meta.map_pick_return_url || null;
   const fvofFocusScript = document.getElementById("fvof-focus-data");
   let fvofFocus = { found: false, name: "", geojson: null };
   if (fvofFocusScript) {
@@ -92,8 +312,21 @@
     meta.selected_water_id === null || meta.selected_water_id === undefined
       ? null
       : Number(meta.selected_water_id);
+  const selectedObservationId =
+    meta.selected_observation_id === null || meta.selected_observation_id === undefined
+      ? null
+      : Number(meta.selected_observation_id);
 
   const map = L.map(mapElement).setView([59.33, 18.03], 11);
+
+  map.createPane("paneWater");
+  map.getPane("paneWater").style.zIndex = "420";
+  map.createPane("paneActions");
+  map.getPane("paneActions").style.zIndex = "460";
+  map.createPane("paneActionPoints");
+  map.getPane("paneActionPoints").style.zIndex = "520";
+  map.createPane("paneObservations");
+  map.getPane("paneObservations").style.zIndex = "560";
 
   const basemapTopographicRadio = document.getElementById("basemap-topographic");
   const basemapSatelliteRadio = document.getElementById("basemap-satellite");
@@ -330,30 +563,26 @@
   function bindFeatureInteractions(feature, featureLayer) {
     const name = feature.properties?.name || "Område";
     const type = feature.properties?.type || "area";
-    const fish = Array.isArray(feature.properties?.fish)
-      ? feature.properties.fish
-      : [];
 
     let popupHtml = `<strong>${name}</strong>`;
     if (type === "water") {
-      const fishText = fish.length > 0 ? fish.join(", ") : "Inga registrerade arter";
-      const detailUrl = feature.properties?.detail_url || "";
-      popupHtml =
-        `<div class="map-popup-water">` +
-        `<strong>${name}</strong>` +
-        `<div class="map-popup-water-meta">Fiskarter: ${fishText}</div>`;
-      if (detailUrl) {
-        popupHtml +=
-          `<a class="map-popup-water-link" href="${detailUrl}">Öppna vatten →</a>`;
-      }
-      popupHtml += `</div>`;
-    } else if (type === "action") {
-      const statusLabel = getActionStatusLabel(feature.properties?.status);
-      popupHtml += `<br>Status: ${statusLabel}`;
-    }
-    featureLayer.bindPopup(popupHtml);
+      featureLayer.on("click", function (event) {
+        L.DomEvent.stopPropagation(event);
+        const lat = formatMapCoord(event.latlng.lat);
+        const lng = formatMapCoord(event.latlng.lng);
+        const waterId =
+          feature.properties?.type === "water" && feature.properties?.id != null
+            ? feature.properties.id
+            : null;
+        if (isPickMode) {
+          navigateToPickReturn(lat, lng, waterId);
+          return;
+        }
+        featureLayer
+          .bindPopup(buildWaterPopupHtml(feature.properties, lat, lng))
+          .openPopup(event.latlng);
+      });
 
-    if (type === "water") {
       featureLayer.on("mouseover", function () {
         featureLayer.setStyle({
           color: "#0f4c5c",
@@ -369,7 +598,16 @@
           fillOpacity: 0.4,
         });
       });
-    } else if (type === "action") {
+      return;
+    }
+
+    if (type === "action") {
+      const statusLabel = getActionStatusLabel(feature.properties?.status);
+      popupHtml += `<br>Status: ${statusLabel}`;
+    }
+    featureLayer.bindPopup(popupHtml);
+
+    if (type === "action") {
       featureLayer.on("mouseover", function () {
         const baseStyle = getFeatureStyle(feature);
         featureLayer.setStyle({
@@ -384,7 +622,8 @@
         featureLayer.setStyle(getFeatureStyle(feature));
       });
 
-      featureLayer.on("click", function () {
+      featureLayer.on("click", function (event) {
+        L.DomEvent.stopPropagation(event);
         if (typeof featureLayer.bringToFront === "function") {
           featureLayer.bringToFront();
         }
@@ -430,10 +669,27 @@
   const waterLayer = L.geoJSON(
     { type: "FeatureCollection", features: waterFeatures },
     {
+      pane: "paneWater",
       style: getFeatureStyle,
       onEachFeature: bindFeatureInteractions,
     }
   );
+
+  function findWaterIdAtLatLng(latlng) {
+    let waterId = null;
+    waterFeatures.forEach(function (feature) {
+      if (waterId !== null) {
+        return;
+      }
+      if (!feature || feature.properties?.type !== "water") {
+        return;
+      }
+      if (geometryContainsLatLng(feature.geometry, latlng)) {
+        waterId = feature.properties.id;
+      }
+    });
+    return waterId;
+  }
   function getSelectedActionStatuses() {
     return Array.from(actionStatusToggles)
       .filter(function (toggle) {
@@ -451,6 +707,49 @@
       onEachFeature: bindFeatureInteractions,
     }
   );
+  const actionPointLayer = L.layerGroup();
+
+  function buildActionPointLayer(features) {
+    actionPointLayer.clearLayers();
+
+    features.forEach(function (feature) {
+      const coordinates = feature.geometry?.coordinates;
+      if (!Array.isArray(coordinates) || coordinates.length < 2) {
+        return;
+      }
+
+      const lng = Number(coordinates[0]);
+      const lat = Number(coordinates[1]);
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+        return;
+      }
+
+      const status = feature.properties?.status;
+      const marker = L.circleMarker([lat, lng], {
+        ...getActionPointMarkerStyle(status),
+        pane: "paneActionPoints",
+      });
+      marker.feature = feature;
+      marker.bindPopup(buildActionPointPopupHtml(feature.properties || {}));
+
+      marker.on("click", function (event) {
+        L.DomEvent.stopPropagation(event);
+      });
+
+      marker.on("mouseover", function () {
+        marker.setStyle({ radius: 10, weight: 2 });
+        if (typeof marker.bringToFront === "function") {
+          marker.bringToFront();
+        }
+      });
+
+      marker.on("mouseout", function () {
+        marker.setStyle(getActionPointMarkerStyle(status));
+      });
+
+      actionPointLayer.addLayer(marker);
+    });
+  }
 
   function rebuildActionLayer() {
     const selectedStatuses = getSelectedActionStatuses();
@@ -459,21 +758,32 @@
       return selectedStatuses.includes(status);
     });
 
+    const filteredPointFeatures = filteredActionFeatures.filter(isExactActionPointFeature);
+    const filteredAreaFeatures = filteredActionFeatures.filter(function (feature) {
+      return !isExactActionPointFeature(feature);
+    });
+
     const shouldBeVisible = actionToggle.checked;
     if (map.hasLayer(actionLayer)) {
       map.removeLayer(actionLayer);
     }
+    if (map.hasLayer(actionPointLayer)) {
+      map.removeLayer(actionPointLayer);
+    }
 
     actionLayer = L.geoJSON(
-      { type: "FeatureCollection", features: filteredActionFeatures },
+      { type: "FeatureCollection", features: filteredAreaFeatures },
       {
+        pane: "paneActions",
         style: getFeatureStyle,
         onEachFeature: bindFeatureInteractions,
       }
     );
+    buildActionPointLayer(filteredPointFeatures);
 
     if (shouldBeVisible) {
       actionLayer.addTo(map);
+      actionPointLayer.addTo(map);
     }
     syncInteractiveLayerOrder();
   }
@@ -495,8 +805,17 @@
         return;
       }
 
-      const marker = L.circleMarker([lat, lng], OBSERVATION_MARKER_STYLE);
+      const marker = L.circleMarker([lat, lng], {
+        ...OBSERVATION_MARKER_STYLE,
+        pane: "paneObservations",
+        radius: 9,
+        zIndexOffset: 2000,
+      });
       marker.bindPopup(buildObservationPopupHtml(feature.properties || {}));
+
+      marker.on("click", function (event) {
+        L.DomEvent.stopPropagation(event);
+      });
 
       marker.on("mouseover", function () {
         marker.setStyle({
@@ -510,7 +829,7 @@
 
       marker.on("mouseout", function () {
         marker.setStyle({
-          radius: OBSERVATION_MARKER_STYLE.radius,
+          radius: 9,
           weight: OBSERVATION_MARKER_STYLE.weight,
         });
       });
@@ -534,6 +853,9 @@
     if (map.hasLayer(actionLayer) && typeof actionLayer.bringToFront === "function") {
       actionLayer.bringToFront();
     }
+    if (map.hasLayer(actionPointLayer) && typeof actionPointLayer.bringToFront === "function") {
+      actionPointLayer.bringToFront();
+    }
     if (map.hasLayer(observationLayer) && typeof observationLayer.bringToFront === "function") {
       observationLayer.bringToFront();
     }
@@ -554,11 +876,15 @@
   }
 
   function focusSelectedAction() {
-    if (selectedActionId === null || !map.hasLayer(actionLayer)) {
+    if (selectedActionId === null) {
+      return false;
+    }
+    if (!map.hasLayer(actionLayer) && !map.hasLayer(actionPointLayer)) {
       return false;
     }
     let focused = false;
-    actionLayer.eachLayer(function (layer) {
+
+    function focusActionLayer(layer) {
       const featureId = Number(layer.feature?.properties?.id);
       if (featureId !== selectedActionId) {
         return;
@@ -567,11 +893,44 @@
       if (typeof layer.bringToFront === "function") {
         layer.bringToFront();
       }
-      if (typeof layer.getBounds === "function") {
+      if (typeof layer.getLatLng === "function") {
+        map.setView(layer.getLatLng(), Math.max(map.getZoom(), 14));
+      } else if (typeof layer.getBounds === "function") {
         const bounds = layer.getBounds();
         if (bounds && bounds.isValid && bounds.isValid()) {
           map.fitBounds(bounds, { padding: [30, 30] });
         }
+      }
+      if (typeof layer.openPopup === "function") {
+        layer.openPopup();
+      }
+    }
+
+    if (map.hasLayer(actionPointLayer)) {
+      actionPointLayer.eachLayer(focusActionLayer);
+    }
+    if (!focused && map.hasLayer(actionLayer)) {
+      actionLayer.eachLayer(focusActionLayer);
+    }
+    return focused;
+  }
+
+  function focusSelectedObservation() {
+    if (selectedObservationId === null || !map.hasLayer(observationLayer)) {
+      return false;
+    }
+    let focused = false;
+    observationLayer.eachLayer(function (layer) {
+      const featureId = Number(layer.feature?.properties?.id);
+      if (featureId !== selectedObservationId) {
+        return;
+      }
+      focused = true;
+      if (typeof layer.bringToFront === "function") {
+        layer.bringToFront();
+      }
+      if (typeof layer.getLatLng === "function") {
+        map.setView(layer.getLatLng(), Math.max(map.getZoom(), 14));
       }
       if (typeof layer.openPopup === "function") {
         layer.openPopup();
@@ -581,7 +940,12 @@
   }
 
   function focusSelectedWater() {
-    if (selectedActionId !== null || selectedWaterId === null || !map.hasLayer(waterLayer)) {
+    if (
+      selectedActionId !== null ||
+      selectedObservationId !== null ||
+      selectedWaterId === null ||
+      !map.hasLayer(waterLayer)
+    ) {
       return false;
     }
     let focused = false;
@@ -624,6 +988,9 @@
     if (focusSelectedAction()) {
       return;
     }
+    if (focusSelectedObservation()) {
+      return;
+    }
     if (focusSelectedWater()) {
       return;
     }
@@ -655,7 +1022,7 @@
   if (areaFeatures.length > 0) {
     areaLayer.addTo(map);
   }
-  if (waterFeatures.length > 0) {
+  if (waterFeatures.length > 0 && waterToggle.checked) {
     waterLayer.addTo(map);
   }
   rebuildActionLayer();
@@ -684,8 +1051,16 @@
       if (!map.hasLayer(actionLayer)) {
         actionLayer.addTo(map);
       }
-    } else if (map.hasLayer(actionLayer)) {
-      map.removeLayer(actionLayer);
+      if (!map.hasLayer(actionPointLayer)) {
+        actionPointLayer.addTo(map);
+      }
+    } else {
+      if (map.hasLayer(actionLayer)) {
+        map.removeLayer(actionLayer);
+      }
+      if (map.hasLayer(actionPointLayer)) {
+        map.removeLayer(actionPointLayer);
+      }
     }
 
     updateObservationLayerVisibility();
@@ -706,6 +1081,17 @@
         focusSelectedWater();
       }
     });
+  });
+
+  map.on("click", function (event) {
+    const lat = formatMapCoord(event.latlng.lat);
+    const lng = formatMapCoord(event.latlng.lng);
+    const waterId = findWaterIdAtLatLng(event.latlng);
+    if (isPickMode) {
+      navigateToPickReturn(lat, lng, waterId);
+      return;
+    }
+    openMapCreatePopup(event.latlng, lat, lng, waterId);
   });
 })();
 

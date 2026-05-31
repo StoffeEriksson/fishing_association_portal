@@ -4,6 +4,8 @@ from django.contrib.auth import get_user_model
 from core.tenancy import OrgModel
 from maps.models import WaterBody
 
+from .querysets import FisheriesEntityManager
+
 User = get_user_model()
 
 
@@ -64,6 +66,19 @@ class ActionArea(OrgModel):
     )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Set when moved to trash; null means active.",
+    )
+    deleted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_actions",
+    )
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -78,6 +93,30 @@ class ActionArea(OrgModel):
         blank=True,
         related_name="updated_actions",
     )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Latitude/WGS84 for exact map position.",
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Longitude/WGS84 for exact map position.",
+    )
+
+    objects = FisheriesEntityManager()
+
+    @property
+    def has_exact_position(self):
+        return self.latitude is not None and self.longitude is not None
+
+    @property
+    def is_trashed(self):
+        return self.deleted_at is not None
 
     def __str__(self):
         return self.name
@@ -185,6 +224,43 @@ class Observation(OrgModel):
         related_name="updated_observations",
     )
     is_active = models.BooleanField(default=True)
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Set when moved to trash; null means active.",
+    )
+    deleted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_observations",
+    )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Latitude/WGS84 for exact map position.",
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Longitude/WGS84 for exact map position.",
+    )
+
+    objects = FisheriesEntityManager()
+
+    @property
+    def has_exact_position(self):
+        return self.latitude is not None and self.longitude is not None
+
+    @property
+    def is_trashed(self):
+        return self.deleted_at is not None
 
     def __str__(self):
         return self.title

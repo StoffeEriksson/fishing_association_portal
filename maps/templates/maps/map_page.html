@@ -48,6 +48,36 @@
       </div>
     {% endif %}
 
+    {% if map_create_mode == "create_observation" %}
+      <div class="alert alert-info map-create-mode-banner mb-3" role="status">
+        <strong>Välj plats för observation.</strong>
+        Klicka på kartan där observationen ska ligga. Du kan klicka på ett vatten eller bredvid det.
+      </div>
+    {% elif map_create_mode == "create_action" %}
+      <div class="alert alert-info map-create-mode-banner mb-3" role="status">
+        <strong>Välj plats för insats.</strong>
+        Klicka på kartan där insatsen ska ligga. Du kan klicka på ett vatten eller bredvid det.
+      </div>
+    {% elif map_create_mode == "pick_observation" %}
+      <div class="alert alert-info map-create-mode-banner mb-3" role="status">
+        <strong>Koppla observation till kartan.</strong>
+        {% if map_pick_return_url and "/create/" in map_pick_return_url %}
+          Klicka på den exakta platsen. Du återvänder till formuläret med position och kopplat vatten.
+        {% else %}
+          Klicka på den exakta platsen. Positionen sparas på observationen när du återvänder.
+        {% endif %}
+      </div>
+    {% elif map_create_mode == "pick_action" %}
+      <div class="alert alert-info map-create-mode-banner mb-3" role="status">
+        <strong>Koppla insats till kartan.</strong>
+        {% if map_pick_return_url and "/create/" in map_pick_return_url %}
+          Klicka på den exakta platsen. Du återvänder till formuläret med position och kopplat vatten.
+        {% else %}
+          Klicka på den exakta platsen. Positionen sparas på insatsen när du återvänder.
+        {% endif %}
+      </div>
+    {% endif %}
+
     <div class="map-workspace">
       <aside class="map-control-card" aria-label="Kartinställningar">
         <div class="map-layer-panel-section" role="radiogroup" aria-label="Karttyp">
@@ -104,7 +134,7 @@
               <label class="form-check-label" for="toggle-areas">Områden</label>
             </div>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="toggle-waters" checked>
+              <input class="form-check-input" type="checkbox" id="toggle-waters">
               <label class="form-check-label" for="toggle-waters">Vatten</label>
             </div>
             <div class="form-check">
@@ -217,7 +247,7 @@
   {{ fvof_focus|json_script:"fvof-focus-data" }}
   {{ fiskekartan_map_config|json_script:"fiskekartan-map-config" }}
   <script id="map-meta" type="application/json">
-    {"has_org": {{ has_org|yesno:"true,false" }}, "org_name": "{{ org_name|escapejs }}", "selected_action_id": {% if selected_action_id %}{{ selected_action_id }}{% else %}null{% endif %}, "selected_water_id": {% if selected_water_id %}{{ selected_water_id }}{% else %}null{% endif %}}
+    {"has_org": {{ has_org|yesno:"true,false" }}, "org_name": "{{ org_name|escapejs }}", "selected_action_id": {% if selected_action_id %}{{ selected_action_id }}{% else %}null{% endif %}, "selected_water_id": {% if selected_water_id %}{{ selected_water_id }}{% else %}null{% endif %}, "selected_observation_id": {% if selected_observation_id %}{{ selected_observation_id }}{% else %}null{% endif %}, "map_create_mode": {% if map_create_mode %}"{{ map_create_mode }}"{% else %}null{% endif %}, "map_pick_return_url": {% if map_pick_return_url %}"{{ map_pick_return_url|escapejs }}"{% else %}null{% endif %}}
   </script>
 {% endblock %}
 

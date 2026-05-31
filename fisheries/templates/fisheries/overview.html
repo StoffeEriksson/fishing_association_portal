@@ -31,6 +31,12 @@
       <a href="{% url 'fisheries:action_list' %}?status=in_progress" class="ccv2-chip text-decoration-none">
         Pågår: {{ in_progress_actions }}
       </a>
+      <a href="{% url 'fisheries:observation_list' %}?status=new" class="ccv2-chip text-decoration-none">
+        Nya observationer: {{ new_observations }}
+      </a>
+      <a href="{% url 'fisheries:observation_list' %}?status=under_review" class="ccv2-chip text-decoration-none">
+        Under granskning: {{ under_review_observations }}
+      </a>
       {% if next_deadline_action %}
         <a href="{% url 'fisheries:action_detail' next_deadline_action.pk %}" class="ccv2-chip text-decoration-none">
           Nästa insats: {{ next_deadline_chip_label }}
@@ -75,36 +81,66 @@
     <article class="ccv2-section ccv2-attention">
       <div class="ccv2-section-head">
         <h2 class="ccv2-section-title">Kräver uppmärksamhet</h2>
-        <span class="fisheries-attention-count">{{ attention_total_count }} att ta tag i</span>
+        <span class="fisheries-attention-count">{{ attention_grand_total }} att ta tag i</span>
       </div>
-      {% if attention_items %}
-        <div class="ccv2-action-list">
-          {% for item in attention_items %}
-            <div class="ccv2-action-row {{ item.priority_class }}">
+      {% if observation_attention_items or attention_items %}
+        <div class="ccv2-action-list fv-attention-list">
+          {% for item in observation_attention_items %}
+            <div class="ccv2-action-row fv-attention-row {{ item.priority_class }}">
               <div class="ccv2-action-main">
-                <div class="ccv2-action-label">{{ item.label }}</div>
+                <div class="ccv2-action-label">🟡 KRÄVER UPPMÄRKSAMHET</div>
+                <div class="ccv2-action-title">{{ item.observation.title }}</div>
+                <div class="ccv2-action-meta">
+                  <span>
+                    {% if item.observation.status == 'new' %}
+                      Ny observation behöver granskas
+                    {% else %}
+                      Observation under granskning
+                    {% endif %}
+                  </span>
+                  {% if item.observation.water_body %}
+                    <span>{{ item.observation.water_body.name }}</span>
+                  {% endif %}
+                  <span>Fiskevård · Observation</span>
+                </div>
+              </div>
+              <a href="{{ item.url }}" class="ccv2-open-link">{{ item.cta_text }} <span aria-hidden="true">→</span></a>
+            </div>
+          {% endfor %}
+          {% for item in attention_items %}
+            <div class="ccv2-action-row fv-attention-row {{ item.priority_class }}">
+              <div class="ccv2-action-main">
+                <div class="ccv2-action-label">
+                  {% if item.priority_class == 'ccv2-priority-critical' %}
+                    🔴
+                  {% elif item.priority_class == 'ccv2-priority-deadline' or item.priority_class == 'ccv2-priority-high' %}
+                    🟠
+                  {% else %}
+                    🟡
+                  {% endif %}
+                  {{ item.label }}
+                </div>
                 <div class="ccv2-action-title">{{ item.action.name }}</div>
-                <div class="fisheries-action-next-step">{{ item.next_step_text }}</div>
-                {% if item.meta_badges %}
-                  <div class="fisheries-meta-badges">
-                    {% for badge in item.meta_badges %}
-                      <span class="fisheries-meta-badge{% if badge.muted %} fisheries-meta-badge--muted{% endif %}">
-                        {% if badge.icon %}
-                          <i class="fa-solid {{ badge.icon }}" aria-hidden="true"></i>
-                        {% endif %}
-                        <span>{{ badge.label }}</span>
-                      </span>
-                    {% endfor %}
-                  </div>
-                {% endif %}
+                <div class="ccv2-action-meta">
+                  <span>{{ item.next_step_text }}</span>
+                  <span>Fiskevård · Insats</span>
+                </div>
               </div>
               <a href="{{ item.url }}" class="ccv2-open-link">Öppna <span aria-hidden="true">→</span></a>
             </div>
           {% endfor %}
         </div>
-        {% if attention_total_count > 8 %}
+        {% if observation_attention_total_count > 8 or attention_total_count > 8 %}
           <div class="fisheries-show-more">
-            <a href="{% url 'fisheries:action_list' %}">Visa alla som kräver uppmärksamhet →</a>
+            {% if observation_attention_total_count > 8 %}
+              <a href="{% url 'fisheries:observation_list' %}">Visa alla observationer →</a>
+            {% endif %}
+            {% if observation_attention_total_count > 8 and attention_total_count > 8 %}
+              <span class="fisheries-show-more-sep" aria-hidden="true">·</span>
+            {% endif %}
+            {% if attention_total_count > 8 %}
+              <a href="{% url 'fisheries:action_list' %}">Visa alla insatser →</a>
+            {% endif %}
           </div>
         {% endif %}
       {% else %}
@@ -272,6 +308,9 @@
     </a>
     <a href="{% url 'fisheries:observation_list' %}" class="ccv2-quick-link">
       <i class="fa-solid fa-eye" aria-hidden="true"></i> Observationer
+    </a>
+    <a href="{% url 'fisheries:trash' %}" class="ccv2-quick-link">
+      <i class="fa-solid fa-trash-can" aria-hidden="true"></i> Papperskorg
     </a>
   </section>
 </div>

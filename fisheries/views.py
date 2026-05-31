@@ -1,5 +1,7 @@
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.db.models import F, Q
@@ -26,6 +28,16 @@ from .models import (
     ObservationComment,
     ObservationLog,
     ObservationStatus,
+)
+from .trash import (
+    empty_trash,
+    move_action_to_trash,
+    move_all_to_trash,
+    move_observation_to_trash,
+    purge_action,
+    purge_observation,
+    restore_action,
+    restore_observation,
 )
 
 User = get_user_model()
@@ -166,6 +178,79 @@ def _build_attention_items(active_actions, today, week_end):
 
     sorted_items = sorted(items_by_pk.values(), key=sort_key)
     return sorted_items[:8], len(items_by_pk)
+
+
+_OBSERVATION_ATTENTION_STATUSES = (
+    ObservationStatus.NEW,
+    ObservationStatus.UNDER_REVIEW,
+)
+
+_OBSERVATION_ATTENTION_STATUS_RANK = {
+    ObservationStatus.NEW: 0,
+    ObservationStatus.UNDER_REVIEW: 1,
+}
+
+
+def _build_observation_meta_badges(observation):
+    badges = [
+        {
+            "icon": "fa-circle-info",
+            "label": get_observation_status_label(observation.status),
+        },
+        {
+            "icon": "fa-tag",
+            "label": get_observation_category_label(observation.category),
+        },
+    ]
+    if observation.water_body:
+        badges.append(
+            {
+                "icon": "fa-water",
+                "label": observation.water_body.name,
+            }
+        )
+    return badges
+
+
+def _build_observation_attention_items(observation_qs, limit=8):
+    candidates = list(
+        observation_qs.filter(status__in=_OBSERVATION_ATTENTION_STATUSES)
+        .select_related("water_body")
+    )
+
+    items = []
+    for observation in candidates:
+        status_rank = _OBSERVATION_ATTENTION_STATUS_RANK.get(observation.status, 9)
+        priority_class = (
+            "ccv2-priority-high"
+            if observation.status == ObservationStatus.NEW
+            else "ccv2-priority-normal"
+        )
+        items.append(
+            {
+                "observation": observation,
+                "rank": status_rank,
+                "label": "Observation",
+                "priority_class": priority_class,
+                "meta_badges": _build_observation_meta_badges(observation),
+                "next_step_text": (
+                    "Ny signal från fältet — granska och avgör om insats behövs."
+                    if observation.status == ObservationStatus.NEW
+                    else "Fortsätt granskningen och ta ställning till nästa steg."
+                ),
+                "url": reverse("fisheries:observation_detail", args=[observation.pk]),
+                "cta_text": "Granska",
+            }
+        )
+
+    items.sort(
+        key=lambda item: (
+            item["rank"],
+            -item["observation"].created_at.timestamp(),
+        )
+    )
+    total_count = len(items)
+    return items[:limit], total_count
 
 
 _FISHERIES_FLOW_LABELS = ("Beslut", "Planerad", "Pågår", "Klar / Uppföljning")
@@ -374,6 +459,258 @@ _OBSERVATION_STATUS_ORDER = (
 _EMPTY_ACTION_GEOJSON = {"type": "FeatureCollection", "features": []}
 
 _OBSERVATION_PROCESS_LABELS = ("Observation", "Granskning", "Beslut", "Insats")
+
+
+def _parse_lat_lng(lat_raw, lng_raw):
+    lat_str = (lat_raw or "").strip() if lat_raw is not None else ""
+    lng_str = (lng_raw or "").strip() if lng_raw is not None else ""
+    if not lat_str or not lng_str:
+        return None, None
+    try:
+        lat = float(lat_str)
+        lng = float(lng_str)
+    except (TypeError, ValueError):
+        return None, None
+    if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lng <= 180.0):
+        return None, None
+    try:
+        return Decimal(f"{lat:.6f}"), Decimal(f"{lng:.6f}")
+    except InvalidOperation:
+        return None, None
+
+
+def _prefill_water_body_id(org, water_id_raw):
+    if org is None:
+        return ""
+    water_id = (water_id_raw or "").strip()
+    if not water_id.isdigit():
+        return ""
+    if WaterBody.objects.for_org(org).filter(pk=water_id, is_active=True).exists():
+        return water_id
+    return ""
+
+
+def _map_position_context(latitude, longitude):
+    if latitude is None or longitude is None:
+        return {"map_position": None}
+    return {
+        "map_position": {
+            "latitude": latitude,
+            "longitude": longitude,
+            "latitude_display": f"{latitude:.6f}",
+            "longitude_display": f"{longitude:.6f}",
+        }
+    }
+
+
+def _point_geojson_from_lat_lng(latitude, longitude):
+    if latitude is None or longitude is None:
+        return None
+    return {
+        "type": "Point",
+        "coordinates": [float(longitude), float(latitude)],
+    }
+
+
+def _action_create_geojson_and_position(latitude, longitude, water_body):
+    point_geojson = _point_geojson_from_lat_lng(latitude, longitude)
+    if point_geojson is not None:
+        return point_geojson, latitude, longitude
+    if water_body and water_body.geojson:
+        return water_body.geojson, None, None
+    return _EMPTY_ACTION_GEOJSON, None, None
+
+
+def _create_map_position_from_request(request):
+    if request.method == "POST":
+        return _parse_lat_lng(
+            request.POST.get("latitude") or request.POST.get("lat"),
+            request.POST.get("longitude") or request.POST.get("lng"),
+        )
+    return _parse_lat_lng(request.GET.get("lat"), request.GET.get("lng"))
+
+
+def _map_position_log_message(latitude, longitude, synced_from=None):
+    coords = f"({latitude:.6f}, {longitude:.6f})"
+    if synced_from == "observation":
+        return f"Kartposition synkad från kopplad observation {coords}"
+    if synced_from == "action":
+        return f"Kartposition synkad från kopplad insats {coords}"
+    return f"Kartposition uppdaterad {coords}"
+
+
+def _save_observation_map_position(
+    observation,
+    org,
+    latitude,
+    longitude,
+    water_body_id,
+    user,
+    *,
+    sync_linked=True,
+    synced_from=None,
+):
+    if latitude is None or longitude is None:
+        return False
+
+    update_fields = ["latitude", "longitude", "updated_by", "updated_at"]
+    observation.latitude = latitude
+    observation.longitude = longitude
+
+    if water_body_id:
+        water_body = WaterBody.objects.for_org(org).filter(
+            pk=water_body_id,
+            is_active=True,
+        ).first()
+        if water_body:
+            observation.water_body = water_body
+            update_fields.append("water_body")
+
+    observation.updated_by = user
+    observation.save(update_fields=update_fields)
+
+    ObservationLog.objects.create(
+        org=org,
+        observation=observation,
+        user=user,
+        event_type="updated",
+        message=_map_position_log_message(latitude, longitude, synced_from),
+    )
+
+    if sync_linked and observation.linked_action_id:
+        action = (
+            ActionArea.objects.for_org(org)
+            .not_trashed()
+            .filter(pk=observation.linked_action_id)
+            .first()
+        )
+        if action:
+            _save_action_map_position(
+                action,
+                org,
+                latitude,
+                longitude,
+                water_body_id,
+                user,
+                sync_linked=False,
+                synced_from="observation",
+            )
+
+    return True
+
+
+def _save_action_map_position(
+    action,
+    org,
+    latitude,
+    longitude,
+    water_body_id,
+    user,
+    *,
+    sync_linked=True,
+    synced_from=None,
+):
+    geojson = _point_geojson_from_lat_lng(latitude, longitude)
+    if geojson is None:
+        return False
+
+    update_fields = [
+        "latitude",
+        "longitude",
+        "geojson",
+        "updated_by",
+        "updated_at",
+    ]
+    action.latitude = latitude
+    action.longitude = longitude
+    action.geojson = geojson
+
+    if water_body_id:
+        water_body = WaterBody.objects.for_org(org).filter(
+            pk=water_body_id,
+            is_active=True,
+        ).first()
+        if water_body:
+            action.water_body = water_body
+            update_fields.append("water_body")
+
+    action.updated_by = user
+    action.save(update_fields=update_fields)
+
+    ActionLog.objects.create(
+        org=org,
+        action_area=action,
+        user=user,
+        event_type="updated",
+        message=_map_position_log_message(latitude, longitude, synced_from),
+    )
+
+    if sync_linked:
+        linked_observations = Observation.objects.for_org(org).not_trashed().filter(
+            linked_action=action,
+        )
+        for linked_observation in linked_observations:
+            _save_observation_map_position(
+                linked_observation,
+                org,
+                latitude,
+                longitude,
+                water_body_id,
+                user,
+                sync_linked=False,
+                synced_from="action",
+            )
+
+    return True
+
+
+def _try_apply_map_pick_from_query(request, org, *, observation=None, action=None):
+    if request.method != "GET" or org is None:
+        return None
+
+    latitude, longitude = _parse_lat_lng(
+        request.GET.get("lat"),
+        request.GET.get("lng"),
+    )
+    if latitude is None:
+        return None
+
+    water_body_id = _prefill_water_body_id(org, request.GET.get("water_id"))
+
+    if observation is not None:
+        if _save_observation_map_position(
+            observation,
+            org,
+            latitude,
+            longitude,
+            water_body_id,
+            request.user,
+        ):
+            success_message = "Kartposition sparad."
+            if observation.linked_action_id:
+                success_message += " Kopplad insats uppdaterades."
+            messages.success(request, success_message)
+            return redirect("fisheries:observation_detail", pk=observation.pk)
+
+    if action is not None:
+        if _save_action_map_position(
+            action,
+            org,
+            latitude,
+            longitude,
+            water_body_id,
+            request.user,
+        ):
+            success_message = "Kartposition sparad."
+            if Observation.objects.for_org(org).not_trashed().filter(
+                linked_action=action,
+            ).exists():
+                success_message += " Kopplad observation uppdaterades."
+            messages.success(request, success_message)
+            return redirect("fisheries:action_detail", pk=action.pk)
+
+    return None
+
 
 _OBSERVATION_IMPORTANCE_BY_CATEGORY = {
     ObservationCategory.FISH_STOCK: (
@@ -663,7 +1000,7 @@ def action_list(request):
         if action_type == "update_status_inline" and org is not None:
             action_id = (request.POST.get("action_id") or "").strip()
             new_status = (request.POST.get("status") or "").strip()
-            action = ActionArea.objects.for_org(org).filter(pk=action_id, is_active=True).first()
+            action = ActionArea.objects.for_org(org).not_trashed().filter(pk=action_id).first()
             if action and new_status in valid_status_values and new_status != action.status:
                 old_status = action.status
                 action.status = new_status
@@ -699,7 +1036,7 @@ def action_list(request):
     else:
         actions = (
             ActionArea.objects.for_org(org)
-            .filter(is_active=True)
+            .not_trashed()
             .select_related("created_by", "updated_by", "water_body", "responsible_user")
         )
         if selected_status in valid_status_values:
@@ -766,7 +1103,7 @@ def action_board(request):
     else:
         base_qs = (
             ActionArea.objects.for_org(org)
-            .filter(is_active=True)
+            .not_trashed()
             .select_related("responsible_user", "water_body")
         )
         urgent_actions = _board_action_rows(
@@ -817,6 +1154,7 @@ def action_create(request):
         water_body_id = (request.POST.get("water_body") or "").strip()
         priority = (request.POST.get("priority") or "").strip()
         deadline = (request.POST.get("deadline") or "").strip()
+        latitude, longitude = _create_map_position_from_request(request)
 
         if not name:
             return render(
@@ -833,6 +1171,7 @@ def action_create(request):
                         "priority": priority,
                         "deadline": deadline,
                     },
+                    **_map_position_context(latitude, longitude),
                 },
             )
 
@@ -843,17 +1182,26 @@ def action_create(request):
         if priority not in valid_priority_values:
             priority = ActionPriority.MEDIUM
 
-        action = ActionArea.objects.create(
-            org=request.org,
-            name=name,
-            description=description,
-            water_body=water_body,
-            priority=priority,
-            deadline=deadline or None,
-            created_by=request.user,
-            updated_by=request.user,
-            status=ActionStatus.NEEDS_ACTION,
+        geojson, saved_lat, saved_lng = _action_create_geojson_and_position(
+            latitude, longitude, water_body
         )
+        create_kwargs = {
+            "org": request.org,
+            "name": name,
+            "description": description,
+            "water_body": water_body,
+            "priority": priority,
+            "deadline": deadline or None,
+            "created_by": request.user,
+            "updated_by": request.user,
+            "status": ActionStatus.NEEDS_ACTION,
+            "geojson": geojson,
+        }
+        if saved_lat is not None and saved_lng is not None:
+            create_kwargs["latitude"] = saved_lat
+            create_kwargs["longitude"] = saved_lng
+
+        action = ActionArea.objects.create(**create_kwargs)
         ActionLog.objects.create(
             org=request.org,
             action_area=action,
@@ -863,13 +1211,20 @@ def action_create(request):
         )
         return redirect("fisheries:action_detail", pk=action.pk)
 
+    form_data = {}
+    prefill_water = _prefill_water_body_id(org, request.GET.get("water_id"))
+    if prefill_water:
+        form_data["water_body"] = prefill_water
+    latitude, longitude = _create_map_position_from_request(request)
+
     return render(
         request,
         "fisheries/action_create.html",
         {
             "water_bodies": water_bodies,
             "priority_choices": priority_choices_labeled,
-            "form_data": {},
+            "form_data": form_data,
+            **_map_position_context(latitude, longitude),
         },
     )
 
@@ -885,7 +1240,7 @@ def observation_list(request):
         if action_type == "update_status_inline" and org is not None:
             observation_id = (request.POST.get("observation_id") or "").strip()
             new_status = (request.POST.get("status") or "").strip()
-            observation = Observation.objects.for_org(org).filter(pk=observation_id, is_active=True).first()
+            observation = Observation.objects.for_org(org).not_trashed().filter(pk=observation_id).first()
             if observation and new_status in valid_status_values and new_status != observation.status:
                 observation.status = new_status
                 observation.updated_by = request.user
@@ -917,7 +1272,7 @@ def observation_list(request):
     else:
         observations = (
             Observation.objects.for_org(org)
-            .filter(is_active=True)
+            .not_trashed()
             .select_related("water_body", "linked_action", "created_by", "updated_by")
         )
         if selected_status in valid_status_values:
@@ -970,6 +1325,7 @@ def observation_create(request):
         category = (request.POST.get("category") or "").strip()
         description = (request.POST.get("description") or "").strip()
         water_body_id = (request.POST.get("water_body") or "").strip()
+        latitude, longitude = _create_map_position_from_request(request)
 
         if not title:
             return render(
@@ -985,6 +1341,7 @@ def observation_create(request):
                         "description": description,
                         "water_body": water_body_id,
                     },
+                    **_map_position_context(latitude, longitude),
                 },
             )
 
@@ -995,16 +1352,21 @@ def observation_create(request):
         if water_body_id:
             water_body = WaterBody.objects.for_org(org).filter(pk=water_body_id).first()
 
-        observation = Observation.objects.create(
-            org=request.org,
-            title=title,
-            category=category,
-            water_body=water_body,
-            description=description,
-            status=ObservationStatus.NEW,
-            created_by=request.user,
-            updated_by=request.user,
-        )
+        create_kwargs = {
+            "org": request.org,
+            "title": title,
+            "category": category,
+            "water_body": water_body,
+            "description": description,
+            "status": ObservationStatus.NEW,
+            "created_by": request.user,
+            "updated_by": request.user,
+        }
+        if latitude is not None and longitude is not None:
+            create_kwargs["latitude"] = latitude
+            create_kwargs["longitude"] = longitude
+
+        observation = Observation.objects.create(**create_kwargs)
         ObservationLog.objects.create(
             org=request.org,
             observation=observation,
@@ -1014,13 +1376,20 @@ def observation_create(request):
         )
         return redirect("fisheries:observation_detail", pk=observation.pk)
 
+    form_data = {}
+    prefill_water = _prefill_water_body_id(org, request.GET.get("water_id"))
+    if prefill_water:
+        form_data["water_body"] = prefill_water
+    latitude, longitude = _create_map_position_from_request(request)
+
     return render(
         request,
         "fisheries/observation_create.html",
         {
             "water_bodies": water_bodies,
             "category_choices": category_choices_labeled,
-            "form_data": {},
+            "form_data": form_data,
+            **_map_position_context(latitude, longitude),
         },
     )
 
@@ -1033,6 +1402,9 @@ def overview(request):
 
     attention_items = []
     attention_total_count = 0
+    observation_attention_items = []
+    observation_attention_total_count = 0
+    attention_grand_total = 0
     next_deadline_action = None
     next_deadline_chip_label = "Ingen deadline"
     planned_now_actions = []
@@ -1060,8 +1432,8 @@ def overview(request):
     unassigned_actions_list = ActionArea.objects.none()
 
     if org is not None:
-        observation_qs = Observation.objects.for_org(org).filter(is_active=True)
-        action_qs = ActionArea.objects.for_org(org).filter(is_active=True)
+        observation_qs = Observation.objects.for_org(org).not_trashed()
+        action_qs = ActionArea.objects.for_org(org).not_trashed()
 
         total_observations = observation_qs.count()
         new_observations = observation_qs.filter(status=ObservationStatus.NEW).count()
@@ -1105,6 +1477,12 @@ def overview(request):
             active_actions,
             today,
             week_end,
+        )
+        observation_attention_items, observation_attention_total_count = (
+            _build_observation_attention_items(observation_qs)
+        )
+        attention_grand_total = (
+            attention_total_count + observation_attention_total_count
         )
 
         next_deadline_action = (
@@ -1158,6 +1536,9 @@ def overview(request):
             "unassigned_actions_list": unassigned_actions_list,
             "attention_items": attention_items,
             "attention_total_count": attention_total_count,
+            "observation_attention_items": observation_attention_items,
+            "observation_attention_total_count": observation_attention_total_count,
+            "attention_grand_total": attention_grand_total,
             "next_deadline_action": next_deadline_action,
             "next_deadline_chip_label": next_deadline_chip_label,
             "planned_now_actions": planned_now_actions,
@@ -1180,7 +1561,9 @@ def observation_detail(request, pk):
     valid_category_values = {value for value, _ in category_choices}
     water_bodies = WaterBody.objects.for_org(org).filter(is_active=True).order_by("name")
     observation = get_object_or_404(
-        Observation.objects.for_org(org).select_related(
+        Observation.objects.for_org(org)
+        .not_trashed()
+        .select_related(
             "water_body",
             "linked_action",
             "created_by",
@@ -1188,6 +1571,12 @@ def observation_detail(request, pk):
         ),
         pk=pk,
     )
+
+    pick_redirect = _try_apply_map_pick_from_query(
+        request, org, observation=observation
+    )
+    if pick_redirect is not None:
+        return pick_redirect
 
     if request.method == "POST":
         action_type = (request.POST.get("action_type") or "").strip()
@@ -1253,6 +1642,15 @@ def observation_detail(request, pk):
                     event_type="comment_added",
                     message="Kommentar tillagd",
                 )
+
+        elif action_type == "trash":
+            move_observation_to_trash(observation, org, request.user)
+            messages.success(
+                request,
+                f"Observationen «{observation.title}» flyttades till papperskorgen.",
+            )
+            return redirect("fisheries:trash")
+
         return redirect("fisheries:observation_detail", pk=observation.pk)
 
     comments = list(observation.comments.select_related("user").order_by("-created_at"))
@@ -1303,7 +1701,9 @@ def create_action_from_observation(request, pk):
         return redirect("fisheries:observation_list")
 
     observation = get_object_or_404(
-        Observation.objects.for_org(org).select_related("linked_action", "water_body"),
+        Observation.objects.for_org(org)
+        .not_trashed()
+        .select_related("linked_action", "water_body"),
         pk=pk,
     )
 
@@ -1311,19 +1711,39 @@ def create_action_from_observation(request, pk):
         return redirect("fisheries:action_detail", pk=observation.linked_action_id)
 
     geojson = _EMPTY_ACTION_GEOJSON
-    if observation.water_body and observation.water_body.geojson:
-        geojson = observation.water_body.geojson
+    latitude = None
+    longitude = None
+    if observation.has_exact_position:
+        latitude = observation.latitude
+        longitude = observation.longitude
+        geojson = _point_geojson_from_lat_lng(latitude, longitude)
+    elif observation.water_body and observation.water_body.geojson:
+        from maps.views import _geometry_bbox_center
 
-    action = ActionArea.objects.create(
-        org=request.org,
-        name=observation.title,
-        description=observation.description,
-        water_body=observation.water_body,
-        geojson=geojson,
-        created_by=request.user,
-        updated_by=request.user,
-        status=ActionStatus.NEEDS_ACTION,
-    )
+        center = _geometry_bbox_center(observation.water_body.geojson)
+        if center:
+            geojson = {
+                "type": "Point",
+                "coordinates": center,
+            }
+        else:
+            geojson = observation.water_body.geojson
+
+    create_kwargs = {
+        "org": request.org,
+        "name": observation.title,
+        "description": observation.description,
+        "water_body": observation.water_body,
+        "geojson": geojson,
+        "created_by": request.user,
+        "updated_by": request.user,
+        "status": ActionStatus.NEEDS_ACTION,
+    }
+    if latitude is not None and longitude is not None:
+        create_kwargs["latitude"] = latitude
+        create_kwargs["longitude"] = longitude
+
+    action = ActionArea.objects.create(**create_kwargs)
 
     observation.linked_action = action
     observation.updated_by = request.user
@@ -1370,9 +1790,14 @@ def action_detail(request, pk):
 
     action = get_object_or_404(
         ActionArea.objects.for_org(org)
+        .not_trashed()
         .select_related("created_by", "updated_by", "water_body", "responsible_user"),
         pk=pk,
     )
+
+    pick_redirect = _try_apply_map_pick_from_query(request, org, action=action)
+    if pick_redirect is not None:
+        return pick_redirect
 
     if request.method == "POST":
         action_type = (request.POST.get("action_type") or "").strip()
@@ -1450,6 +1875,14 @@ def action_detail(request, pk):
                     message="Fält uppdaterade (ansvarig/prioritet/deadline)",
                 )
 
+        elif action_type == "trash":
+            move_action_to_trash(action, org, request.user)
+            messages.success(
+                request,
+                f"Insatsen «{action.name}» flyttades till papperskorgen.",
+            )
+            return redirect("fisheries:trash")
+
         return redirect("fisheries:action_detail", pk=action.pk)
 
     comments = list(action.comments.select_related("user").order_by("-created_at"))
@@ -1491,3 +1924,140 @@ def action_detail(request, pk):
             ),
         },
     )
+
+
+@login_required
+def fisheries_trash(request):
+    org = getattr(request, "org", None)
+    if org is None:
+        messages.error(request, "Ingen aktiv organisation vald.")
+        return redirect("portal:dashboard")
+
+    if request.method == "POST":
+        action_type = (request.POST.get("action_type") or "").strip()
+        confirm = (request.POST.get("confirm") or "").strip() == "yes"
+
+        if action_type == "move_all_to_trash" and confirm:
+            obs_count, act_count = move_all_to_trash(org, request.user)
+            messages.success(
+                request,
+                f"{obs_count} observationer och {act_count} insatser flyttades till papperskorgen.",
+            )
+        elif action_type == "empty_trash" and confirm:
+            obs_count, act_count = empty_trash(org)
+            messages.success(
+                request,
+                f"{obs_count} observationer och {act_count} insatser raderades permanent.",
+            )
+        elif action_type in ("move_all_to_trash", "empty_trash"):
+            messages.error(request, "Bekräfta åtgärden genom att kryssa i rutan.")
+        return redirect("fisheries:trash")
+
+    trashed_observations = list(
+        Observation.objects.for_org(org)
+        .trashed_only()
+        .select_related("water_body", "linked_action", "deleted_by")
+        .order_by("-deleted_at")
+    )
+    trashed_actions = list(
+        ActionArea.objects.for_org(org)
+        .trashed_only()
+        .select_related("water_body", "deleted_by")
+        .order_by("-deleted_at")
+    )
+    active_observation_count = Observation.objects.for_org(org).not_trashed().count()
+    active_action_count = ActionArea.objects.for_org(org).not_trashed().count()
+
+    return render(
+        request,
+        "fisheries/trash.html",
+        {
+            "trashed_observations": trashed_observations,
+            "trashed_actions": trashed_actions,
+            "active_observation_count": active_observation_count,
+            "active_action_count": active_action_count,
+        },
+    )
+
+
+@login_required
+def trash_observation(request, pk):
+    org = getattr(request, "org", None)
+    if org is None or request.method != "POST":
+        return redirect("fisheries:observation_list")
+
+    observation = get_object_or_404(
+        Observation.objects.for_org(org).not_trashed(),
+        pk=pk,
+    )
+    move_observation_to_trash(observation, org, request.user)
+    messages.success(request, f"Observationen «{observation.title}» flyttades till papperskorgen.")
+    return redirect("fisheries:trash")
+
+
+@login_required
+def trash_action(request, pk):
+    org = getattr(request, "org", None)
+    if org is None or request.method != "POST":
+        return redirect("fisheries:action_list")
+
+    action = get_object_or_404(ActionArea.objects.for_org(org).not_trashed(), pk=pk)
+    move_action_to_trash(action, org, request.user)
+    messages.success(request, f"Insatsen «{action.name}» flyttades till papperskorgen.")
+    return redirect("fisheries:trash")
+
+
+@login_required
+def restore_observation_view(request, pk):
+    org = getattr(request, "org", None)
+    if org is None or request.method != "POST":
+        return redirect("fisheries:trash")
+
+    observation = get_object_or_404(
+        Observation.objects.for_org(org).trashed_only(),
+        pk=pk,
+    )
+    restore_observation(observation, org, request.user)
+    messages.success(request, f"Observationen «{observation.title}» återställdes.")
+    return redirect("fisheries:observation_detail", pk=observation.pk)
+
+
+@login_required
+def restore_action_view(request, pk):
+    org = getattr(request, "org", None)
+    if org is None or request.method != "POST":
+        return redirect("fisheries:trash")
+
+    action = get_object_or_404(ActionArea.objects.for_org(org).trashed_only(), pk=pk)
+    restore_action(action, org, request.user)
+    messages.success(request, f"Insatsen «{action.name}» återställdes.")
+    return redirect("fisheries:action_detail", pk=action.pk)
+
+
+@login_required
+def purge_observation_view(request, pk):
+    org = getattr(request, "org", None)
+    if org is None or request.method != "POST":
+        return redirect("fisheries:trash")
+
+    observation = get_object_or_404(
+        Observation.objects.for_org(org).trashed_only(),
+        pk=pk,
+    )
+    title = observation.title
+    purge_observation(observation)
+    messages.success(request, f"Observationen «{title}» raderades permanent.")
+    return redirect("fisheries:trash")
+
+
+@login_required
+def purge_action_view(request, pk):
+    org = getattr(request, "org", None)
+    if org is None or request.method != "POST":
+        return redirect("fisheries:trash")
+
+    action = get_object_or_404(ActionArea.objects.for_org(org).trashed_only(), pk=pk)
+    name = action.name
+    purge_action(action)
+    messages.success(request, f"Insatsen «{name}» raderades permanent.")
+    return redirect("fisheries:trash")
