@@ -72,6 +72,41 @@
       </article>
     </div>
 
+    <section class="waterbody-detail-card" aria-labelledby="waterbody-health-heading">
+      <h2 id="waterbody-health-heading" class="waterbody-detail-section-title">Vattenhälsa</h2>
+      {% if not viss_api_configured %}
+        <p class="waterbody-detail-empty mb-0">VISS API inte konfigurerat</p>
+      {% elif viss_health.available %}
+        <dl class="waterbody-detail-health-grid mb-0">
+          <div class="waterbody-detail-health-item">
+            <dt>Ekologisk status</dt>
+            <dd>{{ viss_health.eco_status|default:"—" }}</dd>
+          </div>
+          <div class="waterbody-detail-health-item">
+            <dt>Kemisk status</dt>
+            <dd>{{ viss_health.chem_status|default:"—" }}</dd>
+          </div>
+          <div class="waterbody-detail-health-item">
+            <dt>Risk</dt>
+            <dd>{{ viss_health.risk|default:"—" }}</dd>
+          </div>
+          <div class="waterbody-detail-health-item">
+            <dt>MKN</dt>
+            <dd>{{ viss_health.mkn|default:"—" }}</dd>
+          </div>
+          <div class="waterbody-detail-health-item">
+            <dt>Fisk (kvalitetsfaktor)</dt>
+            <dd>{{ viss_health.fish|default:"—" }}</dd>
+          </div>
+        </dl>
+        <p class="waterbody-detail-health-source mb-0">Källa: {{ viss_health.source }}</p>
+      {% else %}
+        <p class="waterbody-detail-empty mb-0">
+          {{ viss_health.message|default:"Ingen VISS-status tillgänglig" }}
+        </p>
+      {% endif %}
+    </section>
+
     <div class="waterbody-detail-work-grid">
       <section class="waterbody-detail-card" aria-labelledby="waterbody-obs-heading">
         <div class="waterbody-detail-section-head">

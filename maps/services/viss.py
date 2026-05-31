@@ -4,6 +4,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from django.conf import settings
 from django.db import IntegrityError
 from django.utils import timezone
 
@@ -513,3 +514,388 @@ def import_viss_waters_for_org(org, only_ms_cd=None):
         "rivers": river_count,
         "errors": errors,
     }
+
+
+VISS_REST_API_URL = "https://viss.lansstyrelsen.se/api"
+VISS_REST_TIMEOUT_SECONDS = 20
+
+
+def _health_result(
+    *,
+    eco_status=None,
+    chem_status=None,
+    risk=None,
+    mkn=None,
+    fish=None,
+    available=False,
+    message="",
+):
+    return {
+        "eco_status": eco_status,
+        "chem_status": chem_status,
+        "risk": risk,
+        "mkn": mkn,
+        "fish": fish,
+        "source": "VISS",
+        "available": available,
+        "message": message,
+    }
+
+
+def _water_public_id(water_body):
+    ms_cd = (getattr(water_body, "viss_ms_cd", None) or "").strip()
+    if ms_cd:
+        return ms_cd
+    return (getattr(water_body, "viss_eu_cd", None) or "").strip()
+
+
+def _unwrap_viss_records(payload, *keys):
+    if payload is None:
+        return []
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+
+    for key in keys:
+        if key not in payload:
+            continue
+        value = payload[key]
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+        if isinstance(value, dict):
+            return [value]
+
+    if any(key in payload for key in ("MS_CD", "Ms_CD", "EU_CD", "Eu_CD", "UUID")):
+        return [payload]
+    return []
+
+
+def _nested_dict_items(parent, container_key, item_key=None):
+    if not isinstance(parent, dict):
+        return []
+
+    container = parent.get(container_key)
+    if container is None:
+        return []
+    if isinstance(container, list):
+        return [item for item in container if isinstance(item, dict)]
+    if not isinstance(container, dict):
+        return []
+
+    if item_key:
+        items = container.get(item_key)
+        if isinstance(items, list):
+            return [item for item in items if isinstance(item, dict)]
+        if isinstance(items, dict):
+            return [items]
+    return [container]
+
+
+def _classification_motivations(water_record):
+    items = _nested_dict_items(
+        water_record,
+        "WaterClassificationMotivations",
+        "WaterClassificationMotivation",
+    )
+    if items:
+        return items
+    return _nested_dict_items(
+        water_record,
+        "waterClassificationMotivations",
+        "waterClassificationMotivation",
+    )
+
+
+def _format_status_value(code, label=None):
+    code_text = (code or "").strip()
+    label_text = (label or "").strip()
+    if label_text and code_text and label_text.lower() != code_text.lower():
+        return f"{label_text} ({code_text})"
+    return label_text or code_text or None
+
+
+def _pick_classification(motivations, include_terms, exclude_terms=()):
+    include_terms = tuple(term.lower() for term in include_terms)
+    exclude_terms = tuple(term.lower() for term in exclude_terms)
+
+    best = None
+    best_score = -1
+    for motivation in motivations:
+        parameter = (
+            motivation.get("Parameter")
+            or motivation.get("parameter")
+            or motivation.get("SwedishName")
+            or motivation.get("swedishName")
+            or ""
+        ).strip()
+        parameter_lower = parameter.lower()
+        if not parameter_lower:
+            continue
+        if exclude_terms and any(term in parameter_lower for term in exclude_terms):
+            continue
+        if not any(term in parameter_lower for term in include_terms):
+            continue
+
+        score = max(len(term) for term in include_terms if term in parameter_lower)
+        if "status" in parameter_lower:
+            score += 10
+        if score > best_score:
+            classification = motivation.get("Classification") or motivation.get(
+                "classification"
+            )
+            value = motivation.get("Value") or motivation.get("value")
+            best = _format_status_value(classification or value, parameter)
+            best_score = score
+    return best
+
+
+def _extract_classifications_from_motivations(motivations):
+    eco_status = _pick_classification(
+        motivations,
+        include_terms=("ekologisk status", "ekologisk potential"),
+        exclude_terms=("kvalitetsfaktor", "biologisk"),
+    )
+    chem_status = _pick_classification(
+        motivations,
+        include_terms=("kemisk status",),
+        exclude_terms=("prioriterade", "kvalitetsfaktor"),
+    )
+    fish = _pick_classification(
+        motivations,
+        include_terms=("fisk",),
+        exclude_terms=("fiske", "fiskvatten", "fisket"),
+    )
+    return eco_status, chem_status, fish
+
+
+def _extract_mkn_summary(mkn_records):
+    parts = []
+    for water in mkn_records:
+        sections = _nested_dict_items(water, "MKNSections", "MKNSection")
+        if not sections:
+            sections = _nested_dict_items(water, "mknSections", "mknSection")
+        for section in sections:
+            name = (
+                section.get("SwedishName")
+                or section.get("swedishName")
+                or section.get("Name")
+                or section.get("name")
+                or ""
+            ).strip()
+            current = (
+                section.get("CurrentStatusSwedishName")
+                or section.get("currentStatusSwedishName")
+                or section.get("CurrentStatus")
+                or section.get("currentStatus")
+                or ""
+            ).strip()
+            target = (
+                section.get("TargetStatusSwedishName")
+                or section.get("targetStatusSwedishName")
+                or section.get("TargetStatus")
+                or section.get("targetStatus")
+                or ""
+            ).strip()
+            if not name and not current and not target:
+                continue
+            section_parts = []
+            if name:
+                section_parts.append(name)
+            if current:
+                section_parts.append(f"nu {current}")
+            if target:
+                section_parts.append(f"mål {target}")
+            parts.append(" · ".join(section_parts))
+    if not parts:
+        return None
+    return "; ".join(parts)
+
+
+def _extract_risk_summary(risk_records):
+    flagged = []
+    for water in risk_records:
+        sections = _nested_dict_items(water, "WaterRiskSections", "WaterRiskSection")
+        if not sections:
+            sections = _nested_dict_items(water, "waterRiskSections", "waterRiskSection")
+        for section in sections:
+            impacts = _nested_dict_items(section, "WaterRiskImpacts", "WaterRiskImpact")
+            if not impacts:
+                impacts = _nested_dict_items(
+                    section, "waterRiskImpacts", "waterRiskImpact"
+                )
+            for impact in impacts:
+                risk_value = (impact.get("Risk") or impact.get("risk") or "").strip()
+                impact_name = (impact.get("Impact") or impact.get("impact") or "").strip()
+                if not risk_value:
+                    continue
+                if "ingen risk" in risk_value.lower():
+                    continue
+                if impact_name:
+                    flagged.append(f"{impact_name}: {risk_value}")
+                else:
+                    flagged.append(risk_value)
+    if not flagged:
+        return None
+    return "; ".join(flagged[:4])
+
+
+def _viss_rest_request(method, api_key, **params):
+    query = {
+        "method": method,
+        "format": "json",
+        "apikey": api_key,
+    }
+    for key, value in params.items():
+        if value is None:
+            continue
+        query[key] = value
+
+    url = f"{VISS_REST_API_URL}?{urllib.parse.urlencode(query)}"
+    try:
+        request = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "Windify/1.0",
+            },
+        )
+        with urllib.request.urlopen(
+            request, timeout=VISS_REST_TIMEOUT_SECONDS
+        ) as response:
+            raw = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        logger.warning("VISS REST %s failed with HTTP %s.", method, exc.code)
+        if exc.code in {401, 403}:
+            return None, "VISS API kunde inte autentiseras. Kontrollera API-nyckeln."
+        return None, f"VISS API svarade med HTTP {exc.code}."
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        logger.warning("VISS REST %s request failed: %s", method, exc)
+        return None, "VISS API är inte tillgängligt just nu."
+    except UnicodeDecodeError:
+        logger.warning("VISS REST %s returned undecodable response.", method)
+        return None, "VISS API returnerade ogiltigt svar."
+
+    stripped = raw.lstrip()
+    if stripped.startswith("<"):
+        return None, "VISS API kunde inte autentiseras. Kontrollera API-nyckeln."
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("VISS REST %s returned non-JSON payload.", method)
+        return None, "VISS API returnerade ogiltigt svar."
+
+    if isinstance(payload, dict):
+        error = payload.get("error") or payload.get("Error")
+        if error:
+            error_text = str(error).strip()
+            if error_text:
+                return None, error_text
+
+    return payload, None
+
+
+def fetch_water_health(water_body):
+    """
+    Hämta sammanfattad vattenhälsa från VISS REST API för ett WaterBody.
+
+    Returnerar None om VISS_API_KEY saknas i settings.
+    """
+    api_key = (getattr(settings, "VISS_API_KEY", None) or "").strip()
+    if not api_key:
+        return None
+
+    water_public_id = _water_public_id(water_body)
+    if not water_public_id:
+        return _health_result(message="Ingen VISS-status tillgänglig")
+
+    request_params = {"waterpublicid": water_public_id}
+    eco_status = None
+    chem_status = None
+    fish = None
+    mkn = None
+    risk = None
+    auth_error = None
+    had_successful_response = False
+
+    classifications_payload, error = _viss_rest_request(
+        "latestwaterclassificationmotivations",
+        api_key,
+        **request_params,
+    )
+    if error and "autentiseras" in error.lower():
+        auth_error = error
+    elif error:
+        logger.info(
+            "VISS latestwaterclassificationmotivations for %r: %s",
+            water_public_id,
+            error,
+        )
+    elif classifications_payload is not None:
+        had_successful_response = True
+        motivations = []
+        for water in _unwrap_viss_records(
+            classifications_payload,
+            "Water",
+            "ArrayOfWater",
+        ):
+            motivations.extend(_classification_motivations(water))
+        eco_status, chem_status, fish = _extract_classifications_from_motivations(
+            motivations
+        )
+
+    if auth_error is None:
+        mkn_payload, error = _viss_rest_request("mkn", api_key, **request_params)
+        if error and "autentiseras" in error.lower():
+            auth_error = error
+        elif error:
+            logger.info("VISS mkn for %r: %s", water_public_id, error)
+        elif mkn_payload is not None:
+            had_successful_response = True
+            mkn = _extract_mkn_summary(
+                _unwrap_viss_records(mkn_payload, "WaterMKN", "ArrayOfWaterMKN", "Water")
+            )
+
+    if auth_error is None:
+        risk_payload, error = _viss_rest_request(
+            "waterriskclassifications",
+            api_key,
+            **request_params,
+        )
+        if error and "autentiseras" in error.lower():
+            auth_error = error
+        elif error:
+            logger.info("VISS waterriskclassifications for %r: %s", water_public_id, error)
+        elif risk_payload is not None:
+            had_successful_response = True
+            risk = _extract_risk_summary(
+                _unwrap_viss_records(risk_payload, "Water", "ArrayOfWater")
+            )
+
+    if auth_error is None:
+        waters_payload, error = _viss_rest_request("waters", api_key, **request_params)
+        if error and "autentiseras" in error.lower():
+            auth_error = error
+        elif error:
+            logger.info("VISS waters for %r: %s", water_public_id, error)
+        elif waters_payload is not None:
+            had_successful_response = True
+
+    if auth_error:
+        return _health_result(message=auth_error)
+
+    if not had_successful_response:
+        return _health_result(message="VISS API är inte tillgängligt just nu.")
+
+    if any(value for value in (eco_status, chem_status, risk, mkn, fish)):
+        return _health_result(
+            eco_status=eco_status,
+            chem_status=chem_status,
+            risk=risk,
+            mkn=mkn,
+            fish=fish,
+            available=True,
+        )
+
+    return _health_result(message="Ingen VISS-status tillgänglig")

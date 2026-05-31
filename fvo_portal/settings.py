@@ -181,6 +181,8 @@ FISKEKARTAN_ATTRIBUTION = os.getenv(
     "Källa: Länsstyrelsen / Fiskekartan (CC0)",
 )
 
+VISS_API_KEY = os.getenv("VISS_API_KEY", "")
+
 
 def fiskekartan_map_context(request):
     return {

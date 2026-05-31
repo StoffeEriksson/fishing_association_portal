@@ -23,6 +23,7 @@ from fisheries.models import ActionArea, ActionStatus, Observation
 
 from .models import MapBoundary, WaterBody, WaterBodyType
 from .services.viss import (
+    fetch_water_health,
     get_viss_import_preview_for_org,
     import_viss_waters_for_org,
 )
@@ -993,11 +994,16 @@ def waterbody_detail(request, waterbody_id):
     else:
         viss_summary = "Ej importerad från VISS"
 
+    viss_api_configured = bool((getattr(settings, "VISS_API_KEY", None) or "").strip())
+    viss_health = fetch_water_health(water_body) if viss_api_configured else None
+
     context = {
         "water_body": water_body,
         "water_type_label": water_body.get_water_type_display(),
         "external_source_label": external_source_label,
         "viss_summary": viss_summary,
+        "viss_api_configured": viss_api_configured,
+        "viss_health": viss_health,
         "observation_rows": observation_rows,
         "action_rows": action_rows,
         "observation_count": observation_count,
