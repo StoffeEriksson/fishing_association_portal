@@ -199,6 +199,7 @@
         {% else %}
           <p class="ccv2-muted mb-2">Ingen åtgärd skapad ännu.</p>
           {% if observation.status != "closed" and not observation.linked_action %}
+            <p class="ccv2-muted small mb-2">Vatten kopieras till insatsen. Exakt kartposition förs över om den finns; annars sätts ungefärlig punkt eller tom geometri.</p>
             <form method="post" action="{{ create_action_url }}">
               {% csrf_token %}
               <button type="submit" class="fv-next-step-cta fv-next-step-cta--btn">Skapa åtgärd</button>

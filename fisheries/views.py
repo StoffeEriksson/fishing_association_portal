@@ -1755,12 +1755,7 @@ def create_action_from_observation(request, pk):
 
         center = _geometry_bbox_center(observation.water_body.geojson)
         if center:
-            geojson = {
-                "type": "Point",
-                "coordinates": center,
-            }
-        else:
-            geojson = observation.water_body.geojson
+            geojson = _point_geojson_from_lat_lng(center[1], center[0])
 
     create_kwargs = {
         "org": request.org,

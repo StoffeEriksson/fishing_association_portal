@@ -222,6 +222,7 @@
         <h2 class="ccv2-card-title">Observation</h2>
         {% for obs in action.observations.all %}
           {% if forloop.first %}
+            <p class="ccv2-muted small mb-1">Skapad från observation</p>
             <p class="fv-obs-linked-title mb-1">{{ obs.title }}</p>
             <a href="{% url 'fisheries:observation_detail' obs.pk %}" class="fisheries-empty-cta">Öppna observation →</a>
           {% endif %}
