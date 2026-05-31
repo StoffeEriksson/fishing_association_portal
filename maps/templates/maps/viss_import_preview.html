@@ -1,0 +1,157 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Importera vatten från VISS{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'maps/css/map_page.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+  <div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Karta</div>
+{% endblock %}
+
+{% block content %}
+  <div class="viss-import-preview-shell">
+    <header class="viss-import-preview-header">
+      <h1 class="viss-import-preview-title">Importera vatten från VISS</h1>
+      <p class="viss-import-preview-subtitle mb-0">
+        Systemet har hittat vattenförekomster som skär föreningens FVO-gräns.
+        {% if org_name %}
+          <span class="viss-import-preview-org">{{ org_name }}</span>
+        {% endif %}
+      </p>
+    </header>
+
+    <div class="viss-import-preview-summary" role="status">
+      <div class="viss-import-preview-stat">
+        <span class="viss-import-preview-stat-value">{{ total }}</span>
+        <span class="viss-import-preview-stat-label">vatten hittade</span>
+      </div>
+      <div class="viss-import-preview-stat">
+        <span class="viss-import-preview-stat-value">{{ lakes }}</span>
+        <span class="viss-import-preview-stat-label">sjöar</span>
+      </div>
+      <div class="viss-import-preview-stat">
+        <span class="viss-import-preview-stat-value">{{ rivers }}</span>
+        <span class="viss-import-preview-stat-label">vattendrag</span>
+      </div>
+      <div class="viss-import-preview-stat viss-import-preview-stat-new">
+        <span class="viss-import-preview-stat-value">{{ new_count }}</span>
+        <span class="viss-import-preview-stat-label">nya</span>
+      </div>
+      <div class="viss-import-preview-stat">
+        <span class="viss-import-preview-stat-value">{{ already_imported }}</span>
+        <span class="viss-import-preview-stat-label">redan importerade</span>
+      </div>
+    </div>
+
+    <form
+      method="post"
+      action="{% url 'maps:import_selected_viss_waters' %}"
+      class="viss-import-preview-form"
+    >
+      {% csrf_token %}
+      <div class="table-responsive viss-import-preview-table-wrap">
+        <table class="table table-sm viss-import-preview-table align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col" class="viss-import-preview-col-check">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="viss-import-select-all"
+                  checked
+                  aria-label="Markera alla"
+                >
+              </th>
+              <th scope="col">Namn</th>
+              <th scope="col">Typ</th>
+              <th scope="col">MS_CD</th>
+              <th scope="col">EU_CD</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in preview_items %}
+              <tr class="{% if item.already_imported %}viss-import-preview-row-existing{% endif %}">
+                <td>
+                  <input
+                    type="checkbox"
+                    class="form-check-input viss-import-row-check"
+                    name="selected_ms_cd"
+                    value="{{ item.viss_ms_cd }}"
+                    checked
+                    aria-label="Importera {{ item.name }}"
+                  >
+                </td>
+                <td class="fw-semibold">{{ item.name }}</td>
+                <td>{{ item.water_type_label }}</td>
+                <td><code class="viss-import-preview-code">{{ item.viss_ms_cd }}</code></td>
+                <td>
+                  {% if item.viss_eu_cd %}
+                    <code class="viss-import-preview-code">{{ item.viss_eu_cd }}</code>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.already_imported %}
+                    <span class="viss-import-preview-badge viss-import-preview-badge-update">
+                      Uppdateras
+                    </span>
+                  {% else %}
+                    <span class="viss-import-preview-badge viss-import-preview-badge-new">
+                      Ny
+                    </span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="text-muted">Inga vatten att visa.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="viss-import-preview-actions">
+        <button
+          type="submit"
+          name="import_action"
+          value="selected"
+          class="btn btn-primary viss-import-preview-btn-primary"
+        >
+          Importera valda
+        </button>
+        <button
+          type="submit"
+          name="import_action"
+          value="all"
+          class="btn btn-outline-primary viss-import-preview-btn-secondary"
+        >
+          Importera alla
+        </button>
+        <a href="{% url 'maps:map_page' %}" class="btn btn-link viss-import-preview-btn-cancel">
+          Tillbaka till karta
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      var selectAll = document.getElementById("viss-import-select-all");
+      var rowChecks = document.querySelectorAll(".viss-import-row-check");
+      if (!selectAll || !rowChecks.length) {
+        return;
+      }
+      selectAll.addEventListener("change", function () {
+        rowChecks.forEach(function (checkbox) {
+          checkbox.checked = selectAll.checked;
+        });
+      });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}{{ water_body.name }}{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
+  <link rel="stylesheet" href="{% static 'maps/css/map_page.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+  <div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Karta</div>
+{% endblock %}
+
+{% block content %}
+  <div class="waterbody-detail-shell fv-detail-shell">
+    <header class="fv-detail-header waterbody-detail-header">
+      <div class="fv-detail-header-top">
+        <a href="{% url 'maps:map_page' %}" class="fv-detail-back">← Tillbaka till karta</a>
+        <div class="fv-detail-header-actions">
+          <a
+            href="{% url 'maps:map_page' %}?water_id={{ water_body.pk }}"
+            class="fv-detail-link-btn"
+          >
+            Visa på karta
+          </a>
+        </div>
+      </div>
+      <h1 class="ccv2-title mb-1">{{ water_body.name }}</h1>
+      <p class="ccv2-subtitle mb-2">
+        {{ water_type_label }}
+        {% if water_body.viss_ms_cd %}
+          · {{ water_body.viss_ms_cd }}
+        {% endif %}
+      </p>
+    </header>
+
+    <section class="waterbody-detail-card" aria-labelledby="waterbody-meta-heading">
+      <h2 id="waterbody-meta-heading" class="waterbody-detail-section-title">Vattenförekomst</h2>
+      <dl class="waterbody-detail-meta">
+        <div class="waterbody-detail-meta-row">
+          <dt>Typ</dt>
+          <dd>{{ water_type_label }}</dd>
+        </div>
+        {% if water_body.viss_ms_cd %}
+          <div class="waterbody-detail-meta-row">
+            <dt>VISS MS_CD</dt>
+            <dd><code class="waterbody-detail-code">{{ water_body.viss_ms_cd }}</code></dd>
+          </div>
+        {% endif %}
+        {% if water_body.viss_eu_cd %}
+          <div class="waterbody-detail-meta-row">
+            <dt>VISS EU_CD</dt>
+            <dd><code class="waterbody-detail-code">{{ water_body.viss_eu_cd }}</code></dd>
+          </div>
+        {% endif %}
+        {% if external_source_label %}
+          <div class="waterbody-detail-meta-row">
+            <dt>Källa</dt>
+            <dd>{{ external_source_label }}</dd>
+          </div>
+        {% endif %}
+        {% if water_body.geometry_source %}
+          <div class="waterbody-detail-meta-row">
+            <dt>Geometrikälla</dt>
+            <dd><code class="waterbody-detail-code">{{ water_body.geometry_source }}</code></dd>
+          </div>
+        {% endif %}
+        {% if water_body.source_name and water_body.source_name != water_body.name %}
+          <div class="waterbody-detail-meta-row">
+            <dt>Officiellt namn</dt>
+            <dd>{{ water_body.source_name }}</dd>
+          </div>
+        {% endif %}
+        {% if water_body.imported_at %}
+          <div class="waterbody-detail-meta-row">
+            <dt>Importerad</dt>
+            <dd>{{ water_body.imported_at|date:"Y-m-d H:i" }}</dd>
+          </div>
+        {% endif %}
+      </dl>
+      {% if water_body.description %}
+        <div class="waterbody-detail-description">
+          <h3 class="waterbody-detail-subheading">Beskrivning</h3>
+          <p class="mb-0">{{ water_body.description|linebreaksbr }}</p>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="waterbody-detail-card" aria-labelledby="waterbody-obs-heading">
+      <div class="waterbody-detail-section-head">
+        <h2 id="waterbody-obs-heading" class="waterbody-detail-section-title mb-0">
+          Observationer
+        </h2>
+        <span class="waterbody-detail-count">{{ observation_count }}</span>
+      </div>
+      {% if observation_rows %}
+        <ul class="waterbody-detail-list list-unstyled mb-0">
+          {% for row in observation_rows %}
+            <li class="waterbody-detail-list-item">
+              <a
+                href="{% url 'fisheries:observation_detail' row.observation.pk %}"
+                class="waterbody-detail-list-link"
+              >
+                <span class="waterbody-detail-list-title">{{ row.observation.title }}</span>
+                <span class="waterbody-detail-list-meta">
+                  {{ row.category_label }} · {{ row.status_label }}
+                  · {{ row.observation.created_at|date:"Y-m-d" }}
+                </span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="waterbody-detail-empty mb-0">Inga observationer kopplade till detta vatten.</p>
+      {% endif %}
+    </section>
+
+    <section class="waterbody-detail-card" aria-labelledby="waterbody-actions-heading">
+      <div class="waterbody-detail-section-head">
+        <h2 id="waterbody-actions-heading" class="waterbody-detail-section-title mb-0">
+          Insatser
+        </h2>
+        <span class="waterbody-detail-count">{{ action_count }}</span>
+      </div>
+      {% if action_rows %}
+        <ul class="waterbody-detail-list list-unstyled mb-0">
+          {% for row in action_rows %}
+            <li class="waterbody-detail-list-item">
+              <a
+                href="{% url 'fisheries:action_detail' row.action.pk %}"
+                class="waterbody-detail-list-link"
+              >
+                <span class="waterbody-detail-list-title">{{ row.action.name }}</span>
+                <span class="waterbody-detail-list-meta">
+                  {{ row.status_label }}
+                  {% if row.action.deadline %}
+                    · Deadline {{ row.action.deadline|date:"Y-m-d" }}
+                  {% endif %}
+                </span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="waterbody-detail-empty mb-0">Inga insatser kopplade till detta vatten.</p>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}
