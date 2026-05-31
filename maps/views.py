@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from fisheries.labels import (
@@ -19,6 +20,7 @@ from fisheries.labels import (
 from fisheries.models import ActionArea, ActionStatus, Observation
 
 from .models import MapBoundary, WaterBody, WaterBodyType
+from .services.viss import import_viss_waters_for_org
 
 logger = logging.getLogger(__name__)
 
@@ -492,10 +494,17 @@ def map_page(request):
 
     import_viss_ms_cd = (request.GET.get("viss_ms_cd") or "").strip()[:50]
 
+    has_map_boundary = False
+    if org:
+        has_map_boundary = MapBoundary.objects.for_org(org).filter(
+            is_active=True
+        ).exists()
+
     context = {
         "geojson_data": geojson_data,
         "fvof_focus": fvof_focus,
         "has_org": bool(org),
+        "has_map_boundary": has_map_boundary,
         "org_name": org.name if org else "",
         "selected_action_id": selected_action_id,
         "selected_water_id": selected_water_id,
@@ -582,6 +591,43 @@ def import_fvo_boundary(request):
 
 @login_required
 @require_POST
+def import_viss_waters_within_fvo(request):
+    org = getattr(request, "org", None)
+    if org is None:
+        messages.error(
+            request,
+            "Ingen aktiv organisation vald. Vatten kunde inte importeras från VISS.",
+        )
+        return redirect("maps:map_page")
+
+    result = import_viss_waters_for_org(org)
+
+    for error_message in result.get("errors") or []:
+        if result["created"] == 0 and result["updated"] == 0:
+            messages.error(request, error_message)
+            return redirect("maps:map_page")
+        messages.warning(request, error_message)
+
+    if result["total"] == 0:
+        messages.error(
+            request,
+            "Inga vattenförekomster hittades inom FVO-gränsen i VISS.",
+        )
+        return redirect("maps:map_page")
+
+    messages.success(
+        request,
+        (
+            f"Importerade vatten från VISS: {result['created']} skapade, "
+            f"{result['updated']} uppdaterade "
+            f"({result['lakes']} sjöar, {result['rivers']} vattendrag)."
+        ),
+    )
+    return redirect("maps:map_page")
+
+
+@login_required
+@require_POST
 def import_waterbody_from_viss(request, waterbody_id):
     org = getattr(request, "org", None)
     if org is None:
@@ -629,7 +675,26 @@ def import_waterbody_from_viss(request, waterbody_id):
         result.get("ms_cd") or ms_cd,
         result.get("eu_cd") or "",
     )
-    water_body.save(update_fields=["name", "geojson", "description", "updated_at"])
+    water_body.viss_ms_cd = (result.get("ms_cd") or ms_cd).strip()
+    water_body.viss_eu_cd = (result.get("eu_cd") or "").strip()
+    water_body.external_source = "viss"
+    water_body.geometry_source = "viss_arcgis_layer_56"
+    water_body.source_name = viss_name
+    water_body.imported_at = timezone.now()
+    water_body.save(
+        update_fields=[
+            "name",
+            "geojson",
+            "description",
+            "viss_ms_cd",
+            "viss_eu_cd",
+            "external_source",
+            "geometry_source",
+            "source_name",
+            "imported_at",
+            "updated_at",
+        ]
+    )
 
     display_name = water_body.name or viss_name or f"MS_CD {ms_cd}"
     messages.success(

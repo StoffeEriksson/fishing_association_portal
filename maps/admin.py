@@ -20,17 +20,45 @@ class MapBoundaryAdmin(admin.ModelAdmin):
 
 @admin.register(WaterBody)
 class WaterBodyAdmin(admin.ModelAdmin):
-    list_display = ("name", "org", "water_type", "is_active")
-    list_filter = ("org", "water_type", "is_active")
-    search_fields = ("name", "description", "org__name", "species__name")
-    filter_horizontal = ("species",)
-    fields = (
-        "org",
+    list_display = (
         "name",
         "water_type",
-        "description",
-        "geojson",
+        "org",
+        "viss_ms_cd",
+        "viss_eu_cd",
         "is_active",
-        "species",
+    )
+    list_filter = ("water_type", "is_active", "external_source", "org")
+    search_fields = ("name", "viss_ms_cd", "viss_eu_cd", "description", "org__name", "species__name")
+    filter_horizontal = ("species",)
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "org",
+                    "name",
+                    "water_type",
+                    "description",
+                    "geojson",
+                    "is_active",
+                    "species",
+                ),
+            },
+        ),
+        (
+            "VISS / extern källa",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    "viss_ms_cd",
+                    "viss_eu_cd",
+                    "external_source",
+                    "geometry_source",
+                    "source_name",
+                    "imported_at",
+                ),
+            },
+        ),
     )
 

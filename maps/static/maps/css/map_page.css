@@ -72,10 +72,17 @@
   gap: 0.45rem;
 }
 
-.map-import-viss-form {
+.map-import-viss-form,
+.map-import-viss-bulk-form {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.map-import-viss-bulk-form {
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 .map-import-viss-label {

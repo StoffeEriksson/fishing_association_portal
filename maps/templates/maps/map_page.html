@@ -118,9 +118,23 @@
           </div>
         </div>
 
-        {% if has_org and waterbodies and import_viss_waterbody_id %}
+        {% if has_org and has_map_boundary %}
           <div class="map-layer-panel-section map-import-viss-section" role="group" aria-label="Importera vatten">
             <div class="map-layer-panel-title">Importera vatten</div>
+            <form
+              method="post"
+              action="{% url 'maps:import_viss_waters_within_fvo' %}"
+              class="map-import-viss-bulk-form"
+            >
+              {% csrf_token %}
+              <button type="submit" class="map-import-viss-btn map-import-viss-btn-bulk">
+                Importera vatten inom FVO
+              </button>
+              <p class="map-import-viss-help mb-0">
+                Hämtar sjöar och vattendragssegment som skär föreningens FVO-gräns från VISS/Länsstyrelsen.
+              </p>
+            </form>
+            {% if waterbodies and import_viss_waterbody_id %}
             <form
               method="post"
               id="map-import-viss-form"
@@ -164,6 +178,7 @@
             <p class="map-import-viss-help mb-0">
               Hämtar sjöpolygon från VISS/Länsstyrelsens karttjänst och sparar på valt vatten.
             </p>
+            {% endif %}
           </div>
         {% endif %}
 
@@ -222,7 +237,7 @@
     ></script>
   {% endif %}
   <script src="{% static 'maps/js/map_page.js' %}"></script>
-  {% if has_org and waterbodies and import_viss_waterbody_id %}
+  {% if has_org and has_map_boundary and waterbodies and import_viss_waterbody_id %}
     <script>
       (function () {
         var form = document.getElementById("map-import-viss-form");
