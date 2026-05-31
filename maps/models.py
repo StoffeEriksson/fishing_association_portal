@@ -82,3 +82,54 @@ class WaterBody(OrgModel):
 
     def __str__(self):
         return self.name
+
+
+class HealthTone(models.TextChoices):
+    GOOD = "good", "God"
+    MODERATE = "moderate", "Måttlig"
+    BAD = "bad", "Dålig"
+    NEUTRAL = "neutral", "Neutral"
+
+
+class WaterBodyHealthSnapshot(OrgModel):
+    water_body = models.OneToOneField(
+        WaterBody,
+        on_delete=models.CASCADE,
+        related_name="health_snapshot",
+    )
+    eco_status = models.CharField(max_length=255, blank=True)
+    chem_status = models.CharField(max_length=255, blank=True)
+    risk = models.TextField(blank=True)
+    mkn = models.TextField(blank=True)
+    fish = models.CharField(max_length=255, blank=True)
+    eco_tone = models.CharField(
+        max_length=16,
+        choices=HealthTone.choices,
+        default=HealthTone.NEUTRAL,
+    )
+    chem_tone = models.CharField(
+        max_length=16,
+        choices=HealthTone.choices,
+        default=HealthTone.NEUTRAL,
+    )
+    fish_tone = models.CharField(
+        max_length=16,
+        choices=HealthTone.choices,
+        default=HealthTone.NEUTRAL,
+    )
+    risk_flag = models.BooleanField(default=False)
+    source = models.CharField(max_length=64, default="VISS")
+    fetched_at = models.DateTimeField(null=True, blank=True)
+    fetch_error = models.TextField(blank=True)
+    raw_payload = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["org", "water_body"],
+                name="unique_health_snapshot_org_water_body",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Hälsa: {self.water_body.name}"

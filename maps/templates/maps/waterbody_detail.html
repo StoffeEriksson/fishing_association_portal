@@ -74,63 +74,74 @@
 
     <section class="waterbody-detail-card waterbody-detail-health-card" aria-labelledby="waterbody-health-heading">
       <header class="waterbody-detail-health-header">
-        <h2 id="waterbody-health-heading" class="waterbody-detail-health-title">Vattenhälsa</h2>
-        <p class="waterbody-detail-health-subtitle mb-0">Senaste klassning från VISS</p>
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+            <h2 id="waterbody-health-heading" class="waterbody-detail-health-title">Vattenhälsa</h2>
+            <p class="waterbody-detail-health-subtitle mb-0">
+              Senaste klassning från VISS
+              {% if viss_health and viss_health.from_snapshot and viss_health.fetched_at %}
+                · sparad {{ viss_health.fetched_at|date:"Y-m-d H:i" }}
+              {% endif %}
+            </p>
+          </div>
+          {% if viss_api_configured %}
+            <form
+              method="post"
+              action="{% url 'maps:update_waterbody_health' water_body.pk %}"
+              class="mb-0"
+            >
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                Uppdatera VISS-hälsa
+              </button>
+            </form>
+          {% endif %}
+        </div>
       </header>
 
       {% if not viss_api_configured %}
         <p class="waterbody-detail-health-empty mb-0">VISS API inte konfigurerat</p>
       {% elif viss_health.available %}
         <div class="waterbody-detail-health-list">
-          {% with value=viss_health.eco_status value_lower=viss_health.eco_status|lower %}
-          <div class="waterbody-detail-health-row wb-health-tone--{% if value_lower == "ej klassad" %}neutral{% elif "uppnår ej" in value_lower or "otillfreds" in value_lower or "dålig" in value_lower %}bad{% elif "måttlig" in value_lower %}moderate{% elif "god" in value_lower or "hög" in value_lower %}good{% else %}neutral{% endif %}">
+          <div class="waterbody-detail-health-row wb-health-tone--{{ viss_health.eco_tone|default:'neutral' }}">
             <span class="waterbody-detail-health-dot" aria-hidden="true"><i class="fa-solid fa-leaf"></i></span>
             <div class="waterbody-detail-health-row-text">
               <span class="waterbody-detail-health-row-label">Ekologisk status</span>
-              <span class="waterbody-detail-health-row-value">{{ value }}</span>
+              <span class="waterbody-detail-health-row-value">{{ viss_health.eco_status }}</span>
             </div>
           </div>
-          {% endwith %}
 
-          {% with value=viss_health.chem_status value_lower=viss_health.chem_status|lower %}
-          <div class="waterbody-detail-health-row wb-health-tone--{% if value_lower == "ej klassad" %}neutral{% elif "uppnår ej" in value_lower or "otillfreds" in value_lower or "dålig" in value_lower %}bad{% elif "måttlig" in value_lower %}moderate{% elif "god" in value_lower or "hög" in value_lower %}good{% else %}neutral{% endif %}">
+          <div class="waterbody-detail-health-row wb-health-tone--{{ viss_health.chem_tone|default:'neutral' }}">
             <span class="waterbody-detail-health-dot" aria-hidden="true"><i class="fa-solid fa-flask"></i></span>
             <div class="waterbody-detail-health-row-text">
               <span class="waterbody-detail-health-row-label">Kemisk status</span>
-              <span class="waterbody-detail-health-row-value">{{ value }}</span>
+              <span class="waterbody-detail-health-row-value">{{ viss_health.chem_status }}</span>
             </div>
           </div>
-          {% endwith %}
 
-          {% with value=viss_health.risk value_lower=viss_health.risk|lower %}
-          <div class="waterbody-detail-health-row wb-health-tone--{% if value_lower == "ej klassad" %}neutral{% elif "risk" in value_lower and "ingen risk" not in value_lower %}bad{% elif "måttlig" in value_lower %}moderate{% elif "god" in value_lower or "hög" in value_lower or "ingen risk" in value_lower %}good{% else %}neutral{% endif %}">
+          <div class="waterbody-detail-health-row wb-health-tone--{{ viss_health.risk_tone|default:'neutral' }}">
             <span class="waterbody-detail-health-dot" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></span>
             <div class="waterbody-detail-health-row-text">
               <span class="waterbody-detail-health-row-label">Risk</span>
-              <span class="waterbody-detail-health-row-value">{{ value }}</span>
+              <span class="waterbody-detail-health-row-value">{{ viss_health.risk }}</span>
             </div>
           </div>
-          {% endwith %}
 
-          {% with value=viss_health.fish value_lower=viss_health.fish|lower %}
-          <div class="waterbody-detail-health-row wb-health-tone--{% if value_lower == "ej klassad" %}neutral{% elif "uppnår ej" in value_lower or "otillfreds" in value_lower or "dålig" in value_lower %}bad{% elif "måttlig" in value_lower %}moderate{% elif "god" in value_lower or "hög" in value_lower %}good{% else %}neutral{% endif %}">
+          <div class="waterbody-detail-health-row wb-health-tone--{{ viss_health.fish_tone|default:'neutral' }}">
             <span class="waterbody-detail-health-dot" aria-hidden="true"><i class="fa-solid fa-fish"></i></span>
             <div class="waterbody-detail-health-row-text">
               <span class="waterbody-detail-health-row-label">Fisk</span>
-              <span class="waterbody-detail-health-row-value">{{ value }}</span>
+              <span class="waterbody-detail-health-row-value">{{ viss_health.fish }}</span>
             </div>
           </div>
-          {% endwith %}
 
-          {% with value=viss_health.mkn value_lower=viss_health.mkn|lower %}
-          <div class="waterbody-detail-health-row waterbody-detail-health-row--mkn wb-health-tone--{% if value_lower == "ej klassad" %}neutral{% elif "uppnår ej" in value_lower or "otillfreds" in value_lower or "dålig" in value_lower %}bad{% elif "måttlig" in value_lower %}moderate{% elif "god" in value_lower %}good{% else %}neutral{% endif %}">
+          <div class="waterbody-detail-health-row waterbody-detail-health-row--mkn wb-health-tone--{{ viss_health.mkn_tone|default:'neutral' }}">
             <span class="waterbody-detail-health-dot" aria-hidden="true"><i class="fa-solid fa-bullseye"></i></span>
             <div class="waterbody-detail-health-row-text">
               <span class="waterbody-detail-health-row-label">Miljökvalitetsnorm (MKN)</span>
-              <span class="waterbody-detail-health-row-value">{{ value }}</span>
+              <span class="waterbody-detail-health-row-value">{{ viss_health.mkn }}</span>
             </div>
           </div>
-          {% endwith %}
         </div>
 
         <footer class="waterbody-detail-health-footer">

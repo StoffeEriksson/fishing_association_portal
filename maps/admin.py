@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import FishSpecies, MapBoundary, WaterBody
+from .models import FishSpecies, MapBoundary, WaterBody, WaterBodyHealthSnapshot
 
 
 @admin.register(FishSpecies)
@@ -58,6 +58,65 @@ class WaterBodyAdmin(admin.ModelAdmin):
                     "source_name",
                     "imported_at",
                 ),
+            },
+        ),
+    )
+
+
+@admin.register(WaterBodyHealthSnapshot)
+class WaterBodyHealthSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "water_body",
+        "org",
+        "eco_tone",
+        "chem_tone",
+        "risk_flag",
+        "fetched_at",
+    )
+    list_filter = ("org", "eco_tone", "chem_tone", "risk_flag")
+    search_fields = ("water_body__name", "water_body__viss_ms_cd", "org__name")
+    readonly_fields = ("created_at", "updated_at", "fetched_at")
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "org",
+                    "water_body",
+                    "source",
+                    "fetched_at",
+                    "fetch_error",
+                ),
+            },
+        ),
+        (
+            "Status",
+            {
+                "fields": (
+                    "eco_status",
+                    "eco_tone",
+                    "chem_status",
+                    "chem_tone",
+                    "risk",
+                    "risk_flag",
+                    "fish",
+                    "fish_tone",
+                    "mkn",
+                ),
+            },
+        ),
+        (
+            "Rådata",
+            {
+                "classes": ("collapse",),
+                "fields": ("raw_payload",),
+            },
+        ),
+        (
+            "Metadata",
+            {
+                "classes": ("collapse",),
+                "fields": ("created_at", "updated_at"),
             },
         ),
     )

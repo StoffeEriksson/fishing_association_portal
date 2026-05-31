@@ -25,9 +25,10 @@ from .models import MapBoundary, WaterBody, WaterBodyType
 from .services.fvo_onboarding import run_fvo_onboarding as execute_fvo_onboarding
 from .services.fvo_onboarding import save_fvo_boundary_for_org
 from .services.viss import (
-    fetch_water_health,
     get_viss_import_preview_for_org,
+    get_waterbody_health,
     import_viss_waters_for_org,
+    update_waterbody_health_snapshot,
 )
 
 logger = logging.getLogger(__name__)
@@ -979,7 +980,7 @@ def waterbody_detail(request, waterbody_id):
         viss_summary = "Ej importerad från VISS"
 
     viss_api_configured = bool((getattr(settings, "VISS_API_KEY", None) or "").strip())
-    viss_health = fetch_water_health(water_body) if viss_api_configured else None
+    viss_health = get_waterbody_health(water_body) if viss_api_configured else None
 
     context = {
         "water_body": water_body,
@@ -996,3 +997,41 @@ def waterbody_detail(request, waterbody_id):
         "has_more_actions": action_count > len(action_rows),
     }
     return render(request, "maps/waterbody_detail.html", context)
+
+
+@login_required
+@require_POST
+def update_waterbody_health(request, waterbody_id):
+    org = getattr(request, "org", None)
+    if org is None:
+        messages.error(
+            request,
+            "Ingen aktiv organisation vald. VISS-hälsa kunde inte uppdateras.",
+        )
+        return redirect("maps:map_page")
+
+    try:
+        water_body = WaterBody.objects.for_org(org).get(
+            pk=waterbody_id,
+            is_active=True,
+        )
+    except WaterBody.DoesNotExist:
+        messages.error(request, "Vattnet hittades inte i den aktiva organisationen.")
+        return redirect("maps:map_page")
+
+    viss_api_configured = bool((getattr(settings, "VISS_API_KEY", None) or "").strip())
+    if not viss_api_configured:
+        messages.error(request, "VISS API inte konfigurerat.")
+        return redirect("maps:waterbody_detail", waterbody_id=water_body.pk)
+
+    snapshot, error_message = update_waterbody_health_snapshot(water_body)
+    if error_message:
+        messages.error(request, error_message)
+        return redirect("maps:waterbody_detail", waterbody_id=water_body.pk)
+
+    if (snapshot.fetch_error or "").strip():
+        messages.warning(request, snapshot.fetch_error)
+    else:
+        messages.success(request, "VISS-hälsa uppdaterad och sparad lokalt.")
+
+    return redirect("maps:waterbody_detail", waterbody_id=water_body.pk)

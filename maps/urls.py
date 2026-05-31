@@ -13,6 +13,11 @@ urlpatterns = [
         name="waterbody_detail",
     ),
     path(
+        "water/<int:waterbody_id>/update-health/",
+        views.update_waterbody_health,
+        name="update_waterbody_health",
+    ),
+    path(
         "import-fvo-boundary/",
         views.import_fvo_boundary,
         name="import_fvo_boundary",

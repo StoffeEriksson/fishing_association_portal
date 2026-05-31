@@ -8,7 +8,7 @@ from django.conf import settings
 from django.db import IntegrityError
 from django.utils import timezone
 
-from maps.models import MapBoundary, WaterBody, WaterBodyType
+from maps.models import MapBoundary, WaterBody, WaterBodyHealthSnapshot, WaterBodyType
 
 logger = logging.getLogger(__name__)
 
@@ -991,3 +991,175 @@ def fetch_water_health(water_body):
         )
 
     return _health_result(message="Ingen VISS-status tillgänglig")
+
+
+def classify_health_tone(value):
+    value_lower = (value or "").strip().lower()
+    if not value_lower or value_lower == HEALTH_FIELD_MISSING_LABEL.lower():
+        return "neutral"
+    if (
+        "uppnår ej" in value_lower
+        or "otillfreds" in value_lower
+        or "dålig" in value_lower
+        or ("risk" in value_lower and "ingen risk" not in value_lower)
+    ):
+        return "bad"
+    if "måttlig" in value_lower:
+        return "moderate"
+    if "god" in value_lower or "hög" in value_lower:
+        return "good"
+    return "neutral"
+
+
+def classify_risk_tone(value):
+    value_lower = (value or "").strip().lower()
+    if not value_lower or value_lower == HEALTH_FIELD_MISSING_LABEL.lower():
+        return "neutral"
+    if "risk" in value_lower and "ingen risk" not in value_lower:
+        return "bad"
+    if "måttlig" in value_lower:
+        return "moderate"
+    if "god" in value_lower or "hög" in value_lower or "ingen risk" in value_lower:
+        return "good"
+    return "neutral"
+
+
+def classify_risk_flag(value):
+    value_lower = (value or "").strip().lower()
+    return bool(value_lower) and "risk" in value_lower and "ingen risk" not in value_lower
+
+
+def _enrich_health_with_tones(health):
+    if not health:
+        return health
+
+    enriched = dict(health)
+    enriched["eco_tone"] = classify_health_tone(enriched.get("eco_status"))
+    enriched["chem_tone"] = classify_health_tone(enriched.get("chem_status"))
+    enriched["fish_tone"] = classify_health_tone(enriched.get("fish"))
+    enriched["risk_tone"] = classify_risk_tone(enriched.get("risk"))
+    enriched["mkn_tone"] = classify_health_tone(enriched.get("mkn"))
+    return enriched
+
+
+def _normalize_snapshot_status(value):
+    normalized = (value or "").strip()
+    if not normalized:
+        return HEALTH_FIELD_MISSING_LABEL
+    return normalized
+
+
+def _health_dict_from_snapshot(snapshot):
+    has_status_data = any(
+        (
+            snapshot.eco_status,
+            snapshot.chem_status,
+            snapshot.risk,
+            snapshot.mkn,
+            snapshot.fish,
+        )
+    )
+    available = has_status_data and not (snapshot.fetch_error or "").strip()
+
+    health = {
+        "eco_status": _normalize_snapshot_status(snapshot.eco_status),
+        "chem_status": _normalize_snapshot_status(snapshot.chem_status),
+        "risk": _normalize_snapshot_status(snapshot.risk),
+        "mkn": _normalize_snapshot_status(snapshot.mkn),
+        "fish": _normalize_snapshot_status(snapshot.fish),
+        "source": snapshot.source or "VISS",
+        "available": available,
+        "message": (snapshot.fetch_error or "").strip(),
+        "eco_tone": snapshot.eco_tone,
+        "chem_tone": snapshot.chem_tone,
+        "fish_tone": snapshot.fish_tone,
+        "risk_tone": classify_risk_tone(snapshot.risk),
+        "mkn_tone": classify_health_tone(snapshot.mkn),
+        "from_snapshot": True,
+        "fetched_at": snapshot.fetched_at,
+    }
+    if available:
+        health["message"] = ""
+    return health
+
+
+def _snapshot_status_value(value):
+    if value is None:
+        return ""
+    normalized = str(value).strip()
+    if normalized == HEALTH_FIELD_MISSING_LABEL:
+        return ""
+    return normalized
+
+
+def update_waterbody_health_snapshot(water_body):
+    """
+    Hämta VISS-hälsa och skapa/uppdatera lokal snapshot för vattnet.
+
+    Returnerar (snapshot, error_message).
+    """
+    if water_body is None:
+        return None, "Inget vatten angivet."
+
+    org = water_body.org
+    api_key = (getattr(settings, "VISS_API_KEY", None) or "").strip()
+    if not api_key:
+        return None, "VISS API inte konfigurerat."
+
+    health = fetch_water_health(water_body)
+    now = timezone.now()
+
+    if health is None:
+        return None, "VISS API inte konfigurerat."
+
+    if health.get("available"):
+        defaults = {
+            "eco_status": _snapshot_status_value(health.get("eco_status")),
+            "chem_status": _snapshot_status_value(health.get("chem_status")),
+            "risk": _snapshot_status_value(health.get("risk")),
+            "mkn": _snapshot_status_value(health.get("mkn")),
+            "fish": _snapshot_status_value(health.get("fish")),
+            "eco_tone": classify_health_tone(health.get("eco_status")),
+            "chem_tone": classify_health_tone(health.get("chem_status")),
+            "fish_tone": classify_health_tone(health.get("fish")),
+            "risk_flag": classify_risk_flag(health.get("risk")),
+            "source": health.get("source") or "VISS",
+            "fetched_at": now,
+            "fetch_error": "",
+            "raw_payload": health,
+        }
+    else:
+        defaults = {
+            "fetched_at": now,
+            "fetch_error": (health.get("message") or "Ingen VISS-status tillgänglig").strip(),
+            "raw_payload": health,
+        }
+
+    snapshot, _created = WaterBodyHealthSnapshot.objects.update_or_create(
+        org=org,
+        water_body=water_body,
+        defaults=defaults,
+    )
+    return snapshot, None
+
+
+def get_waterbody_health(water_body):
+    """
+    Returnera sparad snapshot om den finns, annars live-hälsa från VISS.
+    """
+    api_key = (getattr(settings, "VISS_API_KEY", None) or "").strip()
+    if not api_key:
+        return None
+
+    if water_body is None:
+        return None
+
+    snapshot = (
+        WaterBodyHealthSnapshot.objects.for_org(water_body.org)
+        .filter(water_body=water_body, fetched_at__isnull=False)
+        .first()
+    )
+    if snapshot is not None:
+        return _health_dict_from_snapshot(snapshot)
+
+    return _enrich_health_with_tones(fetch_water_health(water_body))
