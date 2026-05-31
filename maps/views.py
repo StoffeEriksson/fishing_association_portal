@@ -14,13 +14,17 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from fisheries.labels import (
+    get_action_status_label,
     get_observation_category_label,
     get_observation_status_label,
 )
 from fisheries.models import ActionArea, ActionStatus, Observation
 
 from .models import MapBoundary, WaterBody, WaterBodyType
-from .services.viss import import_viss_waters_for_org
+from .services.viss import (
+    get_viss_import_preview_for_org,
+    import_viss_waters_for_org,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -429,6 +433,10 @@ def map_page(request):
                         "name": water.name,
                         "type": "water",
                         "fish": [species.name for species in water.species.all()],
+                        "detail_url": reverse(
+                            "maps:waterbody_detail",
+                            args=[water.pk],
+                        ),
                     },
                     "geometry": water.geojson,
                 }
@@ -589,6 +597,81 @@ def import_fvo_boundary(request):
     return redirect("maps:map_page")
 
 
+def _handle_viss_import_result(request, result):
+    for error_message in result.get("errors") or []:
+        if result["created"] == 0 and result["updated"] == 0:
+            messages.error(request, error_message)
+            return redirect("maps:map_page")
+        messages.warning(request, error_message)
+
+    if result["total"] == 0 and result["created"] == 0 and result["updated"] == 0:
+        messages.error(
+            request,
+            "Inga vattenförekomster kunde importeras från VISS.",
+        )
+        return redirect("maps:map_page")
+
+    messages.success(
+        request,
+        (
+            f"Import klar: {result['created']} skapade, "
+            f"{result['updated']} uppdaterade."
+        ),
+    )
+    return redirect("maps:map_page")
+
+
+@login_required
+def preview_viss_waters_within_fvo(request):
+    org = getattr(request, "org", None)
+    if org is None:
+        messages.error(
+            request,
+            "Ingen aktiv organisation vald. Förhandsgranskning kunde inte visas.",
+        )
+        return redirect("maps:map_page")
+
+    preview = get_viss_import_preview_for_org(org)
+    if preview.get("error"):
+        messages.error(request, preview["error"])
+        return redirect("maps:map_page")
+
+    context = {
+        "org_name": org.name,
+        "preview_items": preview["items"],
+        "total": preview["total"],
+        "lakes": preview["lakes"],
+        "rivers": preview["rivers"],
+        "new_count": preview["new_count"],
+        "already_imported": preview["already_imported"],
+    }
+    return render(request, "maps/viss_import_preview.html", context)
+
+
+@login_required
+@require_POST
+def import_selected_viss_waters(request):
+    org = getattr(request, "org", None)
+    if org is None:
+        messages.error(
+            request,
+            "Ingen aktiv organisation vald. Vatten kunde inte importeras från VISS.",
+        )
+        return redirect("maps:map_page")
+
+    import_all = (request.POST.get("import_action") or "").strip() == "all"
+    if import_all:
+        result = import_viss_waters_for_org(org)
+    else:
+        selected_ms_cd = request.POST.getlist("selected_ms_cd")
+        if not selected_ms_cd:
+            messages.error(request, "Inga vatten valda för import.")
+            return redirect("maps:preview_viss_waters_within_fvo")
+        result = import_viss_waters_for_org(org, only_ms_cd=selected_ms_cd)
+
+    return _handle_viss_import_result(request, result)
+
+
 @login_required
 @require_POST
 def import_viss_waters_within_fvo(request):
@@ -601,29 +684,7 @@ def import_viss_waters_within_fvo(request):
         return redirect("maps:map_page")
 
     result = import_viss_waters_for_org(org)
-
-    for error_message in result.get("errors") or []:
-        if result["created"] == 0 and result["updated"] == 0:
-            messages.error(request, error_message)
-            return redirect("maps:map_page")
-        messages.warning(request, error_message)
-
-    if result["total"] == 0:
-        messages.error(
-            request,
-            "Inga vattenförekomster hittades inom FVO-gränsen i VISS.",
-        )
-        return redirect("maps:map_page")
-
-    messages.success(
-        request,
-        (
-            f"Importerade vatten från VISS: {result['created']} skapade, "
-            f"{result['updated']} uppdaterade "
-            f"({result['lakes']} sjöar, {result['rivers']} vattendrag)."
-        ),
-    )
-    return redirect("maps:map_page")
+    return _handle_viss_import_result(request, result)
 
 
 @login_required
@@ -702,3 +763,73 @@ def import_waterbody_from_viss(request, waterbody_id):
         f"\"{display_name}\" har uppdaterats med sjöpolygon från VISS.",
     )
     return redirect("maps:map_page")
+
+
+def _format_external_source_label(external_source):
+    if not external_source:
+        return ""
+    if external_source.lower() == "viss":
+        return "VISS / Länsstyrelsen"
+    return external_source
+
+
+@login_required
+def waterbody_detail(request, waterbody_id):
+    org = getattr(request, "org", None)
+    if org is None:
+        messages.error(
+            request,
+            "Ingen aktiv organisation vald. Vattnet kunde inte visas.",
+        )
+        return redirect("maps:map_page")
+
+    try:
+        water_body = WaterBody.objects.for_org(org).get(
+            pk=waterbody_id,
+            is_active=True,
+        )
+    except WaterBody.DoesNotExist:
+        messages.error(request, "Vattnet hittades inte i den aktiva organisationen.")
+        return redirect("maps:map_page")
+
+    observations = (
+        Observation.objects.for_org(org)
+        .filter(water_body=water_body, is_active=True)
+        .select_related("linked_action")
+        .order_by("-created_at", "-id")
+    )
+    observation_rows = [
+        {
+            "observation": observation,
+            "status_label": get_observation_status_label(observation.status),
+            "category_label": get_observation_category_label(observation.category),
+        }
+        for observation in observations
+    ]
+
+    actions = (
+        ActionArea.objects.for_org(org)
+        .filter(water_body=water_body, is_active=True)
+        .select_related("responsible_user")
+        .order_by("-created_at", "-id")
+    )
+    action_rows = [
+        {
+            "action": action,
+            "status_label": get_action_status_label(action.status),
+        }
+        for action in actions
+    ]
+
+    context = {
+        "water_body": water_body,
+        "water_type_label": water_body.get_water_type_display(),
+        "external_source_label": _format_external_source_label(
+            water_body.external_source
+        ),
+        "observation_rows": observation_rows,
+        "action_rows": action_rows,
+        "observation_count": len(observation_rows),
+        "action_count": len(action_rows),
+    }
+    return render(request, "maps/waterbody_detail.html", context)

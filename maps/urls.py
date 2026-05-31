@@ -7,9 +7,24 @@ app_name = "maps"
 urlpatterns = [
     path("", views.map_page, name="map_page"),
     path(
+        "water/<int:waterbody_id>/",
+        views.waterbody_detail,
+        name="waterbody_detail",
+    ),
+    path(
         "import-fvo-boundary/",
         views.import_fvo_boundary,
         name="import_fvo_boundary",
+    ),
+    path(
+        "import-viss-waters/preview/",
+        views.preview_viss_waters_within_fvo,
+        name="preview_viss_waters_within_fvo",
+    ),
+    path(
+        "import-viss-waters/import/",
+        views.import_selected_viss_waters,
+        name="import_selected_viss_waters",
     ),
     path(
         "import-viss-waters/",

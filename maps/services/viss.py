@@ -283,10 +283,91 @@ def _append_viss_import_source_description(description, ms_cd, eu_cd):
     return source_line
 
 
-def import_viss_waters_for_org(org):
+def get_viss_import_preview_for_org(org):
+    """
+    Hämta VISS-vatten inom org:s FVO-gräns och jämför mot befintliga WaterBody.
+  """
+    if org is None:
+        return {"error": "Ingen organisation angiven.", "items": []}
+
+    boundary = (
+        MapBoundary.objects.for_org(org)
+        .filter(is_active=True)
+        .order_by("id")
+        .first()
+    )
+    if boundary is None or not boundary.geojson:
+        return {
+            "error": "Ingen aktiv FVO-gräns hittades. Importera FVO-gräns först.",
+            "items": [],
+        }
+
+    fetched = fetch_viss_waters_within_geometry(boundary.geojson)
+    if not fetched:
+        return {
+            "error": "Inga vattenförekomster hittades inom FVO-gränsen i VISS.",
+            "items": [],
+        }
+
+    existing_ms_cd = set(
+        WaterBody.objects.for_org(org)
+        .exclude(viss_ms_cd="")
+        .values_list("viss_ms_cd", flat=True)
+    )
+
+    preview_items = []
+    for item in fetched:
+        ms_cd = (item.get("viss_ms_cd") or "").strip()
+        if not ms_cd:
+            continue
+        display_name = (
+            (item.get("name") or "").strip()
+            or (item.get("source_name") or "").strip()
+            or f"Vatten {ms_cd}"
+        )
+        water_type = item.get("water_type")
+        already_imported = ms_cd in existing_ms_cd
+        preview_items.append(
+            {
+                "name": display_name,
+                "water_type": water_type,
+                "water_type_label": (
+                    WaterBodyType(water_type).label
+                    if water_type in WaterBodyType.values
+                    else water_type
+                ),
+                "viss_ms_cd": ms_cd,
+                "viss_eu_cd": (item.get("viss_eu_cd") or "").strip(),
+                "geometry_source": item.get("geometry_source") or "",
+                "already_imported": already_imported,
+            }
+        )
+
+    lakes = sum(
+        1 for row in preview_items if row["water_type"] == WaterBodyType.LAKE
+    )
+    rivers = sum(
+        1 for row in preview_items if row["water_type"] == WaterBodyType.RIVER
+    )
+    already_count = sum(1 for row in preview_items if row["already_imported"])
+
+    return {
+        "error": None,
+        "items": preview_items,
+        "total": len(preview_items),
+        "lakes": lakes,
+        "rivers": rivers,
+        "new_count": len(preview_items) - already_count,
+        "already_imported": already_count,
+    }
+
+
+def import_viss_waters_for_org(org, only_ms_cd=None):
     """
     Importera/uppdatera WaterBody från VISS för alla vatten som skär org:s FVO-gräns.
     Idempotent via (org, viss_ms_cd).
+
+    only_ms_cd: valfri lista med MS_CD att importera (övriga hoppas över).
     """
     if org is None:
         return _empty_import_result(["Ingen organisation angiven."])
@@ -307,6 +388,20 @@ def import_viss_waters_for_org(org):
         return _empty_import_result(
             ["Inga vattenförekomster hittades inom FVO-gränsen i VISS."]
         )
+
+    if only_ms_cd is not None:
+        allowed_ms_cd = {
+            (value or "").strip()
+            for value in only_ms_cd
+            if (value or "").strip()
+        }
+        items = [
+            item
+            for item in items
+            if (item.get("viss_ms_cd") or "").strip() in allowed_ms_cd
+        ]
+        if not items:
+            return _empty_import_result(["Inga valda vatten att importera."])
 
     created_count = 0
     updated_count = 0

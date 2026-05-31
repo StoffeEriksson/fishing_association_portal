@@ -121,19 +121,17 @@
         {% if has_org and has_map_boundary %}
           <div class="map-layer-panel-section map-import-viss-section" role="group" aria-label="Importera vatten">
             <div class="map-layer-panel-title">Importera vatten</div>
-            <form
-              method="post"
-              action="{% url 'maps:import_viss_waters_within_fvo' %}"
-              class="map-import-viss-bulk-form"
-            >
-              {% csrf_token %}
-              <button type="submit" class="map-import-viss-btn map-import-viss-btn-bulk">
-                Importera vatten inom FVO
-              </button>
+            <div class="map-import-viss-bulk-form">
+              <a
+                href="{% url 'maps:preview_viss_waters_within_fvo' %}"
+                class="map-import-viss-btn map-import-viss-btn-bulk"
+              >
+                Förhandsgranska vattenimport
+              </a>
               <p class="map-import-viss-help mb-0">
                 Hämtar sjöar och vattendragssegment som skär föreningens FVO-gräns från VISS/Länsstyrelsen.
               </p>
-            </form>
+            </div>
             {% if waterbodies and import_viss_waterbody_id %}
             <form
               method="post"
