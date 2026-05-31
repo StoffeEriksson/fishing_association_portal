@@ -99,7 +99,7 @@
           </ul>
           {% if has_more_observations %}
             <p class="waterbody-detail-more mb-0">
-              <a href="{% url 'fisheries:observation_list' %}" class="ccv2-inline-link">Visa alla observationer →</a>
+              <a href="{% url 'fisheries:observation_list' %}?water_id={{ water_body.pk }}" class="ccv2-inline-link">Visa alla observationer →</a>
             </p>
           {% endif %}
         {% else %}
@@ -141,7 +141,7 @@
           </ul>
           {% if has_more_actions %}
             <p class="waterbody-detail-more mb-0">
-              <a href="{% url 'fisheries:action_list' %}" class="ccv2-inline-link">Visa alla insatser →</a>
+              <a href="{% url 'fisheries:action_list' %}?water_id={{ water_body.pk }}" class="ccv2-inline-link">Visa alla insatser →</a>
             </p>
           {% endif %}
         {% else %}

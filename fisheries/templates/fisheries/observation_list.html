@@ -33,9 +33,19 @@
     </div>
   </header>
 
+  {% if selected_water %}
+    <div class="fv-water-filter-banner" role="status">
+      <span>Visar observationer för <strong>{{ selected_water.name }}</strong></span>
+      <a href="{% url 'fisheries:observation_list' %}" class="fv-water-filter-clear">Rensa filter</a>
+    </div>
+  {% endif %}
+
   <article class="ccv2-card fv-obs-filter-panel">
     <h2 class="fv-obs-filter-label">Filtrera observationer</h2>
     <form method="get" class="fv-obs-filter">
+      {% if selected_water %}
+        <input type="hidden" name="water_id" value="{{ selected_water.pk }}">
+      {% endif %}
       <label for="id_observation_q" class="visually-hidden">Sök</label>
       <input
         id="id_observation_q"

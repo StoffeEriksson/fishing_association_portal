@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -488,6 +489,28 @@ def _prefill_water_body_id(org, water_id_raw):
     if WaterBody.objects.for_org(org).filter(pk=water_id, is_active=True).exists():
         return water_id
     return ""
+
+
+def _resolve_selected_water(org, water_id_raw):
+    if org is None:
+        return None
+    water_id = (water_id_raw or "").strip()
+    if not water_id.isdigit():
+        return None
+    return (
+        WaterBody.objects.for_org(org)
+        .filter(pk=water_id, is_active=True)
+        .first()
+    )
+
+
+def _redirect_fisheries_list(request, url_name, org):
+    water_id_raw = (request.POST.get("water_id") or request.GET.get("water_id") or "").strip()
+    url = reverse(url_name)
+    selected_water = _resolve_selected_water(org, water_id_raw)
+    if selected_water:
+        url = f"{url}?{urlencode({'water_id': selected_water.pk})}"
+    return redirect(url)
 
 
 def _map_position_context(latitude, longitude):
@@ -1015,11 +1038,12 @@ def action_list(request):
                     from_status=old_status,
                     to_status=new_status,
                 )
-        return redirect("fisheries:action_list")
+        return _redirect_fisheries_list(request, "fisheries:action_list", org)
 
     selected_status = (request.GET.get("status") or "").strip()
     search_query = (request.GET.get("q") or "").strip()
     selected_sort = (request.GET.get("sort") or "").strip()
+    selected_water = _resolve_selected_water(org, request.GET.get("water_id"))
     allowed_sort_values = {
         "created_desc": "-created_at",
         "created_asc": "created_at",
@@ -1033,12 +1057,15 @@ def action_list(request):
         selected_status = ""
         search_query = ""
         selected_sort = "created_desc"
+        selected_water = None
     else:
         actions = (
             ActionArea.objects.for_org(org)
             .not_trashed()
             .select_related("created_by", "updated_by", "water_body", "responsible_user")
         )
+        if selected_water:
+            actions = actions.filter(water_body=selected_water)
         if selected_status in valid_status_values:
             actions = actions.filter(status=selected_status)
         else:
@@ -1074,6 +1101,7 @@ def action_list(request):
             "selected_status": selected_status,
             "search_query": search_query,
             "selected_sort": selected_sort,
+            "selected_water": selected_water,
             "status_choices": status_choices,
             "status_choices_labeled": status_choices_labeled,
         },
@@ -1252,11 +1280,12 @@ def observation_list(request):
                     event_type="status_changed",
                     message="Status uppdaterad via lista",
                 )
-        return redirect("fisheries:observation_list")
+        return _redirect_fisheries_list(request, "fisheries:observation_list", org)
 
     selected_status = (request.GET.get("status") or "").strip()
     search_query = (request.GET.get("q") or "").strip()
     selected_sort = (request.GET.get("sort") or "").strip()
+    selected_water = _resolve_selected_water(org, request.GET.get("water_id"))
     allowed_sort_values = {
         "created_desc": "-created_at",
         "created_asc": "created_at",
@@ -1269,12 +1298,15 @@ def observation_list(request):
         selected_status = ""
         search_query = ""
         selected_sort = "created_desc"
+        selected_water = None
     else:
         observations = (
             Observation.objects.for_org(org)
             .not_trashed()
             .select_related("water_body", "linked_action", "created_by", "updated_by")
         )
+        if selected_water:
+            observations = observations.filter(water_body=selected_water)
         if selected_status in valid_status_values:
             observations = observations.filter(status=selected_status)
         else:
@@ -1301,6 +1333,7 @@ def observation_list(request):
             "selected_status": selected_status,
             "search_query": search_query,
             "selected_sort": selected_sort,
+            "selected_water": selected_water,
             "status_choices": status_choices,
             "status_choices_labeled": status_choices_labeled,
         },

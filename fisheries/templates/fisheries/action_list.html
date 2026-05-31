@@ -33,9 +33,19 @@
     </div>
   </header>
 
+  {% if selected_water %}
+    <div class="fv-water-filter-banner" role="status">
+      <span>Visar insatser för <strong>{{ selected_water.name }}</strong></span>
+      <a href="{% url 'fisheries:action_list' %}" class="fv-water-filter-clear">Rensa filter</a>
+    </div>
+  {% endif %}
+
   <article class="ccv2-card fv-obs-filter-panel">
     <h2 class="fv-obs-filter-label">Filtrera insatser</h2>
     <form method="get" class="fv-obs-filter">
+      {% if selected_water %}
+        <input type="hidden" name="water_id" value="{{ selected_water.pk }}">
+      {% endif %}
       <label for="id_action_q" class="visually-hidden">Sök</label>
       <input
         id="id_action_q"
@@ -119,6 +129,9 @@
                 {% csrf_token %}
                 <input type="hidden" name="action_type" value="update_status_inline">
                 <input type="hidden" name="action_id" value="{{ action.pk }}">
+                {% if selected_water %}
+                  <input type="hidden" name="water_id" value="{{ selected_water.pk }}">
+                {% endif %}
                 <label class="visually-hidden" for="id_status_{{ action.pk }}">Status</label>
                 <select id="id_status_{{ action.pk }}" name="status" class="form-select form-select-sm fv-action-status-select" onchange="this.form.submit()" title="Ändra status">
                   {% for value, label in status_choices_labeled %}
