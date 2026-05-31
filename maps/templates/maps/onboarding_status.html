@@ -1,0 +1,97 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}FVO-onboarding{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'maps/css/map_page.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+  <div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Karta</div>
+{% endblock %}
+
+{% block content %}
+  <div class="viss-import-preview-shell">
+    <header class="viss-import-preview-header">
+      <h1 class="viss-import-preview-title">FVO-onboarding</h1>
+      <p class="viss-import-preview-subtitle mb-0">
+        Importerar FVO-gräns från Fiskekartan och vatten från VISS i ett steg.
+        {% if org_name %}
+          <span class="viss-import-preview-org">{{ org_name }}</span>
+        {% endif %}
+      </p>
+    </header>
+
+    {% if result %}
+      <div
+        class="alert {% if result.success %}alert-success{% else %}alert-warning{% endif %}"
+        role="status"
+      >
+        {% if result.success %}
+          <p class="fw-semibold mb-2">Onboarding klar</p>
+        {% else %}
+          <p class="fw-semibold mb-2">Onboarding kunde inte slutföras</p>
+        {% endif %}
+
+        <ul class="mb-0 ps-3">
+          <li>
+            {% if result.boundary_imported %}
+              FVO-gräns sparad{% if result.boundary_name %}: {{ result.boundary_name }}{% endif %}
+              {% if result.boundary_action == "created" %}(ny){% elif result.boundary_action == "updated" %}(uppdaterad){% endif %}
+            {% else %}
+              FVO-gräns: ej importerad
+            {% endif %}
+          </li>
+          <li>
+            Vatten: {{ result.waters_imported }} importerade
+            ({{ result.waters_created }} nya, {{ result.waters_updated }} uppdaterade)
+          </li>
+          {% if result.waters_total %}
+            <li>
+              Totalt {{ result.waters_total }} hittade i VISS
+              ({{ result.lakes }} sjöar, {{ result.rivers }} vattendrag)
+            </li>
+          {% endif %}
+          {% if result.waters_skipped %}
+            <li>{{ result.waters_skipped }} hoppades över</li>
+          {% endif %}
+        </ul>
+
+        {% if result.errors %}
+          <div class="mt-3">
+            <p class="fw-semibold mb-1">Meddelanden</p>
+            <ul class="mb-0 ps-3">
+              {% for error in result.errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="text-secondary mb-3">
+        Processen hämtar officiell FVO-gräns baserat på organisationens namn och importerar
+        sedan alla vattenförekomster som skär gränsen från VISS.
+      </p>
+      <form method="post" action="{% url 'maps:run_fvo_onboarding' %}">
+        {% csrf_token %}
+        <button type="submit" class="map-import-fvo-btn">
+          Starta FVO-onboarding
+        </button>
+      </form>
+    {% endif %}
+
+    <div class="mt-4">
+      <a href="{% url 'maps:map_page' %}" class="btn btn-link viss-import-preview-btn-cancel">Tillbaka till kartan</a>
+      {% if result %}
+        <form method="post" action="{% url 'maps:run_fvo_onboarding' %}" class="d-inline ms-3">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-link btn-sm p-0 align-baseline">
+            Kör igen
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

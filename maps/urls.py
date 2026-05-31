@@ -37,5 +37,10 @@ urlpatterns = [
         views.import_waterbody_from_viss,
         name="import_waterbody_from_viss",
     ),
+    path(
+        "onboarding/run/",
+        views.run_fvo_onboarding,
+        name="run_fvo_onboarding",
+    ),
 ]
 

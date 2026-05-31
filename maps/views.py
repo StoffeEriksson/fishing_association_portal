@@ -22,6 +22,8 @@ from fisheries.labels import (
 from fisheries.models import ActionArea, ActionStatus, Observation
 
 from .models import MapBoundary, WaterBody, WaterBodyType
+from .services.fvo_onboarding import run_fvo_onboarding as execute_fvo_onboarding
+from .services.fvo_onboarding import save_fvo_boundary_for_org
 from .services.viss import (
     fetch_water_health,
     get_viss_import_preview_for_org,
@@ -649,60 +651,42 @@ def import_fvo_boundary(request):
         )
         return redirect("maps:map_page")
 
-    geometry = _extract_geometry(matched_fvof.get("geojson"))
-    if not geometry or geometry.get("type") not in {"Polygon", "MultiPolygon"}:
-        messages.error(
-            request,
-            "FVO-gränsen kunde inte läsas från Fiskekartan. Geometrin var ogiltig.",
-        )
+    boundary_result = save_fvo_boundary_for_org(org, matched_fvof)
+    if not boundary_result.get("ok"):
+        messages.error(request, boundary_result["error"])
         return redirect("maps:map_page")
 
-    if not geometry.get("coordinates"):
-        messages.error(
-            request,
-            "FVO-gränsen kunde inte läsas från Fiskekartan. Geometrin saknade koordinater.",
-        )
-        return redirect("maps:map_page")
-
-    boundary_name = (matched_fvof.get("name") or org.name).strip() or org.name
-    geometry_to_store = json.loads(json.dumps(geometry))
-
-    boundary = (
-        MapBoundary.objects.for_org(org)
-        .filter(is_active=True)
-        .order_by("id")
-        .first()
+    action_label = (
+        "importerats"
+        if boundary_result["action"] == "created"
+        else "uppdaterats"
     )
-
-    if boundary:
-        boundary.name = boundary_name
-        boundary.geojson = geometry_to_store
-        boundary.is_active = True
-        boundary.save(update_fields=["name", "geojson", "is_active", "updated_at"])
-        action_label = "uppdaterats"
-        boundary_id = boundary.pk
-    else:
-        boundary = MapBoundary.objects.create(
-            org=org,
-            name=boundary_name,
-            geojson=geometry_to_store,
-            is_active=True,
-        )
-        action_label = "importerats"
-        boundary_id = boundary.pk
-
-    (
-        MapBoundary.objects.for_org(org)
-        .filter(is_active=True)
-        .exclude(pk=boundary_id)
-        .update(is_active=False)
-    )
-
     messages.success(
         request,
-        f"FVO-gränsen \"{boundary_name}\" har {action_label} från Fiskekartan.",
+        f"FVO-gränsen \"{boundary_result['name']}\" har {action_label} från Fiskekartan.",
     )
     return redirect("maps:map_page")
+
+
+@login_required
+def run_fvo_onboarding(request):
+    org = getattr(request, "org", None)
+    if org is None:
+        messages.error(
+            request,
+            "Ingen aktiv organisation vald. FVO-onboarding kunde inte köras.",
+        )
+        return redirect("maps:map_page")
+
+    result = None
+    if request.method == "POST":
+        result = execute_fvo_onboarding(org)
+
+    context = {
+        "org_name": org.name,
+        "result": result,
+    }
+    return render(request, "maps/onboarding_status.html", context)
 
 
 def _handle_viss_import_result(request, result):
