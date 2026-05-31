@@ -6,6 +6,7 @@ app_name = "maps"
 
 urlpatterns = [
     path("", views.map_page, name="map_page"),
+    path("waters/", views.waterbody_list, name="waterbody_list"),
     path(
         "water/<int:waterbody_id>/",
         views.waterbody_detail,

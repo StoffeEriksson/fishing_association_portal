@@ -1,0 +1,109 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Vatten{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/fisheries.css' %}">
+  <link rel="stylesheet" href="{% static 'maps/css/map_page.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+  <div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
+{% endblock %}
+
+{% block content %}
+  <div class="dashboard-shell fisheries-shell waterbody-list-shell">
+    <header class="ccv2-header waterbody-list-header">
+      <div class="waterbody-list-header-row">
+        <div>
+          <h1 class="ccv2-title mb-1">Vatten</h1>
+          <p class="ccv2-subtitle mb-0">
+            Alla vattenförekomster i föreningens område — navet för observationer och insatser.
+          </p>
+        </div>
+        <div class="waterbody-list-header-actions">
+          <a href="{% url 'maps:map_page' %}" class="fv-detail-link-btn">
+            <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+            Öppna karta
+          </a>
+        </div>
+      </div>
+      <div class="ccv2-status-chips">
+        <span class="ccv2-chip">Totalt: {{ water_count }}</span>
+      </div>
+    </header>
+
+    {% if water_rows %}
+      <article class="ccv2-card waterbody-list-card">
+        <div class="table-responsive">
+          <table class="table waterbody-list-table mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Namn</th>
+                <th scope="col">Typ</th>
+                <th scope="col">VISS-ID</th>
+                <th scope="col" class="text-end">Observationer</th>
+                <th scope="col" class="text-end">Insatser</th>
+                <th scope="col" class="text-end">Åtgärder</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in water_rows %}
+                <tr>
+                  <td>
+                    <a
+                      href="{% url 'maps:waterbody_detail' row.water_body.pk %}"
+                      class="waterbody-list-name-link"
+                    >
+                      {{ row.water_body.name }}
+                    </a>
+                  </td>
+                  <td>{{ row.water_type_label }}</td>
+                  <td>
+                    {% if row.water_body.viss_ms_cd %}
+                      <code class="waterbody-detail-code">{{ row.water_body.viss_ms_cd }}</code>
+                    {% else %}
+                      <span class="text-body-secondary">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <span class="waterbody-list-count">{{ row.observation_count }}</span>
+                  </td>
+                  <td class="text-end">
+                    <span class="waterbody-list-count">{{ row.action_count }}</span>
+                  </td>
+                  <td class="text-end">
+                    <div class="waterbody-list-actions">
+                      <a
+                        href="{% url 'maps:waterbody_detail' row.water_body.pk %}"
+                        class="waterbody-list-action-link"
+                      >
+                        Öppna
+                      </a>
+                      <a
+                        href="{% url 'maps:map_page' %}?water_id={{ row.water_body.pk }}"
+                        class="waterbody-list-action-link"
+                      >
+                        Karta
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    {% else %}
+      <article class="ccv2-card waterbody-list-empty-card">
+        <div class="ccv2-empty-state fisheries-empty-calm">
+          <span class="fisheries-empty-title">Inga vatten registrerade ännu.</span>
+          <span>Importera vatten från VISS via kartan när FVO-gränsen är på plats.</span>
+          <a href="{% url 'maps:map_page' %}" class="fisheries-empty-cta">Gå till kartan</a>
+        </div>
+      </article>
+    {% endif %}
+  </div>
+{% endblock %}

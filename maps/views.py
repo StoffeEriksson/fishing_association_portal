@@ -8,6 +8,7 @@ import urllib.request
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -877,6 +878,57 @@ def _format_external_source_label(external_source):
     if external_source.lower() == "viss":
         return "VISS / Länsstyrelsen"
     return external_source
+
+
+@login_required
+def waterbody_list(request):
+    org = getattr(request, "org", None)
+    if org is None:
+        messages.error(
+            request,
+            "Ingen aktiv organisation vald. Vattenöversikten kunde inte visas.",
+        )
+        return redirect("maps:map_page")
+
+    water_bodies = (
+        WaterBody.objects.for_org(org)
+        .filter(is_active=True)
+        .annotate(
+            observation_count=Count(
+                "observations",
+                filter=Q(
+                    observations__org_id=org.pk,
+                    observations__deleted_at__isnull=True,
+                ),
+                distinct=True,
+            ),
+            action_count=Count(
+                "action_areas",
+                filter=Q(
+                    action_areas__org_id=org.pk,
+                    action_areas__deleted_at__isnull=True,
+                ),
+                distinct=True,
+            ),
+        )
+        .order_by("name", "id")
+    )
+
+    water_rows = [
+        {
+            "water_body": water_body,
+            "water_type_label": water_body.get_water_type_display(),
+            "observation_count": water_body.observation_count,
+            "action_count": water_body.action_count,
+        }
+        for water_body in water_bodies
+    ]
+
+    context = {
+        "water_rows": water_rows,
+        "water_count": len(water_rows),
+    }
+    return render(request, "maps/waterbody_list.html", context)
 
 
 @login_required

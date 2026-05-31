@@ -475,6 +475,97 @@
   color: #64748b;
 }
 
+.waterbody-list-shell {
+  max-width: 980px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+.waterbody-list-header {
+  margin-bottom: 1rem;
+}
+
+.waterbody-list-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.waterbody-list-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.waterbody-list-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.waterbody-list-table thead th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  border-bottom-width: 1px;
+  white-space: nowrap;
+}
+
+.waterbody-list-table tbody td {
+  vertical-align: middle;
+  font-size: 0.92rem;
+}
+
+.waterbody-list-name-link {
+  font-weight: 600;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.waterbody-list-name-link:hover {
+  color: #0e7490;
+}
+
+.waterbody-list-count {
+  display: inline-flex;
+  min-width: 1.75rem;
+  justify-content: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.waterbody-list-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem 0.65rem;
+}
+
+.waterbody-list-action-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0e7490;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.waterbody-list-action-link:hover {
+  color: #0f766e;
+  text-decoration: underline;
+}
+
+.waterbody-list-empty-card {
+  padding: 1.25rem;
+}
+
 .map-workspace {
   display: grid;
   grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
