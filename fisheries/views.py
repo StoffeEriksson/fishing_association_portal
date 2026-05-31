@@ -1205,7 +1205,7 @@ def action_create(request):
 
         water_body = None
         if water_body_id:
-            water_body = WaterBody.objects.for_org(org).filter(pk=water_body_id).first()
+            water_body = WaterBody.objects.for_org(org).filter(pk=water_body_id, is_active=True).first()
 
         if priority not in valid_priority_values:
             priority = ActionPriority.MEDIUM
@@ -1383,7 +1383,7 @@ def observation_create(request):
 
         water_body = None
         if water_body_id:
-            water_body = WaterBody.objects.for_org(org).filter(pk=water_body_id).first()
+            water_body = WaterBody.objects.for_org(org).filter(pk=water_body_id, is_active=True).first()
 
         create_kwargs = {
             "org": request.org,
@@ -1643,7 +1643,7 @@ def observation_detail(request, pk):
 
             water_body = None
             if water_body_id:
-                water_body = WaterBody.objects.for_org(org).filter(pk=water_body_id).first()
+                water_body = WaterBody.objects.for_org(org).filter(pk=water_body_id, is_active=True).first()
 
             observation.category = category
             observation.water_body = water_body
