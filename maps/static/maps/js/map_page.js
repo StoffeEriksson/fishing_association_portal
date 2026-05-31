@@ -242,6 +242,7 @@
         if (fvofToggle.checked) {
           fvofLayer.addTo(map);
           setFvofAttribution(true);
+          syncInteractiveLayerOrder();
         } else if (map.hasLayer(fvofLayer)) {
           map.removeLayer(fvofLayer);
           setFvofAttribution(false);
@@ -334,39 +335,25 @@
       : [];
 
     let popupHtml = `<strong>${name}</strong>`;
-    if (type === "area") {
-      popupHtml =
-        `<div class="map-popup-area">` +
-        `<div class="map-popup-area-label">Föreningens område</div>` +
-        `<strong>${name}</strong>` +
-        `</div>`;
-    } else if (type === "water") {
+    if (type === "water") {
       const fishText = fish.length > 0 ? fish.join(", ") : "Inga registrerade arter";
-      popupHtml += `<br>Fiskarter: ${fishText}`;
+      const detailUrl = feature.properties?.detail_url || "";
+      popupHtml =
+        `<div class="map-popup-water">` +
+        `<strong>${name}</strong>` +
+        `<div class="map-popup-water-meta">Fiskarter: ${fishText}</div>`;
+      if (detailUrl) {
+        popupHtml +=
+          `<a class="map-popup-water-link" href="${detailUrl}">Öppna vatten →</a>`;
+      }
+      popupHtml += `</div>`;
     } else if (type === "action") {
       const statusLabel = getActionStatusLabel(feature.properties?.status);
       popupHtml += `<br>Status: ${statusLabel}`;
     }
     featureLayer.bindPopup(popupHtml);
 
-    if (type === "area") {
-      featureLayer.on("mouseover", function () {
-        featureLayer.setStyle({
-          color: "#4338ca",
-          fillColor: "#a5b4fc",
-          weight: 3.5,
-          fillOpacity: 0.16,
-          dashArray: "6 4",
-        });
-        if (typeof featureLayer.bringToFront === "function") {
-          featureLayer.bringToFront();
-        }
-      });
-
-      featureLayer.on("mouseout", function () {
-        featureLayer.setStyle(getAreaLayerStyle());
-      });
-    } else if (type === "water") {
+    if (type === "water") {
       featureLayer.on("mouseover", function () {
         featureLayer.setStyle({
           color: "#0f4c5c",
@@ -435,8 +422,8 @@
   const areaLayer = L.geoJSON(
     { type: "FeatureCollection", features: areaFeatures },
     {
-      style: getFeatureStyle,
-      onEachFeature: bindFeatureInteractions,
+      style: getAreaLayerStyle,
+      interactive: false,
     }
   );
 
@@ -488,6 +475,7 @@
     if (shouldBeVisible) {
       actionLayer.addTo(map);
     }
+    syncInteractiveLayerOrder();
   }
 
   const observationLayer = L.layerGroup();
@@ -533,6 +521,24 @@
 
   buildObservationLayer();
 
+  function syncInteractiveLayerOrder() {
+    if (fvofLayer && map.hasLayer(fvofLayer) && typeof fvofLayer.bringToBack === "function") {
+      fvofLayer.bringToBack();
+    }
+    if (map.hasLayer(areaLayer) && typeof areaLayer.bringToBack === "function") {
+      areaLayer.bringToBack();
+    }
+    if (map.hasLayer(waterLayer) && typeof waterLayer.bringToFront === "function") {
+      waterLayer.bringToFront();
+    }
+    if (map.hasLayer(actionLayer) && typeof actionLayer.bringToFront === "function") {
+      actionLayer.bringToFront();
+    }
+    if (map.hasLayer(observationLayer) && typeof observationLayer.bringToFront === "function") {
+      observationLayer.bringToFront();
+    }
+  }
+
   function updateObservationLayerVisibility() {
     if (!observationToggle) {
       return;
@@ -540,13 +546,11 @@
     if (observationToggle.checked) {
       if (!map.hasLayer(observationLayer)) {
         observationLayer.addTo(map);
-        if (typeof observationLayer.bringToFront === "function") {
-          observationLayer.bringToFront();
-        }
       }
     } else if (map.hasLayer(observationLayer)) {
       map.removeLayer(observationLayer);
     }
+    syncInteractiveLayerOrder();
   }
 
   function focusSelectedAction() {
@@ -656,6 +660,7 @@
   }
   rebuildActionLayer();
   updateObservationLayerVisibility();
+  syncInteractiveLayerOrder();
   applyInitialMapView();
 
   function updateLayerVisibility() {
@@ -684,6 +689,7 @@
     }
 
     updateObservationLayerVisibility();
+    syncInteractiveLayerOrder();
   }
 
   areaToggle.addEventListener("change", updateLayerVisibility);
