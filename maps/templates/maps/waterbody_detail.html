@@ -10,20 +10,35 @@
 {% endblock %}
 
 {% block portal_topbar_start %}
-  <div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Karta</div>
+  <div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Fiskevård</div>
 {% endblock %}
 
 {% block content %}
   <div class="waterbody-detail-shell fv-detail-shell">
     <header class="fv-detail-header waterbody-detail-header">
       <div class="fv-detail-header-top">
-        <a href="{% url 'maps:map_page' %}" class="fv-detail-back">← Tillbaka till karta</a>
-        <div class="fv-detail-header-actions">
+        <a href="{% url 'maps:waterbody_list' %}" class="fv-detail-back">← Tillbaka till vatten</a>
+        <div class="fv-detail-header-actions waterbody-detail-quick-actions">
           <a
             href="{% url 'maps:map_page' %}?water_id={{ water_body.pk }}"
             class="fv-detail-link-btn"
           >
+            <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
             Visa på karta
+          </a>
+          <a
+            href="{% url 'fisheries:observation_create' %}?water_id={{ water_body.pk }}"
+            class="fv-detail-link-btn"
+          >
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            Skapa observation
+          </a>
+          <a
+            href="{% url 'fisheries:action_create' %}?water_id={{ water_body.pk }}"
+            class="fv-detail-link-btn"
+          >
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            Skapa insats
           </a>
         </div>
       </div>
@@ -35,6 +50,111 @@
         {% endif %}
       </p>
     </header>
+
+    <div class="waterbody-detail-summary" aria-label="Sammanfattning">
+      <article class="waterbody-detail-summary-card">
+        <span class="waterbody-detail-summary-value">{{ observation_count }}</span>
+        <span class="waterbody-detail-summary-label">Observationer</span>
+      </article>
+      <article class="waterbody-detail-summary-card">
+        <span class="waterbody-detail-summary-value">{{ action_count }}</span>
+        <span class="waterbody-detail-summary-label">Insatser</span>
+      </article>
+      <article class="waterbody-detail-summary-card waterbody-detail-summary-card--wide">
+        <span class="waterbody-detail-summary-value waterbody-detail-summary-value--text">{{ viss_summary }}</span>
+        <span class="waterbody-detail-summary-label">
+          {% if water_body.imported_at %}
+            Importerad {{ water_body.imported_at|date:"Y-m-d" }}
+          {% else %}
+            Import / källa
+          {% endif %}
+        </span>
+      </article>
+    </div>
+
+    <div class="waterbody-detail-work-grid">
+      <section class="waterbody-detail-card" aria-labelledby="waterbody-obs-heading">
+        <div class="waterbody-detail-section-head">
+          <h2 id="waterbody-obs-heading" class="waterbody-detail-section-title mb-0">
+            Senaste observationer
+          </h2>
+          <span class="waterbody-detail-count">{{ observation_count }}</span>
+        </div>
+        {% if observation_rows %}
+          <ul class="waterbody-detail-list list-unstyled mb-0">
+            {% for row in observation_rows %}
+              <li class="waterbody-detail-list-item">
+                <a
+                  href="{% url 'fisheries:observation_detail' row.observation.pk %}"
+                  class="waterbody-detail-list-link"
+                >
+                  <span class="waterbody-detail-list-title">{{ row.observation.title }}</span>
+                  <span class="waterbody-detail-list-meta">
+                    {{ row.category_label }} · {{ row.status_label }}
+                    · {{ row.observation.created_at|date:"Y-m-d" }}
+                  </span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if has_more_observations %}
+            <p class="waterbody-detail-more mb-0">
+              <a href="{% url 'fisheries:observation_list' %}" class="ccv2-inline-link">Visa alla observationer →</a>
+            </p>
+          {% endif %}
+        {% else %}
+          <p class="waterbody-detail-empty mb-2">Inga observationer kopplade till detta vatten ännu.</p>
+          <a
+            href="{% url 'fisheries:observation_create' %}?water_id={{ water_body.pk }}"
+            class="fisheries-empty-cta"
+          >
+            Skapa första observationen
+          </a>
+        {% endif %}
+      </section>
+
+      <section class="waterbody-detail-card" aria-labelledby="waterbody-actions-heading">
+        <div class="waterbody-detail-section-head">
+          <h2 id="waterbody-actions-heading" class="waterbody-detail-section-title mb-0">
+            Senaste insatser
+          </h2>
+          <span class="waterbody-detail-count">{{ action_count }}</span>
+        </div>
+        {% if action_rows %}
+          <ul class="waterbody-detail-list list-unstyled mb-0">
+            {% for row in action_rows %}
+              <li class="waterbody-detail-list-item">
+                <a
+                  href="{% url 'fisheries:action_detail' row.action.pk %}"
+                  class="waterbody-detail-list-link"
+                >
+                  <span class="waterbody-detail-list-title">{{ row.action.name }}</span>
+                  <span class="waterbody-detail-list-meta">
+                    {{ row.status_label }}
+                    {% if row.action.deadline %}
+                      · Deadline {{ row.action.deadline|date:"Y-m-d" }}
+                    {% endif %}
+                  </span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if has_more_actions %}
+            <p class="waterbody-detail-more mb-0">
+              <a href="{% url 'fisheries:action_list' %}" class="ccv2-inline-link">Visa alla insatser →</a>
+            </p>
+          {% endif %}
+        {% else %}
+          <p class="waterbody-detail-empty mb-2">Inga insatser kopplade till detta vatten ännu.</p>
+          <a
+            href="{% url 'fisheries:action_create' %}?water_id={{ water_body.pk }}"
+            class="fisheries-empty-cta"
+          >
+            Planera första insatsen
+          </a>
+        {% endif %}
+      </section>
+    </div>
 
     <section class="waterbody-detail-card" aria-labelledby="waterbody-meta-heading">
       <h2 id="waterbody-meta-heading" class="waterbody-detail-section-title">Vattenförekomst</h2>
@@ -85,66 +205,6 @@
           <h3 class="waterbody-detail-subheading">Beskrivning</h3>
           <p class="mb-0">{{ water_body.description|linebreaksbr }}</p>
         </div>
-      {% endif %}
-    </section>
-
-    <section class="waterbody-detail-card" aria-labelledby="waterbody-obs-heading">
-      <div class="waterbody-detail-section-head">
-        <h2 id="waterbody-obs-heading" class="waterbody-detail-section-title mb-0">
-          Observationer
-        </h2>
-        <span class="waterbody-detail-count">{{ observation_count }}</span>
-      </div>
-      {% if observation_rows %}
-        <ul class="waterbody-detail-list list-unstyled mb-0">
-          {% for row in observation_rows %}
-            <li class="waterbody-detail-list-item">
-              <a
-                href="{% url 'fisheries:observation_detail' row.observation.pk %}"
-                class="waterbody-detail-list-link"
-              >
-                <span class="waterbody-detail-list-title">{{ row.observation.title }}</span>
-                <span class="waterbody-detail-list-meta">
-                  {{ row.category_label }} · {{ row.status_label }}
-                  · {{ row.observation.created_at|date:"Y-m-d" }}
-                </span>
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="waterbody-detail-empty mb-0">Inga observationer kopplade till detta vatten.</p>
-      {% endif %}
-    </section>
-
-    <section class="waterbody-detail-card" aria-labelledby="waterbody-actions-heading">
-      <div class="waterbody-detail-section-head">
-        <h2 id="waterbody-actions-heading" class="waterbody-detail-section-title mb-0">
-          Insatser
-        </h2>
-        <span class="waterbody-detail-count">{{ action_count }}</span>
-      </div>
-      {% if action_rows %}
-        <ul class="waterbody-detail-list list-unstyled mb-0">
-          {% for row in action_rows %}
-            <li class="waterbody-detail-list-item">
-              <a
-                href="{% url 'fisheries:action_detail' row.action.pk %}"
-                class="waterbody-detail-list-link"
-              >
-                <span class="waterbody-detail-list-title">{{ row.action.name }}</span>
-                <span class="waterbody-detail-list-meta">
-                  {{ row.status_label }}
-                  {% if row.action.deadline %}
-                    · Deadline {{ row.action.deadline|date:"Y-m-d" }}
-                  {% endif %}
-                </span>
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="waterbody-detail-empty mb-0">Inga insatser kopplade till detta vatten.</p>
       {% endif %}
     </section>
   </div>

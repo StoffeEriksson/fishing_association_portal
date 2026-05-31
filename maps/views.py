@@ -950,46 +950,59 @@ def waterbody_detail(request, waterbody_id):
         messages.error(request, "Vattnet hittades inte i den aktiva organisationen.")
         return redirect("maps:map_page")
 
-    observations = (
+    observations_qs = (
         Observation.objects.for_org(org)
         .not_trashed()
         .filter(water_body=water_body)
         .select_related("linked_action")
         .order_by("-created_at", "-id")
     )
+    observation_count = observations_qs.count()
+    recent_observations = observations_qs[:5]
     observation_rows = [
         {
             "observation": observation,
             "status_label": get_observation_status_label(observation.status),
             "category_label": get_observation_category_label(observation.category),
         }
-        for observation in observations
+        for observation in recent_observations
     ]
 
-    actions = (
+    actions_qs = (
         ActionArea.objects.for_org(org)
         .not_trashed()
         .filter(water_body=water_body)
         .select_related("responsible_user")
         .order_by("-created_at", "-id")
     )
+    action_count = actions_qs.count()
+    recent_actions = actions_qs[:5]
     action_rows = [
         {
             "action": action,
             "status_label": get_action_status_label(action.status),
         }
-        for action in actions
+        for action in recent_actions
     ]
+
+    external_source_label = _format_external_source_label(water_body.external_source)
+    if water_body.viss_ms_cd:
+        viss_summary = f"VISS {water_body.viss_ms_cd}"
+    elif external_source_label:
+        viss_summary = external_source_label
+    else:
+        viss_summary = "Ej importerad från VISS"
 
     context = {
         "water_body": water_body,
         "water_type_label": water_body.get_water_type_display(),
-        "external_source_label": _format_external_source_label(
-            water_body.external_source
-        ),
+        "external_source_label": external_source_label,
+        "viss_summary": viss_summary,
         "observation_rows": observation_rows,
         "action_rows": action_rows,
-        "observation_count": len(observation_rows),
-        "action_count": len(action_rows),
+        "observation_count": observation_count,
+        "action_count": action_count,
+        "has_more_observations": observation_count > len(observation_rows),
+        "has_more_actions": action_count > len(action_rows),
     }
     return render(request, "maps/waterbody_detail.html", context)
