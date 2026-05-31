@@ -519,6 +519,25 @@ def import_viss_waters_for_org(org, only_ms_cd=None):
 VISS_REST_API_URL = "https://viss.lansstyrelsen.se/api"
 VISS_REST_TIMEOUT_SECONDS = 20
 
+VISS_STATUS_CODE_LABELS = {
+    "G": "God",
+    "M": "Måttlig",
+    "P": "Otillfredsställande",
+    "B": "Dålig",
+    "N": "Uppnår ej god",
+    "PEP": "Otillfredsställande potential",
+    "H": "Hög",
+    "A": "Risk",
+}
+
+ECO_STATUS_PARAMETER_PRIORITY = (
+    "ekologisk status och potential",
+    "ekologisk status",
+    "ekologisk potential",
+)
+
+HEALTH_FIELD_MISSING_LABEL = "Ej klassad"
+
 
 def _health_result(
     *,
@@ -593,6 +612,10 @@ def _nested_dict_items(parent, container_key, item_key=None):
 
 
 def _classification_motivations(water_record):
+    motivations = water_record.get("Motivations")
+    if isinstance(motivations, list):
+        return [item for item in motivations if isinstance(item, dict)]
+
     items = _nested_dict_items(
         water_record,
         "WaterClassificationMotivations",
@@ -607,75 +630,102 @@ def _classification_motivations(water_record):
     )
 
 
-def _format_status_value(code, label=None):
-    code_text = (code or "").strip()
-    label_text = (label or "").strip()
-    if label_text and code_text and label_text.lower() != code_text.lower():
-        return f"{label_text} ({code_text})"
-    return label_text or code_text or None
+def _normalize_parameter_name(value):
+    return (value or "").strip().lstrip("- ").strip().lower()
 
 
-def _pick_classification(motivations, include_terms, exclude_terms=()):
-    include_terms = tuple(term.lower() for term in include_terms)
-    exclude_terms = tuple(term.lower() for term in exclude_terms)
+def _map_viss_status_code(code):
+    normalized = (code or "").strip().upper()
+    if not normalized:
+        return None
+    return VISS_STATUS_CODE_LABELS.get(normalized, normalized)
 
-    best = None
-    best_score = -1
+
+def _classification_label(motivation):
+    label = (
+        motivation.get("ClassificationSwedishName")
+        or motivation.get("classificationSwedishName")
+        or ""
+    ).strip()
+    if label:
+        return label
+
+    code = motivation.get("Classification") or motivation.get("classification")
+    return _map_viss_status_code(code)
+
+
+def _pick_eco_status(motivations):
+    by_name = {}
     for motivation in motivations:
-        parameter = (
-            motivation.get("Parameter")
-            or motivation.get("parameter")
-            or motivation.get("SwedishName")
-            or motivation.get("swedishName")
-            or ""
-        ).strip()
-        parameter_lower = parameter.lower()
-        if not parameter_lower:
-            continue
-        if exclude_terms and any(term in parameter_lower for term in exclude_terms):
-            continue
-        if not any(term in parameter_lower for term in include_terms):
-            continue
+        parameter_name = _normalize_parameter_name(
+            motivation.get("ParameterSwedishName") or motivation.get("Parameter")
+        )
+        if parameter_name:
+            by_name[parameter_name] = motivation
 
-        score = max(len(term) for term in include_terms if term in parameter_lower)
-        if "status" in parameter_lower:
-            score += 10
-        if score > best_score:
-            classification = motivation.get("Classification") or motivation.get(
-                "classification"
-            )
-            value = motivation.get("Value") or motivation.get("value")
-            best = _format_status_value(classification or value, parameter)
-            best_score = score
-    return best
+    for preferred_name in ECO_STATUS_PARAMETER_PRIORITY:
+        motivation = by_name.get(preferred_name)
+        if motivation is not None:
+            return _classification_label(motivation)
+
+    for motivation in motivations:
+        parameter_name = _normalize_parameter_name(
+            motivation.get("ParameterSwedishName") or motivation.get("Parameter")
+        )
+        if "ekologisk" in parameter_name and "status" in parameter_name:
+            return _classification_label(motivation)
+    return None
+
+
+def _pick_chem_status(motivations):
+    for motivation in motivations:
+        parameter_name = _normalize_parameter_name(
+            motivation.get("ParameterSwedishName") or motivation.get("Parameter")
+        )
+        if parameter_name in {"kemisk status", "kemisk ytvattenstatus"}:
+            return _classification_label(motivation)
+        if "kemisk status" in parameter_name:
+            return _classification_label(motivation)
+    return None
+
+
+def _pick_fish_status(motivations):
+    for motivation in motivations:
+        parameter_name = _normalize_parameter_name(
+            motivation.get("ParameterSwedishName") or motivation.get("Parameter")
+        )
+        parameter_code = (motivation.get("Parameter") or "").strip().upper()
+        if parameter_name == "fisk" or parameter_code == "FISH":
+            return _classification_label(motivation)
+    return None
 
 
 def _extract_classifications_from_motivations(motivations):
-    eco_status = _pick_classification(
-        motivations,
-        include_terms=("ekologisk status", "ekologisk potential"),
-        exclude_terms=("kvalitetsfaktor", "biologisk"),
+    return (
+        _pick_eco_status(motivations),
+        _pick_chem_status(motivations),
+        _pick_fish_status(motivations),
     )
-    chem_status = _pick_classification(
-        motivations,
-        include_terms=("kemisk status",),
-        exclude_terms=("prioriterade", "kvalitetsfaktor"),
-    )
-    fish = _pick_classification(
-        motivations,
-        include_terms=("fisk",),
-        exclude_terms=("fiske", "fiskvatten", "fisket"),
-    )
-    return eco_status, chem_status, fish
 
 
-def _extract_mkn_summary(mkn_records):
+def _mkn_sections(water_record):
+    sections = water_record.get("Sections")
+    if isinstance(sections, list):
+        return [item for item in sections if isinstance(item, dict)]
+
+    sections = _nested_dict_items(water_record, "MKNSections", "MKNSection")
+    if sections:
+        return sections
+    return _nested_dict_items(water_record, "mknSections", "mknSection")
+
+
+def _extract_mkn_statuses(mkn_records):
+    eco_status = None
+    chem_status = None
     parts = []
+
     for water in mkn_records:
-        sections = _nested_dict_items(water, "MKNSections", "MKNSection")
-        if not sections:
-            sections = _nested_dict_items(water, "mknSections", "mknSection")
-        for section in sections:
+        for section in _mkn_sections(water):
             name = (
                 section.get("SwedishName")
                 or section.get("swedishName")
@@ -686,17 +736,24 @@ def _extract_mkn_summary(mkn_records):
             current = (
                 section.get("CurrentStatusSwedishName")
                 or section.get("currentStatusSwedishName")
-                or section.get("CurrentStatus")
-                or section.get("currentStatus")
+                or _map_viss_status_code(section.get("CurrentStatus"))
+                or _map_viss_status_code(section.get("currentStatus"))
                 or ""
             ).strip()
             target = (
                 section.get("TargetStatusSwedishName")
                 or section.get("targetStatusSwedishName")
-                or section.get("TargetStatus")
-                or section.get("targetStatus")
+                or _map_viss_status_code(section.get("TargetStatus"))
+                or _map_viss_status_code(section.get("targetStatus"))
                 or ""
             ).strip()
+            name_lower = name.lower()
+
+            if eco_status is None and "ekologisk" in name_lower:
+                eco_status = current or None
+            if chem_status is None and "kemisk" in name_lower:
+                chem_status = current or None
+
             if not name and not current and not target:
                 continue
             section_parts = []
@@ -707,37 +764,64 @@ def _extract_mkn_summary(mkn_records):
             if target:
                 section_parts.append(f"mål {target}")
             parts.append(" · ".join(section_parts))
-    if not parts:
-        return None
-    return "; ".join(parts)
+
+    return eco_status, chem_status, "; ".join(parts) if parts else None
 
 
 def _extract_risk_summary(risk_records):
-    flagged = []
+    parts = []
     for water in risk_records:
-        sections = _nested_dict_items(water, "WaterRiskSections", "WaterRiskSection")
+        sections = water.get("RiskSections")
+        if not isinstance(sections, list):
+            sections = _nested_dict_items(water, "WaterRiskSections", "WaterRiskSection")
         if not sections:
             sections = _nested_dict_items(water, "waterRiskSections", "waterRiskSection")
+
         for section in sections:
-            impacts = _nested_dict_items(section, "WaterRiskImpacts", "WaterRiskImpact")
+            if not isinstance(section, dict):
+                continue
+
+            section_name = (
+                section.get("SectionName")
+                or section.get("sectionName")
+                or ""
+            ).strip()
+            risk_value = (section.get("Risk") or section.get("risk") or "").strip()
+            if risk_value and "ingen risk" not in risk_value.lower():
+                short_name = section_name.split(" - ")[0].strip() if section_name else "Risk"
+                parts.append(f"{short_name}: {risk_value}")
+                continue
+
+            impacts = section.get("Impacts")
+            if not isinstance(impacts, list):
+                impacts = _nested_dict_items(section, "WaterRiskImpacts", "WaterRiskImpact")
             if not impacts:
-                impacts = _nested_dict_items(
-                    section, "waterRiskImpacts", "waterRiskImpact"
-                )
+                impacts = _nested_dict_items(section, "waterRiskImpacts", "waterRiskImpact")
+
             for impact in impacts:
                 risk_value = (impact.get("Risk") or impact.get("risk") or "").strip()
                 impact_name = (impact.get("Impact") or impact.get("impact") or "").strip()
-                if not risk_value:
-                    continue
-                if "ingen risk" in risk_value.lower():
+                if not risk_value or "ingen risk" in risk_value.lower():
                     continue
                 if impact_name:
-                    flagged.append(f"{impact_name}: {risk_value}")
+                    parts.append(f"{impact_name}: {risk_value}")
                 else:
-                    flagged.append(risk_value)
-    if not flagged:
+                    parts.append(risk_value)
+
+    if not parts:
         return None
-    return "; ".join(flagged[:4])
+    return "; ".join(parts[:4])
+
+
+def _finalize_health_result(result):
+    if not result.get("available"):
+        return result
+
+    for field in ("eco_status", "chem_status", "risk", "mkn", "fish"):
+        if not result.get(field):
+            result[field] = HEALTH_FIELD_MISSING_LABEL
+    result["message"] = ""
+    return result
 
 
 def _viss_rest_request(method, api_key, **params):
@@ -853,9 +937,15 @@ def fetch_water_health(water_body):
             logger.info("VISS mkn for %r: %s", water_public_id, error)
         elif mkn_payload is not None:
             had_successful_response = True
-            mkn = _extract_mkn_summary(
-                _unwrap_viss_records(mkn_payload, "WaterMKN", "ArrayOfWaterMKN", "Water")
+            mkn_records = _unwrap_viss_records(
+                mkn_payload, "WaterMKN", "ArrayOfWaterMKN", "Water"
             )
+            mkn_eco, mkn_chem, mkn_summary = _extract_mkn_statuses(mkn_records)
+            mkn = mkn_summary
+            if not eco_status:
+                eco_status = mkn_eco
+            if not chem_status:
+                chem_status = mkn_chem
 
     if auth_error is None:
         risk_payload, error = _viss_rest_request(
@@ -889,13 +979,15 @@ def fetch_water_health(water_body):
         return _health_result(message="VISS API är inte tillgängligt just nu.")
 
     if any(value for value in (eco_status, chem_status, risk, mkn, fish)):
-        return _health_result(
-            eco_status=eco_status,
-            chem_status=chem_status,
-            risk=risk,
-            mkn=mkn,
-            fish=fish,
-            available=True,
+        return _finalize_health_result(
+            _health_result(
+                eco_status=eco_status,
+                chem_status=chem_status,
+                risk=risk,
+                mkn=mkn,
+                fish=fish,
+                available=True,
+            )
         )
 
     return _health_result(message="Ingen VISS-status tillgänglig")
