@@ -763,6 +763,66 @@
   color: #64748b;
 }
 
+.waterbody-priority-summary {
+  margin-bottom: 1rem;
+}
+
+.waterbody-priority-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+  .waterbody-priority-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.waterbody-priority-summary-stat--high .waterbody-health-summary-value {
+  color: #dc2626;
+}
+
+.waterbody-priority-summary-stat--medium .waterbody-health-summary-value {
+  color: #ca8a04;
+}
+
+.waterbody-priority-summary-stat--low .waterbody-health-summary-value {
+  color: #16a34a;
+}
+
+.waterbody-list-priority-col,
+.waterbody-list-priority-cell {
+  width: 4.5rem;
+  text-align: center;
+}
+
+.waterbody-list-priority-cell {
+  vertical-align: middle;
+}
+
+.waterbody-list-priority-dot {
+  display: inline-block;
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.waterbody-list-priority-dot--low {
+  background: #16a34a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.waterbody-list-priority-dot--medium {
+  background: #eab308;
+  border: 1px solid #ca8a04;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.waterbody-list-priority-dot--high {
+  background: #dc2626;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
 .waterbody-list-health-col,
 .waterbody-list-health-cell {
   width: 4.5rem;

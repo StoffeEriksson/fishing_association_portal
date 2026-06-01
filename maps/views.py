@@ -942,6 +942,65 @@ def _build_water_health_summary(water_bodies):
     return summary
 
 
+def _calculate_water_priority(snapshot, observation_count, action_count):
+    score = 0
+    eco_tone = "neutral"
+    has_risk = False
+
+    if snapshot is not None and not (snapshot.fetch_error or "").strip():
+        eco_tone = snapshot.eco_tone or "neutral"
+        has_risk = bool(snapshot.risk_flag)
+
+    if eco_tone == "bad":
+        score += 3
+    elif eco_tone == "moderate":
+        score += 1
+
+    if has_risk:
+        score += 2
+
+    if observation_count > 0:
+        score += 1
+    if observation_count >= 5:
+        score += 2
+
+    if action_count == 0 and observation_count > 0:
+        score += 1
+
+    if score <= 1:
+        level = "low"
+        label = "Låg"
+    elif score <= 4:
+        level = "medium"
+        label = "Mellan"
+    else:
+        level = "high"
+        label = "Hög"
+
+    return {
+        "priority_score": score,
+        "priority_level": level,
+        "priority_label": label,
+    }
+
+
+def _build_priority_summary(water_rows):
+    summary = {
+        "priority_high_count": 0,
+        "priority_medium_count": 0,
+        "priority_low_count": 0,
+    }
+    for row in water_rows:
+        level = row.get("priority_level")
+        if level == "high":
+            summary["priority_high_count"] += 1
+        elif level == "medium":
+            summary["priority_medium_count"] += 1
+        else:
+            summary["priority_low_count"] += 1
+    return summary
+
+
 @login_required
 def waterbody_list(request):
     org = getattr(request, "org", None)
@@ -982,8 +1041,12 @@ def waterbody_list(request):
 
     water_rows = []
     for water_body in water_bodies_list:
-        health_display = _water_health_row_display(
-            _health_snapshot_for_water_body(water_body)
+        snapshot = _health_snapshot_for_water_body(water_body)
+        health_display = _water_health_row_display(snapshot)
+        priority_display = _calculate_water_priority(
+            snapshot,
+            water_body.observation_count,
+            water_body.action_count,
         )
         water_rows.append(
             {
@@ -992,13 +1055,17 @@ def waterbody_list(request):
                 "observation_count": water_body.observation_count,
                 "action_count": water_body.action_count,
                 **health_display,
+                **priority_display,
             }
         )
+
+    priority_summary = _build_priority_summary(water_rows)
 
     context = {
         "water_rows": water_rows,
         "water_count": len(water_rows),
         "health_summary": health_summary,
+        "priority_summary": priority_summary,
     }
     return render(request, "maps/waterbody_list.html", context)
 

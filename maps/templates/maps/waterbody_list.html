@@ -70,6 +70,23 @@
         {% endif %}
       </section>
 
+      <section class="waterbody-priority-summary" aria-label="Prioritet">
+        <div class="waterbody-health-summary-grid waterbody-priority-summary-grid">
+          <div class="waterbody-health-summary-stat waterbody-priority-summary-stat--high">
+            <span class="waterbody-health-summary-value">{{ priority_summary.priority_high_count }}</span>
+            <span class="waterbody-health-summary-label">Hög prioritet</span>
+          </div>
+          <div class="waterbody-health-summary-stat waterbody-priority-summary-stat--medium">
+            <span class="waterbody-health-summary-value">{{ priority_summary.priority_medium_count }}</span>
+            <span class="waterbody-health-summary-label">Mellan prioritet</span>
+          </div>
+          <div class="waterbody-health-summary-stat waterbody-priority-summary-stat--low">
+            <span class="waterbody-health-summary-value">{{ priority_summary.priority_low_count }}</span>
+            <span class="waterbody-health-summary-label">Låg prioritet</span>
+          </div>
+        </div>
+      </section>
+
       <article class="ccv2-card waterbody-list-card">
         <div class="table-responsive">
           <table class="table waterbody-list-table mb-0">
@@ -78,6 +95,7 @@
                 <th scope="col">Namn</th>
                 <th scope="col">Typ</th>
                 <th scope="col" class="waterbody-list-health-col">Hälsa</th>
+                <th scope="col" class="waterbody-list-priority-col">Prioritet</th>
                 <th scope="col">VISS-ID</th>
                 <th scope="col" class="text-end">Observationer</th>
                 <th scope="col" class="text-end">Insatser</th>
@@ -112,6 +130,13 @@
                         </span>
                       {% endif %}
                     </span>
+                  </td>
+                  <td class="waterbody-list-priority-cell">
+                    <span
+                      class="waterbody-list-priority-dot waterbody-list-priority-dot--{{ row.priority_level }}"
+                      title="Prioritet: {{ row.priority_label }}"
+                      aria-label="Prioritet: {{ row.priority_label }}"
+                    ></span>
                   </td>
                   <td>
                     {% if row.water_body.viss_ms_cd %}
