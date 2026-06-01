@@ -88,6 +88,27 @@
       </section>
 
       <article class="ccv2-card waterbody-list-card">
+        <form
+          method="get"
+          action="{% url 'maps:waterbody_list' %}"
+          class="waterbody-list-sort-form"
+          id="waterbody-list-sort-form"
+        >
+          <label class="waterbody-list-sort-label" for="waterbody-list-sort">Sortera</label>
+          <select
+            name="sort"
+            id="waterbody-list-sort"
+            class="form-select form-select-sm waterbody-list-sort-select"
+            aria-label="Sortera vattenlista"
+            onchange="this.form.submit()"
+          >
+            {% for value, label in sort_options %}
+              <option value="{{ value }}"{% if current_sort == value %} selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </form>
         <div class="table-responsive">
           <table class="table waterbody-list-table mb-0">
             <thead>

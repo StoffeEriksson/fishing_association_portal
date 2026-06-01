@@ -1001,6 +1001,84 @@ def _build_priority_summary(water_rows):
     return summary
 
 
+WATERBODY_LIST_SORT_DEFAULT = "name_asc"
+
+WATERBODY_LIST_SORT_CHOICES = (
+    ("name_asc", "A–Ö"),
+    ("priority_desc", "Prioritet högst först"),
+    ("health_bad_first", "Sämst hälsa först"),
+    ("risk_first", "Riskvatten först"),
+    ("observations_desc", "Flest observationer"),
+    ("actions_desc", "Flest insatser"),
+)
+
+_HEALTH_TONE_SORT_ORDER = {
+    "bad": 0,
+    "moderate": 1,
+    "good": 2,
+    "neutral": 3,
+}
+
+
+def _resolve_waterbody_list_sort(sort_param):
+    allowed = {value for value, _label in WATERBODY_LIST_SORT_CHOICES}
+    sort_key = (sort_param or "").strip()
+    if sort_key in allowed:
+        return sort_key
+    return WATERBODY_LIST_SORT_DEFAULT
+
+
+def _water_row_name_sort_key(row):
+    return (
+        (row["water_body"].name or "").strip().lower(),
+        row["water_body"].pk,
+    )
+
+
+def _sort_water_rows(water_rows, sort_key):
+    if sort_key == "priority_desc":
+        return sorted(
+            water_rows,
+            key=lambda row: (
+                -row["priority_score"],
+                *_water_row_name_sort_key(row),
+            ),
+        )
+    if sort_key == "health_bad_first":
+        return sorted(
+            water_rows,
+            key=lambda row: (
+                _HEALTH_TONE_SORT_ORDER.get(row.get("health_tone"), 3),
+                *_water_row_name_sort_key(row),
+            ),
+        )
+    if sort_key == "risk_first":
+        return sorted(
+            water_rows,
+            key=lambda row: (
+                0 if row.get("has_risk") else 1,
+                *_water_row_name_sort_key(row),
+            ),
+        )
+    if sort_key == "observations_desc":
+        return sorted(
+            water_rows,
+            key=lambda row: (
+                -row["observation_count"],
+                *_water_row_name_sort_key(row),
+            ),
+        )
+    if sort_key == "actions_desc":
+        return sorted(
+            water_rows,
+            key=lambda row: (
+                -row["action_count"],
+                *_water_row_name_sort_key(row),
+            ),
+        )
+    return sorted(water_rows, key=_water_row_name_sort_key)
+
+
 @login_required
 def waterbody_list(request):
     org = getattr(request, "org", None)
@@ -1059,6 +1137,9 @@ def waterbody_list(request):
             }
         )
 
+    current_sort = _resolve_waterbody_list_sort(request.GET.get("sort"))
+    water_rows = _sort_water_rows(water_rows, current_sort)
+
     priority_summary = _build_priority_summary(water_rows)
 
     context = {
@@ -1066,6 +1147,8 @@ def waterbody_list(request):
         "water_count": len(water_rows),
         "health_summary": health_summary,
         "priority_summary": priority_summary,
+        "current_sort": current_sort,
+        "sort_options": WATERBODY_LIST_SORT_CHOICES,
     }
     return render(request, "maps/waterbody_list.html", context)
 
