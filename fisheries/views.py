@@ -400,14 +400,20 @@ def _build_action_next_step(action, today):
     if action.status == ActionStatus.IN_PROGRESS:
         return {
             "title": "Nästa steg",
-            "body": "Insatsen pågår. När arbetet är klart kan ni markera den som färdig.",
+            "body": "Arbetet är igång. Lägg in korta lägesuppdateringar så att styrelsen kan följa vad som händer ute i fält.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--neutral",
             "ctas": [
                 {
+                    "label": "Lägg till lägesuppdatering",
+                    "kind": "link",
+                    "variant": "primary",
+                    "url": "#fv-action-updates",
+                },
+                {
                     "label": "Markera som klar",
                     "kind": "change_status",
-                    "variant": "primary",
+                    "variant": "secondary",
                     "status": ActionStatus.COMPLETED,
                 }
             ],
@@ -2120,8 +2126,28 @@ def action_detail(request, pk):
 
         return redirect("fisheries:action_detail", pk=action.pk)
 
-    comments = list(action.comments.select_related("user").order_by("-created_at"))
-    logs = list(action.logs.select_related("user").order_by("-created_at"))
+    comments = list(
+        ActionComment.objects.for_org(org)
+        .filter(action_area=action)
+        .select_related("user")
+        .order_by("-created_at")
+    )
+    logs = list(
+        ActionLog.objects.for_org(org)
+        .filter(action_area=action)
+        .select_related("user")
+        .order_by("-created_at")
+    )
+    latest_update = comments[0] if comments else None
+    in_progress_started_log = next(
+        (
+            log
+            for log in logs
+            if log.event_type == "status_changed"
+            and log.to_status == ActionStatus.IN_PROGRESS
+        ),
+        None,
+    )
     today = timezone.localdate()
 
     status_choices_labeled = [
@@ -2146,6 +2172,9 @@ def action_detail(request, pk):
             "header_badges": _build_action_header_badges(action),
             "next_step": _build_action_next_step(action, today),
             "flow_steps": _build_fisheries_flow_steps(action.status),
+            "is_in_progress": action.status == ActionStatus.IN_PROGRESS,
+            "latest_update": latest_update,
+            "in_progress_started_log": in_progress_started_log,
             "status_label": get_action_status_label(action.status),
             "priority_label": get_action_priority_label(action.priority),
             "responsible_label": _user_display_name(action.responsible_user),

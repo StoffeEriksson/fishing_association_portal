@@ -518,6 +518,26 @@
   margin-bottom: 0.62rem;
 }
 
+.fv-workmode-card {
+  margin-bottom: 0.62rem;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: linear-gradient(180deg, #f8fbff 0%, #f8fafc 100%);
+}
+
+.fv-workmode-update-text {
+  font-size: 0.82rem;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.fv-workmode-help {
+  margin-top: 0.5rem;
+  padding-top: 0.48rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  font-size: 0.78rem;
+  color: #475569;
+}
+
 .fv-flow-steps {
   gap: 0.22rem 0.4rem;
 }

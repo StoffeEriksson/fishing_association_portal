@@ -100,6 +100,58 @@
     </div>
   </div>
 
+  {% if is_in_progress %}
+    <article class="ccv2-card fv-detail-card fv-workmode-card">
+      <h2 class="ccv2-card-title">Arbetsläge</h2>
+      <dl class="fv-snapshot-list">
+        <div class="fv-snapshot-row">
+          <dt>Ansvarig</dt>
+          <dd>
+            {% if responsible_label %}
+              {{ responsible_label }}
+            {% else %}
+              <span class="ccv2-muted">Ingen ansvarig utsedd</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div class="fv-snapshot-row">
+          <dt>Startad</dt>
+          <dd>
+            {% if in_progress_started_log %}
+              {{ in_progress_started_log.created_at|date:"Y-m-d H:i" }}
+            {% else %}
+              Pågår
+            {% endif %}
+          </dd>
+        </div>
+        <div class="fv-snapshot-row">
+          <dt>Senaste lägesuppdatering</dt>
+          <dd>
+            {% if latest_update %}
+              <div class="fv-workmode-update-text">{{ latest_update.body|linebreaksbr }}</div>
+              <div class="ccv2-muted small mt-1">
+                {{ latest_update.created_at|date:"Y-m-d H:i" }}
+                ·
+                {% if latest_update.user %}
+                  {% if latest_update.user.get_full_name %}
+                    {{ latest_update.user.get_full_name }}
+                  {% else %}
+                    {{ latest_update.user.email|default:latest_update.user.username }}
+                  {% endif %}
+                {% else %}
+                  Okänd
+                {% endif %}
+              </div>
+            {% else %}
+              <span class="ccv2-muted">Ingen lägesuppdatering ännu</span>
+            {% endif %}
+          </dd>
+        </div>
+      </dl>
+      <p class="fv-workmode-help mb-0">Lägg in korta uppdateringar så att styrelsen kan följa arbetet.</p>
+    </article>
+  {% endif %}
+
   <div class="fv-detail-grid">
     <div class="fv-detail-main">
       <article class="ccv2-card fv-detail-card">
@@ -286,6 +338,41 @@
           </form>
         </article>
 
+        <article id="fv-action-updates" class="ccv2-card fv-detail-card fv-manage-card">
+          <h3 class="fv-manage-card-title">Lägesuppdateringar</h3>
+          <form method="post" class="fv-manage-form mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" value="add_comment">
+            <label for="id_body" class="fv-manage-label">Ny lägesuppdatering</label>
+            <p class="ccv2-muted small mb-1">Vad har gjorts sedan sist?</p>
+            <textarea id="id_body" name="body" class="form-control form-control-sm" rows="3" placeholder="Skriv vad styrelsen behöver veta…"></textarea>
+            <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Lägg till lägesuppdatering</button>
+          </form>
+          {% if comments %}
+            <ul class="fv-comment-list">
+              {% for comment in comments %}
+                <li class="fv-comment-item">
+                  <div class="fv-activity-text">
+                    {% if comment.user %}
+                      {% if comment.user.get_full_name %}
+                        {{ comment.user.get_full_name }}
+                      {% else %}
+                        {{ comment.user.email|default:comment.user.username }}
+                      {% endif %}
+                    {% else %}
+                      Okänd
+                    {% endif %}
+                  </div>
+                  <div class="fv-activity-detail">{{ comment.body|linebreaksbr }}</div>
+                  <div class="ccv2-muted fv-activity-time">{{ comment.created_at|date:"Y-m-d H:i" }}</div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="ccv2-muted mb-0 small">Inga lägesuppdateringar ännu.</p>
+          {% endif %}
+        </article>
+
         <article class="ccv2-card fv-detail-card fv-manage-card">
           <h3 class="fv-manage-card-title">Plan och ansvar</h3>
           <p class="fv-create-map-pick mb-2">
@@ -336,40 +423,6 @@
           </form>
         </article>
 
-        <article class="ccv2-card fv-detail-card fv-manage-card">
-          <h3 class="fv-manage-card-title">Anteckningar</h3>
-          <form method="post" class="fv-manage-form mb-3">
-            {% csrf_token %}
-            <input type="hidden" name="action_type" value="add_comment">
-            <label for="id_body" class="fv-manage-label">Ny anteckning</label>
-            <textarea id="id_body" name="body" class="form-control form-control-sm" rows="3" placeholder="Skriv vad styrelsen behöver veta…"></textarea>
-            <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Lägg till anteckning</button>
-          </form>
-          {% if comments %}
-            <ul class="fv-comment-list">
-              {% for comment in comments %}
-                <li class="fv-comment-item">
-                  <div class="fv-activity-text">
-                    {% if comment.user %}
-                      {% if comment.user.get_full_name %}
-                        {{ comment.user.get_full_name }}
-                      {% else %}
-                        {{ comment.user.email|default:comment.user.username }}
-                      {% endif %}
-                    {% else %}
-                      Okänd
-                    {% endif %}
-                  </div>
-                  <div class="fv-activity-detail">{{ comment.body|linebreaksbr }}</div>
-                  <div class="ccv2-muted fv-activity-time">{{ comment.created_at|date:"Y-m-d H:i" }}</div>
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="ccv2-muted mb-0 small">Inga anteckningar ännu.</p>
-          {% endif %}
-        </article>
-
         <article class="ccv2-card fv-detail-card fv-manage-card fv-trash-card">
           <h3 class="fv-manage-card-title text-danger">Papperskorg</h3>
           <p class="fv-create-help mb-2">
@@ -390,12 +443,19 @@
 <script>
   (function () {
     function openManagePanelFromHash() {
-      if (window.location.hash !== "#fv-manage-insats") {
+      var hash = window.location.hash;
+      if (hash !== "#fv-manage-insats" && hash !== "#fv-action-updates") {
         return;
       }
       var panel = document.getElementById("fv-manage-insats-panel");
       if (panel && !panel.open) {
         panel.open = true;
+      }
+      if (hash === "#fv-action-updates") {
+        var updatesField = document.getElementById("id_body");
+        if (updatesField) {
+          updatesField.focus({ preventScroll: true });
+        }
       }
     }
 
