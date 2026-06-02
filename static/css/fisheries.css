@@ -538,6 +538,41 @@
   color: #475569;
 }
 
+.fv-work-images-card {
+  margin-bottom: 0.62rem;
+}
+
+.fv-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.55rem;
+}
+
+.fv-image-card {
+  margin: 0;
+}
+
+.fv-image-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #f8fafc;
+}
+
+.fv-image-caption {
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: #334155;
+  line-height: 1.35;
+}
+
+.fv-image-meta {
+  margin-top: 0.12rem;
+  font-size: 0.7rem;
+}
+
 .fv-flow-steps {
   gap: 0.22rem 0.4rem;
 }

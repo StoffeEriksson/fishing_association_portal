@@ -153,29 +153,94 @@
     </article>
 
     <aside class="ccv2-sidebar">
-      <article class="ccv2-card">
+      <article class="ccv2-card fisheries-next-action-card">
         <h3 class="ccv2-card-title">Nästa planerade insats</h3>
-        {% if next_deadline_action %}
-          <div class="fisheries-sidebar-action-title">{{ next_deadline_action.name }}</div>
-          <div class="ccv2-muted">{{ next_deadline_action.deadline|date:"l j F" }}</div>
-          <div class="ccv2-muted">
-            {% if next_deadline_action.responsible_user %}
-              Ansvarig:
-              {% if next_deadline_action.responsible_user.get_full_name %}
-                {{ next_deadline_action.responsible_user.get_full_name }}
-              {% else %}
-                {{ next_deadline_action.responsible_user.email|default:next_deadline_action.responsible_user.username }}
+        {% if next_deadline_card %}
+          <div class="fisheries-next-action-body">
+            <p class="fisheries-sidebar-action-title fisheries-next-action-name mb-0">
+              {{ next_deadline_card.action.name }}
+            </p>
+            <div class="fisheries-next-action-pills">
+              <span class="fv-next-pill {{ next_deadline_card.status_pill_class }}">
+                {{ next_deadline_card.status_label }}
+              </span>
+              <span class="fisheries-next-action-priority">{{ next_deadline_card.priority_label }}</span>
+            </div>
+            <ul class="fisheries-next-action-meta list-unstyled mb-0">
+              {% if next_deadline_card.action.deadline %}
+                <li class="fisheries-next-action-meta-row">
+                  <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+                  <span class="{% if next_deadline_card.deadline_soon %}fisheries-next-action-meta--soon{% endif %}">
+                    {{ next_deadline_card.action.deadline|date:"l j F" }}
+                  </span>
+                </li>
               {% endif %}
-            {% else %}
-              Ingen ansvarig utsedd än
+              <li class="fisheries-next-action-meta-row">
+                <i class="fa-regular fa-user" aria-hidden="true"></i>
+                {% if next_deadline_card.missing_responsible %}
+                  <span class="fisheries-next-action-warn">Ansvarig saknas</span>
+                {% else %}
+                  <span>{{ next_deadline_card.responsible_label }}</span>
+                {% endif %}
+              </li>
+              {% if next_deadline_card.water_body_name %}
+                <li class="fisheries-next-action-meta-row">
+                  <i class="fa-solid fa-water" aria-hidden="true"></i>
+                  <span>{{ next_deadline_card.water_body_name }}</span>
+                </li>
+              {% endif %}
+            </ul>
+            {% if next_deadline_card.missing_responsible %}
+              <p class="fisheries-next-action-alert mb-0" role="status">
+                <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                Tilldela ansvarig för att komma vidare.
+              </p>
             {% endif %}
+            <a href="{{ next_deadline_card.detail_url }}" class="ccv2-inline-link fisheries-next-action-cta">
+              Öppna insats
+            </a>
           </div>
-          <a href="{% url 'fisheries:action_detail' next_deadline_action.pk %}" class="ccv2-inline-link">Gå till insatsen</a>
         {% else %}
           <div class="fisheries-card-empty fisheries-card-empty--compact">
             <p class="fisheries-card-empty-title mb-1">Ingen planerad insats med datum ännu.</p>
             <a href="{% url 'fisheries:action_create' %}" class="fisheries-empty-cta">Skapa planerad insats</a>
           </div>
+        {% endif %}
+      </article>
+
+      <article class="ccv2-card" aria-label="Vatten att följa upp">
+        <h3 class="ccv2-card-title">Vatten att följa upp</h3>
+        {% if water_attention_items %}
+          <ul class="fisheries-water-attention-list list-unstyled mb-0">
+            {% for item in water_attention_items|slice:":3" %}
+              <li class="fisheries-water-attention-row">
+                <a
+                  href="{{ item.detail_url }}"
+                  class="fisheries-water-attention-row-link"
+                  title="Prioritet: {{ item.reason }}"
+                >
+                  <span
+                    class="fisheries-water-attention-health{% if item.has_risk %} fisheries-water-attention-health--risk{% endif %}"
+                    aria-hidden="true"
+                  >
+                    <span class="fisheries-water-health-dot fisheries-water-health-dot--{{ item.health_tone }}"></span>
+                    {% if item.has_risk %}
+                      <span class="fisheries-water-health-risk-mark">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                      </span>
+                    {% endif %}
+                  </span>
+                  <span class="fisheries-water-attention-main">
+                    <span class="fisheries-water-attention-name">{{ item.water_body.name }}</span>
+                    <span class="fisheries-water-attention-reason">{{ item.reason }}</span>
+                  </span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+          <a href="{% url 'maps:waterbody_list' %}?sort=priority_desc" class="ccv2-inline-link">Alla vatten</a>
+        {% else %}
+          <p class="ccv2-muted mb-0">Lugnt i vattnen just nu.</p>
         {% endif %}
       </article>
 

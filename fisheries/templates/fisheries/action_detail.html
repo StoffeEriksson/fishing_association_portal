@@ -152,6 +152,29 @@
     </article>
   {% endif %}
 
+  {% if progress_images %}
+    <article class="ccv2-card fv-detail-card fv-work-images-card">
+      <h2 class="ccv2-card-title">Bilder från arbetet</h2>
+      <div class="fv-image-grid">
+        {% for image in progress_images %}
+          <figure class="fv-image-card">
+            <a href="{{ image.image.url }}" target="_blank" rel="noopener">
+              <img src="{{ image.image.url }}" alt="{{ image.caption|default:action.name }}" class="fv-image-thumb">
+            </a>
+            {% if image.caption %}
+              <figcaption class="fv-image-caption">{{ image.caption }}</figcaption>
+            {% elif image.comment and image.comment.body %}
+              <figcaption class="fv-image-caption">{{ image.comment.body }}</figcaption>
+            {% endif %}
+            <div class="ccv2-muted fv-image-meta">
+              {{ image.created_at|date:"Y-m-d H:i" }}
+            </div>
+          </figure>
+        {% endfor %}
+      </div>
+    </article>
+  {% endif %}
+
   <div class="fv-detail-grid">
     <div class="fv-detail-main">
       <article class="ccv2-card fv-detail-card">
@@ -340,12 +363,16 @@
 
         <article id="fv-action-updates" class="ccv2-card fv-detail-card fv-manage-card">
           <h3 class="fv-manage-card-title">Lägesuppdateringar</h3>
-          <form method="post" class="fv-manage-form mb-3">
+          <form method="post" enctype="multipart/form-data" class="fv-manage-form mb-3">
             {% csrf_token %}
             <input type="hidden" name="action_type" value="add_comment">
             <label for="id_body" class="fv-manage-label">Ny lägesuppdatering</label>
             <p class="ccv2-muted small mb-1">Vad har gjorts sedan sist?</p>
             <textarea id="id_body" name="body" class="form-control form-control-sm" rows="3" placeholder="Skriv vad styrelsen behöver veta…"></textarea>
+            <label for="id_image" class="fv-manage-label mt-2">Progressbild (valfritt)</label>
+            <input id="id_image" name="image" type="file" accept="image/*" class="form-control form-control-sm">
+            <label for="id_image_caption" class="fv-manage-label mt-2">Bildtext (valfritt)</label>
+            <input id="id_image_caption" name="image_caption" type="text" class="form-control form-control-sm" placeholder="Kort förklaring av bilden">
             <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Lägg till lägesuppdatering</button>
           </form>
           {% if comments %}

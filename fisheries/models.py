@@ -1,5 +1,8 @@
-from django.db import models
+import os
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils import timezone
 
 from core.tenancy import OrgModel
 from maps.models import WaterBody
@@ -138,6 +141,80 @@ class ActionComment(OrgModel):
 
     def __str__(self):
         return self.body[:50]
+
+
+class FisheriesImageType(models.TextChoices):
+    BEFORE = "before", "Före"
+    PROGRESS = "progress", "Pågående"
+    AFTER = "after", "Efter"
+
+
+def fisheries_image_upload_to(instance, filename):
+    _, ext = os.path.splitext(filename or "")
+    ext = ext.lower() or ".jpg"
+    now = timezone.now()
+    return (
+        f"fisheries/org_{instance.org_id}/"
+        f"{instance.image_type}/{now:%Y/%m}/"
+        f"{instance.pk or 'new'}{ext}"
+    )
+
+
+class FisheriesImage(OrgModel):
+    observation = models.ForeignKey(
+        "Observation",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="images",
+    )
+    action = models.ForeignKey(
+        "ActionArea",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="images",
+    )
+    comment = models.ForeignKey(
+        "ActionComment",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="images",
+    )
+    image = models.ImageField(upload_to=fisheries_image_upload_to)
+    caption = models.TextField(blank=True)
+    image_type = models.CharField(
+        max_length=20,
+        choices=FisheriesImageType.choices,
+    )
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_fisheries_images",
+    )
+
+    def clean(self):
+        owners = [self.observation_id, self.action_id, self.comment_id]
+        if sum(1 for owner_id in owners if owner_id) != 1:
+            raise ValidationError(
+                "Exakt en av observation, action eller comment måste vara satt."
+            )
+        if self.observation_id and self.org_id and self.observation.org_id != self.org_id:
+            raise ValidationError("Observation och bild måste tillhöra samma organisation.")
+        if self.action_id and self.org_id and self.action.org_id != self.org_id:
+            raise ValidationError("Insats och bild måste tillhöra samma organisation.")
+        if self.comment_id and self.org_id and self.comment.org_id != self.org_id:
+            raise ValidationError("Kommentar och bild måste tillhöra samma organisation.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.image_type} #{self.pk}"
 
 
 class ActionLog(OrgModel):

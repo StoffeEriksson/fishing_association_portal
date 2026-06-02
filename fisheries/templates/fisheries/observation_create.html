@@ -79,7 +79,7 @@
           </div>
         {% endif %}
 
-        <form method="post" class="fv-create-form" novalidate>
+        <form method="post" enctype="multipart/form-data" class="fv-create-form" novalidate>
           {% csrf_token %}
 
           <div class="fv-create-field">
@@ -142,6 +142,31 @@
               rows="4"
               aria-describedby="help_description"
             >{{ form_data.description|default:'' }}</textarea>
+          </div>
+
+          <div class="fv-create-field">
+            <label for="id_image" class="fv-create-label">Före-bild (valfritt)</label>
+            <p class="fv-create-help" id="help_image">Ladda upp en bild som visar nuläget före insats.</p>
+            <input
+              id="id_image"
+              name="image"
+              type="file"
+              accept="image/*"
+              class="form-control"
+              aria-describedby="help_image"
+            >
+          </div>
+
+          <div class="fv-create-field">
+            <label for="id_image_caption" class="fv-create-label">Bildtext (valfritt)</label>
+            <input
+              id="id_image_caption"
+              name="image_caption"
+              type="text"
+              class="form-control"
+              value="{{ form_data.image_caption|default:'' }}"
+              placeholder="Exempel: Utrivet strandparti vid norra inloppet"
+            >
           </div>
 
           {% if map_position %}

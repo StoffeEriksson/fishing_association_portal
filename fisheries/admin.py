@@ -12,6 +12,7 @@ from .models import (
     ActionLog,
     ActionPriority,
     ActionStatus,
+    FisheriesImage,
     Observation,
     ObservationCategory,
     ObservationComment,
@@ -188,3 +189,24 @@ class ObservationLogAdmin(admin.ModelAdmin):
     list_display = ("observation", "event_type", "user", "created_at")
     list_filter = ("org", "event_type", "created_at")
     search_fields = ("message", "observation__title")
+
+
+@admin.register(FisheriesImage)
+class FisheriesImageAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "org",
+        "image_type",
+        "observation",
+        "action",
+        "comment",
+        "uploaded_by",
+        "created_at",
+    )
+    list_filter = ("org", "image_type", "created_at")
+    search_fields = (
+        "caption",
+        "observation__title",
+        "action__name",
+        "comment__body",
+    )

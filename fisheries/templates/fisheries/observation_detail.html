@@ -128,6 +128,29 @@
         {% endif %}
       </article>
 
+      <article class="ccv2-card fv-detail-card">
+        <h2 class="ccv2-card-title">Före-bilder</h2>
+        {% if before_images %}
+          <div class="fv-image-grid">
+            {% for image in before_images %}
+              <figure class="fv-image-card">
+                <a href="{{ image.image.url }}" target="_blank" rel="noopener">
+                  <img src="{{ image.image.url }}" alt="{{ image.caption|default:observation.title }}" class="fv-image-thumb">
+                </a>
+                {% if image.caption %}
+                  <figcaption class="fv-image-caption">{{ image.caption }}</figcaption>
+                {% endif %}
+                <div class="ccv2-muted fv-image-meta">
+                  {{ image.created_at|date:"Y-m-d H:i" }}
+                </div>
+              </figure>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="ccv2-muted mb-0 small">Ingen före-bild uppladdad.</p>
+        {% endif %}
+      </article>
+
       <article class="ccv2-card fv-detail-card fv-obs-activity-card">
         <h2 class="ccv2-card-title">Aktivitet</h2>
         {% if activity_feed %}

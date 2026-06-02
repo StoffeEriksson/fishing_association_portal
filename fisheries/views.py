@@ -24,6 +24,8 @@ from .models import (
     ActionLog,
     ActionPriority,
     ActionStatus,
+    FisheriesImage,
+    FisheriesImageType,
     Observation,
     ObservationCategory,
     ObservationComment,
@@ -42,6 +44,7 @@ from .trash import (
 )
 
 User = get_user_model()
+_MAX_UPLOAD_IMAGE_SIZE = 8 * 1024 * 1024
 
 _MONTHS_SV = (
     "jan",
@@ -69,6 +72,17 @@ _ATTENTION_NEXT_STEP_BY_RANK = {
 
 def _format_short_date(value):
     return f"{value.day} {_MONTHS_SV[value.month - 1]}"
+
+
+def _validate_uploaded_image(file_obj):
+    if not file_obj:
+        return "Ingen fil skickades."
+    content_type = (getattr(file_obj, "content_type", "") or "").lower()
+    if not content_type.startswith("image/"):
+        return "Endast bildfiler är tillåtna."
+    if file_obj.size > _MAX_UPLOAD_IMAGE_SIZE:
+        return "Bilden är för stor. Maxstorlek är 8 MB."
+    return None
 
 
 def _user_display_name(user):
@@ -1394,6 +1408,7 @@ def observation_create(request):
         title = (request.POST.get("title") or "").strip()
         category = (request.POST.get("category") or "").strip()
         description = (request.POST.get("description") or "").strip()
+        image_caption = (request.POST.get("image_caption") or "").strip()
         water_body_id = (request.POST.get("water_body") or "").strip()
         latitude, longitude = _create_map_position_from_request(request)
 
@@ -1409,6 +1424,7 @@ def observation_create(request):
                         "title": title,
                         "category": category,
                         "description": description,
+                        "image_caption": image_caption,
                         "water_body": water_body_id,
                     },
                     **_map_position_context(latitude, longitude),
@@ -1444,6 +1460,20 @@ def observation_create(request):
             event_type="created",
             message="Observation skapad",
         )
+        observation_image = request.FILES.get("image")
+        if observation_image:
+            image_error = _validate_uploaded_image(observation_image)
+            if image_error:
+                messages.warning(request, f"Observation skapades, men bild sparades inte: {image_error}")
+            else:
+                FisheriesImage.objects.create(
+                    org=request.org,
+                    observation=observation,
+                    image=observation_image,
+                    caption=image_caption,
+                    image_type=FisheriesImageType.BEFORE,
+                    uploaded_by=request.user,
+                )
         return redirect("fisheries:observation_detail", pk=observation.pk)
 
     form_data = {}
@@ -1901,6 +1931,14 @@ def observation_detail(request, pk):
 
     comments = list(observation.comments.select_related("user").order_by("-created_at"))
     logs = list(observation.logs.select_related("user").order_by("-created_at"))
+    before_images = list(
+        observation.images.filter(
+            org=org,
+            image_type=FisheriesImageType.BEFORE,
+        )
+        .select_related("uploaded_by")
+        .order_by("-created_at")
+    )
 
     status_choices_labeled = [
         (value, get_observation_status_label(value)) for value, _ in status_choices
@@ -1916,6 +1954,7 @@ def observation_detail(request, pk):
             "observation": observation,
             "comments": comments,
             "logs": logs,
+            "before_images": before_images,
             "status_choices": status_choices,
             "status_choices_labeled": status_choices_labeled,
             "category_choices": category_choices,
@@ -2066,8 +2105,10 @@ def action_detail(request, pk):
 
         elif action_type == "add_comment":
             body = (request.POST.get("body") or "").strip()
+            image_caption = (request.POST.get("image_caption") or "").strip()
+            progress_image = request.FILES.get("image")
             if body:
-                ActionComment.objects.create(
+                comment = ActionComment.objects.create(
                     org=request.org,
                     action_area=action,
                     user=request.user,
@@ -2080,6 +2121,20 @@ def action_detail(request, pk):
                     event_type="comment_added",
                     message="Kommentar tillagd",
                 )
+                if progress_image:
+                    image_error = _validate_uploaded_image(progress_image)
+                    if image_error:
+                        messages.warning(request, f"Lägesuppdatering sparades, men bild sparades inte: {image_error}")
+                    else:
+                        FisheriesImage.objects.create(
+                            org=request.org,
+                            action=action,
+                            comment=comment,
+                            image=progress_image,
+                            caption=image_caption,
+                            image_type=FisheriesImageType.PROGRESS,
+                            uploaded_by=request.user,
+                        )
 
         elif action_type == "update_fields":
             responsible_user_id = (request.POST.get("responsible_user") or "").strip()
@@ -2148,6 +2203,14 @@ def action_detail(request, pk):
         ),
         None,
     )
+    progress_images = list(
+        action.images.filter(
+            org=org,
+            image_type=FisheriesImageType.PROGRESS,
+        )
+        .select_related("uploaded_by", "comment", "comment__user")
+        .order_by("-created_at")
+    )
     today = timezone.localdate()
 
     status_choices_labeled = [
@@ -2175,6 +2238,7 @@ def action_detail(request, pk):
             "is_in_progress": action.status == ActionStatus.IN_PROGRESS,
             "latest_update": latest_update,
             "in_progress_started_log": in_progress_started_log,
+            "progress_images": progress_images,
             "status_label": get_action_status_label(action.status),
             "priority_label": get_action_priority_label(action.priority),
             "responsible_label": _user_display_name(action.responsible_user),
