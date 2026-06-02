@@ -198,6 +198,85 @@
   line-height: 1.28;
 }
 
+.fisheries-next-action-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+}
+
+.fisheries-next-action-name {
+  margin-top: 0.05rem;
+}
+
+.fisheries-next-action-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.fisheries-next-action-priority {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.fisheries-next-action-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  margin-top: 0.08rem;
+}
+
+.fisheries-next-action-meta-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.42rem;
+  font-size: 0.76rem;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.fisheries-next-action-meta-row i {
+  width: 0.85rem;
+  margin-top: 0.12rem;
+  color: #94a3b8;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.fisheries-next-action-meta--soon {
+  font-weight: 600;
+  color: #854d0e;
+}
+
+.fisheries-next-action-warn {
+  font-weight: 600;
+  color: #9a3412;
+}
+
+.fisheries-next-action-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid rgba(251, 146, 60, 0.22);
+  font-size: 0.72rem;
+  color: #9a3412;
+  line-height: 1.35;
+}
+
+.fisheries-next-action-alert i {
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+.fisheries-next-action-cta {
+  margin-top: 0.12rem;
+}
+
 .fisheries-empty-calm {
   display: flex;
   flex-direction: column;
@@ -863,6 +942,21 @@
   color: #0f172a;
 }
 
+.fv-next-step-cta--btn.fv-next-step-cta--secondary {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+}
+
+.fv-next-step-linked-note {
+  margin: 0.1rem 0 0.2rem;
+  padding: 0.34rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(248, 250, 252, 0.85);
+  font-size: 0.76rem;
+  color: #475569;
+  line-height: 1.35;
+}
+
 .fv-obs-description {
   font-size: 0.86rem;
   color: #1e293b;
@@ -1310,4 +1404,110 @@
     justify-content: center;
     padding: 0.48rem 0.75rem;
   }
+}
+
+.fisheries-water-attention-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 0.2rem;
+}
+
+.fisheries-water-attention-row {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.fisheries-water-attention-row:last-child {
+  border-bottom: none;
+}
+
+.fisheries-water-attention-row-link {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.32rem 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.fisheries-water-attention-row-link:hover .fisheries-water-attention-name {
+  color: #0e7490;
+}
+
+.fisheries-water-attention-health {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
+}
+
+.fisheries-water-health-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.fisheries-water-health-dot--good {
+  background: #16a34a;
+}
+
+.fisheries-water-health-dot--moderate {
+  background: #eab308;
+  border: 1px solid #ca8a04;
+}
+
+.fisheries-water-health-dot--bad {
+  background: #dc2626;
+}
+
+.fisheries-water-health-dot--neutral {
+  background: #cbd5e1;
+  border: 1px solid #64748b;
+}
+
+.fisheries-water-health-risk-mark {
+  position: absolute;
+  right: -0.08rem;
+  bottom: -0.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 50%;
+  background: #fff;
+  color: #c2410c;
+  font-size: 0.38rem;
+  line-height: 1;
+  box-shadow: 0 0 0 1px rgba(194, 65, 12, 0.28);
+}
+
+.fisheries-water-attention-main {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.fisheries-water-attention-name {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fisheries-water-attention-reason {
+  display: block;
+  font-size: 0.68rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -5,11 +5,11 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from maps.models import WaterBody
+from maps.models import WaterBody, WaterBodyHealthSnapshot
 from core.models import Membership
 
 from .labels import (
@@ -832,13 +832,14 @@ def _build_observation_next_step(observation):
     if observation.status == ObservationStatus.LINKED_TO_ACTION and observation.linked_action_id:
         return {
             "title": "Nästa steg",
-            "body": "Observationen är kopplad till en insats och kan följas där.",
+            "body": "Observationen är kopplad till en insats. Fortsätt arbetet där.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--neutral",
             "ctas": [
                 {
-                    "label": "Öppna åtgärd",
+                    "label": "Öppna insats",
                     "kind": "link",
+                    "variant": "primary",
                     "url": reverse("fisheries:action_detail", args=[observation.linked_action_id]),
                 },
             ],
@@ -847,19 +848,21 @@ def _build_observation_next_step(observation):
     if observation.status == ObservationStatus.UNDER_REVIEW:
         ctas = [
             {
-                "label": "Skapa åtgärd",
+                "label": "Skapa insats",
                 "kind": "create_action",
+                "variant": "primary",
                 "url": reverse("fisheries:create_action_from_observation", args=[observation.pk]),
             },
             {
                 "label": "Avsluta utan åtgärd",
                 "kind": "change_status",
+                "variant": "secondary",
                 "status": ObservationStatus.CLOSED,
             },
         ]
         return {
             "title": "Nästa steg",
-            "body": "Avgör om observationen ska bli en fiskevårdsinsats.",
+            "body": "Bedöm om observationen kräver en fiskevårdsinsats eller kan avslutas.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--decision",
             "ctas": ctas,
@@ -868,19 +871,21 @@ def _build_observation_next_step(observation):
     if observation.status == ObservationStatus.NEW:
         ctas = [
             {
-                "label": "Markera under granskning",
+                "label": "Starta granskning",
                 "kind": "change_status",
+                "variant": "primary",
                 "status": ObservationStatus.UNDER_REVIEW,
             },
             {
-                "label": "Skapa åtgärd",
+                "label": "Skapa insats direkt",
                 "kind": "create_action",
+                "variant": "secondary",
                 "url": reverse("fisheries:create_action_from_observation", args=[observation.pk]),
             },
         ]
         return {
             "title": "Nästa steg",
-            "body": "Granska signalen från fältet och avgör om styrelsen behöver agera.",
+            "body": "Börja med att granska observationen. Om problemet är tydligt kan ni skapa en insats direkt.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--neutral",
             "ctas": ctas,
@@ -1427,6 +1432,172 @@ def observation_create(request):
     )
 
 
+def _water_health_snapshot_for(water_body):
+    try:
+        return water_body.health_snapshot
+    except WaterBodyHealthSnapshot.DoesNotExist:
+        return None
+
+
+def _water_health_tone_and_risk(snapshot):
+    if snapshot is None or (snapshot.fetch_error or "").strip():
+        return "neutral", False
+    return snapshot.eco_tone or "neutral", bool(snapshot.risk_flag)
+
+
+def _water_attention_priority_score(snapshot, observation_count, action_count):
+    score = 0
+    eco_tone = "neutral"
+    has_risk = False
+
+    if snapshot is not None and not (snapshot.fetch_error or "").strip():
+        eco_tone = snapshot.eco_tone or "neutral"
+        has_risk = bool(snapshot.risk_flag)
+
+    if eco_tone == "bad":
+        score += 3
+    elif eco_tone == "moderate":
+        score += 1
+
+    if has_risk:
+        score += 2
+
+    if observation_count > 0:
+        score += 1
+    if observation_count >= 5:
+        score += 2
+
+    if action_count == 0 and observation_count > 0:
+        score += 1
+
+    return score
+
+
+def _water_attention_reason(snapshot, observation_count, action_count):
+    _, has_risk = _water_health_tone_and_risk(snapshot)
+    eco_tone = "neutral"
+    if snapshot is not None and not (snapshot.fetch_error or "").strip():
+        eco_tone = snapshot.eco_tone or "neutral"
+
+    if has_risk:
+        return "Risk enligt VISS"
+    if eco_tone == "bad":
+        return "Otillfredsställande status"
+    if observation_count > 0 and action_count == 0:
+        return "Observationer utan insats"
+    return "Kräver uppmärksamhet"
+
+
+def _build_water_attention_items(org, limit=5):
+    water_bodies = (
+        WaterBody.objects.for_org(org)
+        .filter(is_active=True)
+        .select_related("health_snapshot")
+        .annotate(
+            observation_count=Count(
+                "observations",
+                filter=Q(
+                    observations__org_id=org.pk,
+                    observations__deleted_at__isnull=True,
+                ),
+                distinct=True,
+            ),
+            action_count=Count(
+                "action_areas",
+                filter=Q(
+                    action_areas__org_id=org.pk,
+                    action_areas__deleted_at__isnull=True,
+                ),
+                distinct=True,
+            ),
+        )
+    )
+
+    candidates = []
+    for water_body in water_bodies:
+        snapshot = _water_health_snapshot_for(water_body)
+        health_tone, has_risk = _water_health_tone_and_risk(snapshot)
+        observation_count = water_body.observation_count
+        action_count = water_body.action_count
+        priority_score = _water_attention_priority_score(
+            snapshot,
+            observation_count,
+            action_count,
+        )
+
+        if priority_score < 2:
+            continue
+
+        candidates.append(
+            {
+                "water_body": water_body,
+                "health_tone": health_tone,
+                "has_risk": has_risk,
+                "reason": _water_attention_reason(
+                    snapshot,
+                    observation_count,
+                    action_count,
+                ),
+                "priority_score": priority_score,
+                "detail_url": reverse("maps:waterbody_detail", args=[water_body.pk]),
+            }
+        )
+
+    candidates.sort(
+        key=lambda row: (
+            -row["priority_score"],
+            (row["water_body"].name or "").strip().lower(),
+            row["water_body"].pk,
+        )
+    )
+    return candidates[:limit]
+
+
+def _next_deadline_status_pill_class(action, today):
+    week_end = today + timedelta(days=7)
+    if action.status == ActionStatus.URGENT:
+        return "fv-next-pill--critical"
+    if action.status == ActionStatus.NEEDS_ACTION:
+        return "fv-next-pill--decision"
+    if action.deadline and action.deadline < today:
+        return "fv-next-pill--critical"
+    if action.deadline and today <= action.deadline <= week_end:
+        return "fv-next-pill--deadline"
+    return "fv-next-pill--neutral"
+
+
+def _build_next_deadline_action_card(action, today):
+    if action is None:
+        return None
+
+    week_end = today + timedelta(days=7)
+    missing_responsible = action.responsible_user_id is None
+    is_overdue = bool(action.deadline and action.deadline < today)
+    deadline_soon = bool(
+        action.deadline and not is_overdue and today <= action.deadline <= week_end
+    )
+
+    return {
+        "action": action,
+        "status_label": get_action_status_label(action.status),
+        "priority_label": get_action_priority_label(action.priority),
+        "status_pill_class": _next_deadline_status_pill_class(action, today),
+        "responsible_label": (
+            None if missing_responsible else _user_display_name(action.responsible_user)
+        ),
+        "water_body_name": (
+            (action.water_body.name or "").strip() if action.water_body else None
+        ),
+        "deadline_short": (
+            _format_short_date(action.deadline) if action.deadline else ""
+        ),
+        "is_overdue": is_overdue,
+        "deadline_soon": deadline_soon,
+        "missing_responsible": missing_responsible,
+        "detail_url": reverse("fisheries:action_detail", args=[action.pk]),
+    }
+
+
 @login_required
 def overview(request):
     org = getattr(request, "org", None)
@@ -1439,6 +1610,7 @@ def overview(request):
     observation_attention_total_count = 0
     attention_grand_total = 0
     next_deadline_action = None
+    next_deadline_card = None
     next_deadline_chip_label = "Ingen deadline"
     planned_now_actions = []
     in_progress_sidebar = []
@@ -1463,6 +1635,7 @@ def overview(request):
     urgent_actions_list = ActionArea.objects.none()
     overdue_actions_list = ActionArea.objects.none()
     unassigned_actions_list = ActionArea.objects.none()
+    water_attention_items = []
 
     if org is not None:
         observation_qs = Observation.objects.for_org(org).not_trashed()
@@ -1527,6 +1700,10 @@ def overview(request):
         )
         if next_deadline_action:
             next_deadline_chip_label = _format_short_date(next_deadline_action.deadline)
+            next_deadline_card = _build_next_deadline_action_card(
+                next_deadline_action,
+                today,
+            )
 
         planned_now_actions = _actions_with_status_label(
             action_qs.filter(status__in=[ActionStatus.PLANNED, ActionStatus.IN_PROGRESS])
@@ -1545,6 +1722,8 @@ def overview(request):
             .select_related("user", "action_area")
             .order_by("-created_at")[:6]
         )
+
+        water_attention_items = _build_water_attention_items(org, limit=5)
 
     return render(
         request,
@@ -1573,12 +1752,14 @@ def overview(request):
             "observation_attention_total_count": observation_attention_total_count,
             "attention_grand_total": attention_grand_total,
             "next_deadline_action": next_deadline_action,
+            "next_deadline_card": next_deadline_card,
             "next_deadline_chip_label": next_deadline_chip_label,
             "planned_now_actions": planned_now_actions,
             "in_progress_sidebar": in_progress_sidebar,
             "recent_fisheries_logs": recent_fisheries_logs,
             "needs_decision_actions": needs_decision_actions,
             "fisheries_year_stats": fisheries_year_stats,
+            "water_attention_items": water_attention_items,
             "today": today,
         },
     )

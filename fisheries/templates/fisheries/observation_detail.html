@@ -83,24 +83,29 @@
       <span class="fv-next-pill {{ next_step.pill_class }}">{{ next_step.pill_label }}</span>
     </div>
     <p class="fv-next-step-body">{{ next_step.body }}</p>
+    {% if observation.status == "linked_to_action" and observation.linked_action %}
+      <div class="fv-next-step-linked-note" role="status">
+        Observationen är kopplad till en insats. Fortsätt arbetet där.
+      </div>
+    {% endif %}
   </section>
 
   {% if next_step.ctas %}
     <div class="fv-obs-cta-row">
       {% for cta in next_step.ctas %}
         {% if cta.kind == "link" %}
-          <a href="{{ cta.url }}" class="fv-next-step-cta">{{ cta.label }}</a>
+          <a href="{{ cta.url }}" class="fv-next-step-cta{% if cta.variant == 'secondary' %} fv-next-step-cta--secondary{% endif %}">{{ cta.label }}</a>
         {% elif cta.kind == "create_action" %}
           <form method="post" action="{{ cta.url }}" class="d-inline">
             {% csrf_token %}
-            <button type="submit" class="fv-next-step-cta fv-next-step-cta--btn">{{ cta.label }}</button>
+            <button type="submit" class="fv-next-step-cta fv-next-step-cta--btn{% if cta.variant == 'secondary' %} fv-next-step-cta--secondary{% endif %}">{{ cta.label }}</button>
           </form>
         {% elif cta.kind == "change_status" %}
           <form method="post" class="d-inline">
             {% csrf_token %}
             <input type="hidden" name="action_type" value="change_status">
             <input type="hidden" name="status" value="{{ cta.status }}">
-            <button type="submit" class="fv-next-step-cta fv-next-step-cta--secondary">{{ cta.label }}</button>
+            <button type="submit" class="fv-next-step-cta fv-next-step-cta--btn{% if cta.variant == 'secondary' %} fv-next-step-cta--secondary{% endif %}">{{ cta.label }}</button>
           </form>
         {% endif %}
       {% endfor %}
