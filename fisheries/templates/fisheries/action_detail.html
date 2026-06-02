@@ -61,8 +61,21 @@
       <span class="fv-next-pill {{ next_step.pill_class }}">{{ next_step.pill_label }}</span>
     </div>
     <p class="fv-next-step-body">{{ next_step.body }}</p>
-    {% if next_step.cta_label and next_step.cta_href %}
-      <a href="{{ next_step.cta_href }}" class="fv-next-step-cta">{{ next_step.cta_label }}</a>
+    {% if next_step.ctas %}
+      <div class="fv-next-step-cta-row">
+        {% for cta in next_step.ctas %}
+          {% if cta.kind == "link" %}
+            <a href="{{ cta.url }}" class="fv-next-step-cta{% if cta.variant == 'secondary' %} fv-next-step-cta--secondary{% endif %}">{{ cta.label }}</a>
+          {% elif cta.kind == "change_status" %}
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="action_type" value="change_status">
+              <input type="hidden" name="status" value="{{ cta.status }}">
+              <button type="submit" class="fv-next-step-cta fv-next-step-cta--btn{% if cta.variant == 'secondary' %} fv-next-step-cta--secondary{% endif %}">{{ cta.label }}</button>
+            </form>
+          {% endif %}
+        {% endfor %}
+      </div>
     {% endif %}
   </section>
 
@@ -251,7 +264,7 @@
   </div>
 
   <section id="fv-manage-insats" class="fv-manage-section">
-    <details class="fv-manage-panel">
+    <details class="fv-manage-panel" id="fv-manage-insats-panel">
       <summary class="fv-manage-summary">Hantera insats</summary>
       <div class="fv-manage-body">
         <article class="ccv2-card fv-detail-card fv-manage-card">
@@ -373,5 +386,22 @@
     </details>
   </section>
 </div>
+
+<script>
+  (function () {
+    function openManagePanelFromHash() {
+      if (window.location.hash !== "#fv-manage-insats") {
+        return;
+      }
+      var panel = document.getElementById("fv-manage-insats-panel");
+      if (panel && !panel.open) {
+        panel.open = true;
+      }
+    }
+
+    openManagePanelFromHash();
+    window.addEventListener("hashchange", openManagePanelFromHash);
+  })();
+</script>
 
 {% endblock %}

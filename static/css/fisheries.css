@@ -918,6 +918,13 @@
   margin: -0.15rem 0 0.55rem;
 }
 
+.fv-next-step-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: -0.15rem 0 0.15rem;
+}
+
 .fv-next-step-cta--btn {
   border: none;
   cursor: pointer;

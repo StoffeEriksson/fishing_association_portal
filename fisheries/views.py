@@ -322,77 +322,103 @@ def _build_action_next_step(action, today):
     if action.status == ActionStatus.COMPLETED:
         return {
             "title": "Nästa steg",
-            "body": "Åtgärden är genomförd.",
+            "body": "Insatsen är klar.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--done",
-            "cta_label": None,
-            "cta_href": None,
-        }
-
-    if not action.responsible_user_id:
-        return {
-            "title": "Nästa steg",
-            "body": "Tilldela ansvarig för att komma vidare.",
-            "pill_label": "Saknar ansvarig",
-            "pill_class": "fv-next-pill--warn",
-            "cta_label": "Tilldela ansvarig",
-            "cta_href": "#fv-manage-insats",
-        }
-
-    if action.deadline and action.deadline < today:
-        return {
-            "title": "Nästa steg",
-            "body": "Åtgärden behöver uppdateras eller planeras om.",
-            "pill_label": "Försenad",
-            "pill_class": "fv-next-pill--critical",
-            "cta_label": "Uppdatera plan",
-            "cta_href": "#fv-manage-insats",
+            "ctas": [],
         }
 
     if action.status == ActionStatus.URGENT:
         return {
             "title": "Nästa steg",
-            "body": "Den här åtgärden kräver uppmärksamhet nu.",
+            "body": "Insatsen är akut och behöver hanteras direkt.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--critical",
-            "cta_label": "Uppdatera status",
-            "cta_href": "#fv-manage-insats",
+            "ctas": [
+                {
+                    "label": "Hantera nu",
+                    "kind": "link",
+                    "variant": "primary",
+                    "url": "#fv-manage-insats",
+                }
+            ],
         }
 
     if action.status == ActionStatus.NEEDS_ACTION:
+        ctas = []
+        if not action.responsible_user_id:
+            ctas.append(
+                {
+                    "label": "Tilldela ansvarig",
+                    "kind": "link",
+                    "variant": "primary",
+                    "url": "#fv-manage-insats",
+                }
+            )
+        if not action.deadline:
+            ctas.append(
+                {
+                    "label": "Sätt deadline",
+                    "kind": "link",
+                    "variant": "secondary",
+                    "url": "#fv-manage-insats",
+                }
+            )
+        if action.responsible_user_id and action.deadline:
+            ctas.append(
+                {
+                    "label": "Markera som planerad",
+                    "kind": "change_status",
+                    "variant": "primary",
+                    "status": ActionStatus.PLANNED,
+                }
+            )
         return {
             "title": "Nästa steg",
-            "body": "Ta upp frågan på nästa styrelsemöte.",
+            "body": "Ta beslut om insatsen ska planeras. Sätt ansvarig och deadline innan ni går vidare.",
             "pill_label": status_label,
             "pill_class": "fv-next-pill--decision",
-            "cta_label": "Uppdatera status",
-            "cta_href": "#fv-manage-insats",
+            "ctas": ctas,
         }
 
-    if action.deadline and today <= action.deadline <= week_end:
+    if action.status == ActionStatus.PLANNED:
         return {
             "title": "Nästa steg",
-            "body": "Kontrollera att arbetet går enligt plan.",
-            "pill_label": f"Deadline {_format_short_date(action.deadline)}",
-            "pill_class": "fv-next-pill--deadline",
-            "cta_label": "Uppdatera plan",
-            "cta_href": "#fv-manage-insats",
+            "body": "Insatsen är planerad. Starta arbetet när ni börjar genomföra den.",
+            "pill_label": status_label,
+            "pill_class": "fv-next-pill--deadline" if action.deadline and today <= action.deadline <= week_end else "fv-next-pill--neutral",
+            "ctas": [
+                {
+                    "label": "Starta arbete",
+                    "kind": "change_status",
+                    "variant": "primary",
+                    "status": ActionStatus.IN_PROGRESS,
+                }
+            ],
         }
 
     if action.status == ActionStatus.IN_PROGRESS:
-        body = "Fortsätt arbetet och följ upp läget i vattnet."
-    elif action.status == ActionStatus.PLANNED:
-        body = "Förbered insatsen inför genomförande."
-    else:
-        body = "Fortsätt driva insatsen framåt."
+        return {
+            "title": "Nästa steg",
+            "body": "Insatsen pågår. När arbetet är klart kan ni markera den som färdig.",
+            "pill_label": status_label,
+            "pill_class": "fv-next-pill--neutral",
+            "ctas": [
+                {
+                    "label": "Markera som klar",
+                    "kind": "change_status",
+                    "variant": "primary",
+                    "status": ActionStatus.COMPLETED,
+                }
+            ],
+        }
 
     return {
         "title": "Nästa steg",
-        "body": body,
+        "body": "Fortsätt driva insatsen framåt.",
         "pill_label": status_label,
         "pill_class": "fv-next-pill--neutral",
-        "cta_label": None,
-        "cta_href": None,
+        "ctas": [],
     }
 
 
