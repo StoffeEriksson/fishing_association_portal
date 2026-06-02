@@ -4,90 +4,157 @@
 {% block title %}Redigera dokument{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/document.css' %}?v=4">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/document.css' %}?v=10">
 {% endblock %}
 
 {% block content %}
-<div class="documents-page">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-    <div>
-      <h1 class="page-title h2 mb-1">Redigera dokument</h1>
-      <div class="muted-label">
-        Uppdatera titel, kategori, beskrivning och innehåll
+
+<div class="dashboard-shell doc-edit-shell">
+  <header class="ccv2-header doc-edit-header">
+    <div class="doc-edit-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Redigera dokument</h1>
+        <p class="ccv2-subtitle mb-0">
+          Uppdatera titel, kategori, beskrivning och innehåll
+        </p>
+      </div>
+      <div class="doc-edit-header-actions">
+        <a href="{% url 'portal:document_detail' document.pk %}" class="doc-detail-btn doc-detail-btn--secondary">
+          Tillbaka till dokument
+        </a>
       </div>
     </div>
+  </header>
 
-    <div class="d-flex gap-2">
-      <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
-        Tillbaka till dokument
-      </a>
-    </div>
-  </div>
-
-  <div class="card shadow-soft">
-    <div class="card-body p-4">
-      <form method="post" class="row g-3">
+  <div class="doc-edit-grid">
+    <div class="doc-edit-main">
+      <form method="post" class="doc-edit-form" novalidate>
         {% csrf_token %}
 
         {% if form.non_field_errors %}
-          <div class="col-12">
-            <div class="alert alert-danger mb-0">
-              {{ form.non_field_errors }}
+          <div class="doc-edit-errors" role="alert">
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            <div>
+              <p class="doc-edit-errors-title">Kunde inte spara</p>
+              <div class="doc-edit-errors-body">{{ form.non_field_errors }}</div>
             </div>
           </div>
         {% endif %}
 
-        <div class="col-12">
-          <label for="{{ form.title.id_for_label }}" class="form-label">Titel</label>
-          {{ form.title }}
-          {% if form.title.errors %}
-            <div class="text-danger small mt-1">{{ form.title.errors }}</div>
-          {% endif %}
-        </div>
+        <section class="ccv2-card doc-edit-card">
+          <h2 class="doc-edit-card-title">Dokumentuppgifter</h2>
 
-        <div class="col-12 col-md-6">
-          <label for="{{ form.category.id_for_label }}" class="form-label">Kategori</label>
-          {{ form.category }}
-          {% if form.category.errors %}
-            <div class="text-danger small mt-1">{{ form.category.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="col-12">
-          <label for="{{ form.description.id_for_label }}" class="form-label">Beskrivning</label>
-          {{ form.description }}
-          {% if form.description.errors %}
-            <div class="text-danger small mt-1">{{ form.description.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="col-12">
-          <label for="{{ form.content.id_for_label }}" class="form-label">Innehåll</label>
-          {{ form.content }}
-          <div class="document-editor-help">
-            Skriv och formatera dokumentet direkt här. Du behöver inte använda HTML.
+          <div class="doc-edit-field">
+            <label for="{{ form.title.id_for_label }}" class="doc-edit-label">Titel</label>
+            {{ form.title }}
+            {% if form.title.errors %}
+              <div class="doc-edit-field-error">{{ form.title.errors }}</div>
+            {% endif %}
           </div>
-          {% if form.content.errors %}
-            <div class="text-danger small mt-1">{{ form.content.errors }}</div>
-          {% endif %}
-          <div class="form-text">
-            Här kan du redigera innehållet för dokument som skapats från mall.
-          </div>
-        </div>
 
-        <div class="col-12 d-flex gap-2 pt-2">
-          <button type="submit" class="btn btn-dark">
+          <div class="doc-edit-field doc-edit-field--half">
+            <label for="{{ form.category.id_for_label }}" class="doc-edit-label">Kategori</label>
+            {{ form.category }}
+            {% if form.category.errors %}
+              <div class="doc-edit-field-error">{{ form.category.errors }}</div>
+            {% endif %}
+          </div>
+
+          <div class="doc-edit-field">
+            <label for="{{ form.description.id_for_label }}" class="doc-edit-label">Beskrivning</label>
+            {{ form.description }}
+            {% if form.description.errors %}
+              <div class="doc-edit-field-error">{{ form.description.errors }}</div>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="ccv2-card doc-edit-card doc-edit-card--content">
+          <h2 class="doc-edit-card-title">Innehåll</h2>
+
+          <div class="doc-edit-field doc-edit-field--editor">
+            <label for="{{ form.content.id_for_label }}" class="doc-edit-label visually-hidden">Innehåll</label>
+            <div class="doc-edit-editor-wrap">
+              {{ form.content }}
+            </div>
+            {% if form.content.errors %}
+              <div class="doc-edit-field-error">{{ form.content.errors }}</div>
+            {% endif %}
+
+            <div class="doc-edit-editor-help">
+              <i class="fa-regular fa-circle-question doc-edit-editor-help-icon" aria-hidden="true"></i>
+              <div class="doc-edit-editor-help-text">
+                <p>Skriv och formatera dokumentet direkt här. Du behöver inte använda HTML.</p>
+                <p>Här kan du redigera innehållet för dokument som skapats från mall.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="doc-edit-actions">
+          <button type="submit" class="doc-detail-btn doc-detail-btn--primary doc-edit-submit">
             Spara ändringar
           </button>
-          <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
+          <a href="{% url 'portal:document_detail' document.pk %}" class="doc-detail-btn doc-detail-btn--secondary">
             Avbryt
           </a>
         </div>
       </form>
     </div>
+
+    <aside class="doc-edit-aside">
+      <section class="ccv2-card doc-edit-side-card">
+        <h2 class="doc-edit-card-title">Tips</h2>
+        <ul class="doc-edit-tips-list">
+          <li>
+            <strong>Redigera i editorn</strong>
+            <span>Skriv och formatera texten direkt i dokumentytan.</span>
+          </li>
+          <li>
+            <strong>Rubriker</strong>
+            <span>Använd rubriker för tydliga protokollavsnitt och §§-struktur.</span>
+          </li>
+          <li>
+            <strong>Spara</strong>
+            <span>Spara när ändringarna är klara innan du lämnar sidan.</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="ccv2-card doc-edit-side-card">
+        <h2 class="doc-edit-card-title">Dokumentstatus</h2>
+        <dl class="doc-edit-status-list">
+          <div class="doc-edit-status-row">
+            <dt>Kategori</dt>
+            <dd>{{ document.get_category_display }}</dd>
+          </div>
+          <div class="doc-edit-status-row">
+            <dt>Typ</dt>
+            <dd>
+              {% if document.template %}
+                Mallbaserat · {{ document.template.name }}
+              {% else %}
+                Dokument med innehåll
+              {% endif %}
+            </dd>
+          </div>
+          <div class="doc-edit-status-row">
+            <dt>Senast uppdaterad</dt>
+            <dd>{{ document.updated_at|date:"Y-m-d H:i" }}</dd>
+          </div>
+          <div class="doc-edit-status-row">
+            <dt>Status</dt>
+            <dd>{{ document.get_workflow_status_display }}</dd>
+          </div>
+        </dl>
+      </section>
+    </aside>
   </div>
 </div>
+
 {% endblock %}
+
 {% block extra_js %}
 <script src="https://cdn.tiny.cloud/1/kkm9kg3cnp1z251j5uo7e9hcp8k3tf5osb4lme4z1p0wwryv/tinymce/8/tinymce.min.js" referrerpolicy="origin"></script>
 <script src="{% static 'js/document_editor.js' %}"></script>

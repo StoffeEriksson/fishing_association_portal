@@ -1,83 +1,133 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
 {% block title %}Auditlogg{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/governance.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Styrelse</div>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-  <div>
-    <h1 class="page-title h2 mb-1">Auditlogg</h1>
-    <div class="muted-label">
-      Spårbarhet över aktiviteter i governance-modulen.
+
+<div class="dashboard-shell governance-shell gov-audit-shell">
+  <header class="ccv2-header gov-board-header">
+    <div class="gov-board-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Auditlogg</h1>
+        <p class="ccv2-subtitle mb-0">
+          Senaste aktiviteter i organisationen.
+        </p>
+      </div>
     </div>
-  </div>
-</div>
+  </header>
 
-<div class="card shadow-soft">
-  <div class="card-body p-0">
-    {% if activities %}
-      <div class="table-responsive">
-        <table class="table align-middle mb-0">
-          <thead>
-            <tr>
-              <th class="ps-4">Tid</th>
-              <th>Händelse</th>
-              <th>Användare</th>
-              <th>Mål</th>
-              <th class="pe-4">Meddelande</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for activity in activities %}
-              <tr>
-                <td class="ps-4 small text-muted">
+  {% if page_obj and page_obj.paginator.count %}
+    <section class="ccv2-section ccv2-attention gov-audit-feed-card">
+      <div class="ccv2-section-head">
+        <h2 class="ccv2-section-title">Aktiviteter</h2>
+        <span class="gov-member-count">{{ page_obj.paginator.count }}</span>
+      </div>
+      <div class="gov-audit-feed">
+        {% for activity in page_obj %}
+          <article class="gov-audit-item">
+            <div class="gov-audit-item-icon-wrap" aria-hidden="true">
+              {% if "matter" in activity.action %}
+                <i class="fa-solid fa-clipboard-list gov-audit-item-icon"></i>
+              {% elif "meeting" in activity.action %}
+                <i class="fa-solid fa-calendar gov-audit-item-icon"></i>
+              {% elif "member" in activity.action or "permission" in activity.action or activity.action == "login_access" %}
+                <i class="fa-solid fa-users gov-audit-item-icon"></i>
+              {% else %}
+                <i class="fa-solid fa-circle-info gov-audit-item-icon"></i>
+              {% endif %}
+            </div>
+            <div class="gov-audit-item-body">
+              <div class="gov-audit-item-head">
+                <h3 class="gov-audit-item-title">{{ activity.get_action_display }}</h3>
+                <time class="gov-audit-item-time" datetime="{{ activity.created_at|date:'c' }}">
                   {{ activity.created_at|date:"Y-m-d H:i" }}
-                </td>
-
-                <td>
-                  <span class="fw-semibold">{{ activity.get_action_display }}</span>
-                </td>
-
-                <td>
-                  {% if activity.user %}
-                    <div class="fw-medium">
-                      {{ activity.user.get_full_name|default:activity.user.username }}
-                    </div>
-                    <div class="small text-muted">
-                      {{ activity.user.email }}
-                    </div>
-                  {% else %}
-                    <span class="text-muted">—</span>
+                </time>
+              </div>
+              <div class="gov-meta-badges gov-audit-item-badges">
+                {% if "matter" in activity.action %}
+                  <span class="gov-meta-badge gov-meta-badge--role">Ärende</span>
+                {% elif "meeting" in activity.action %}
+                  <span class="gov-meta-badge gov-meta-badge--purple">Möte</span>
+                {% elif "member" in activity.action or "permission" in activity.action or activity.action == "login_access" %}
+                  <span class="gov-meta-badge gov-meta-badge--inactive">Styrelse</span>
+                {% endif %}
+              </div>
+              {% if activity.user %}
+                <p class="gov-audit-item-user">
+                  <span class="gov-audit-item-user-name">
+                    {{ activity.user.get_full_name|default:activity.user.username }}
+                  </span>
+                  {% if activity.user.email %}
+                    <span class="gov-audit-item-user-email">{{ activity.user.email }}</span>
                   {% endif %}
-                </td>
-
-                <td>
-                  {% if activity.target_user %}
-                    <div class="fw-medium">
-                      {{ activity.target_user.get_full_name|default:activity.target_user.username }}
-                    </div>
-                    <div class="small text-muted">
-                      {{ activity.target_user.email }}
-                    </div>
-                  {% else %}
-                    <span class="text-muted">—</span>
+                </p>
+              {% else %}
+                <p class="gov-audit-item-user gov-audit-item-user--empty">Okänd användare</p>
+              {% endif %}
+              {% if activity.message %}
+                <p class="gov-audit-item-message">{{ activity.message }}</p>
+              {% endif %}
+              {% if activity.target_user %}
+                <p class="gov-audit-item-target">
+                  <span class="gov-audit-item-target-label">Mål:</span>
+                  {{ activity.target_user.get_full_name|default:activity.target_user.username }}
+                  {% if activity.target_user.email %}
+                    <span class="gov-audit-item-target-email">({{ activity.target_user.email }})</span>
                   {% endif %}
-                </td>
+                </p>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
 
-                <td class="pe-4">
-                  <div class="small text-muted">
-                    {{ activity.message|default:"—" }}
-                  </div>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <nav class="gov-audit-pagination" aria-label="Sidnavigering för auditlogg">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}" class="gov-audit-pagination-btn">
+            Föregående
+          </a>
+        {% else %}
+          <span class="gov-audit-pagination-btn gov-audit-pagination-btn--disabled" aria-disabled="true">
+            Föregående
+          </span>
+        {% endif %}
+
+        <span class="gov-audit-pagination-status">
+          Sida {{ page_obj.number }} av {{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}" class="gov-audit-pagination-btn">
+            Nästa
+          </a>
+        {% else %}
+          <span class="gov-audit-pagination-btn gov-audit-pagination-btn--disabled" aria-disabled="true">
+            Nästa
+          </span>
+        {% endif %}
+      </nav>
+    </section>
+  {% else %}
+    <article class="ccv2-card gov-audit-empty">
+      <div class="gov-audit-empty-inner">
+        <i class="fa-regular fa-clock gov-audit-empty-icon" aria-hidden="true"></i>
+        <p class="gov-audit-empty-title">Inga aktiviteter registrerade ännu</p>
+        <p class="gov-audit-empty-text">
+          När något händer i styrelsearbetet visas det här.
+        </p>
       </div>
-    {% else %}
-      <div class="p-4 text-muted">
-        Inga aktiviteter loggade ännu.
-      </div>
-    {% endif %}
-  </div>
+    </article>
+  {% endif %}
 </div>
+
 {% endblock %}

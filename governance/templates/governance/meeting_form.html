@@ -1,221 +1,261 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
 {% block title %}Skapa stämma{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/governance.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Styrelse</div>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-  <div>
-    <h1 class="page-title h2 mb-1">Skapa stämma</h1>
-    <div class="muted-label">
-      Skapa en stämma och välj vilka ärenden som ska tas upp.
-    </div>
-  </div>
 
-  <div class="d-flex gap-2">
-    <a href="{% url 'governance:dashboard' %}" class="btn btn-outline-secondary">
-      Tillbaka
-    </a>
-  </div>
-</div>
-
-<div class="card shadow-soft">
-  <div class="card-body p-4">
-    <form method="post" class="row g-3">
-      {% csrf_token %}
-      {% if from_calendar %}
-        <input type="hidden" name="from_calendar" value="1">
-      {% endif %}
-
-      {% if form.non_field_errors %}
-        <div class="col-12">
-          <div class="alert alert-danger mb-0">
-            {{ form.non_field_errors }}
-          </div>
-        </div>
-      {% endif %}
-
-      <div class="col-12">
-        <label for="{{ form.title.id_for_label }}" class="form-label">Titel</label>
-        {{ form.title }}
-        {% if form.title.errors %}
-          <div class="text-danger small mt-1">{{ form.title.errors }}</div>
-        {% endif %}
+<div class="dashboard-shell governance-shell gov-form-shell gov-meeting-form-shell">
+  <header class="ccv2-header gov-board-header">
+    <div class="gov-board-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Skapa stämma</h1>
+        <p class="ccv2-subtitle mb-0">
+          Skapa en stämma och välj vilka ärenden som ska tas upp.
+        </p>
       </div>
-
-      <div class="col-12">
-        <label for="{{ form.location.id_for_label }}" class="form-label">Plats</label>
-        {{ form.location }}
-        {% if form.location.errors %}
-          <div class="text-danger small mt-1">{{ form.location.errors }}</div>
-        {% endif %}
-      </div>
-
-      <div class="col-12 col-md-6">
-        <label for="{{ form.meeting_type.id_for_label }}" class="form-label">Typ av möte</label>
-        {{ form.meeting_type }}
-        {% if form.meeting_type.errors %}
-          <div class="text-danger small mt-1">{{ form.meeting_type.errors }}</div>
-        {% endif %}
-      </div>
-
-      <div class="col-12 col-md-6">
-        <label for="{{ form.meeting_date.id_for_label }}" class="form-label">Datum och tid</label>
-        {{ form.meeting_date }}
-        {% if form.meeting_date.errors %}
-          <div class="text-danger small mt-1">{{ form.meeting_date.errors }}</div>
-        {% endif %}
-      </div>
-
-      <div class="col-12 pt-2">
-        <h2 class="h5 mb-3">Tillgängliga ärenden</h2>
-
-        {% if form.matters.field.queryset %}
-          <div class="d-flex flex-column gap-3">
-            {% for matter in form.matters.field.queryset %}
-              <label for="matter_{{ matter.pk }}" class="border rounded p-3 d-block">
-                <div class="d-flex align-items-start gap-3">
-                  <div class="pt-1">
-                    <input
-                      type="checkbox"
-                      id="matter_{{ matter.pk }}"
-                      name="matters"
-                      value="{{ matter.pk }}"
-                      class="form-check-input"
-                      {% if matter.pk in selected_matter_ids %}checked{% endif %}
-                    >
-                  </div>
-
-                  <div class="flex-grow-1">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
-                      <div class="fw-semibold">{{ matter.title }}</div>
-                      <div class="small text-muted">
-                        {{ matter.get_type_display }} · {{ matter.get_status_display }}
-                      </div>
-                    </div>
-
-                    {% if matter.description %}
-                      <div class="small text-muted">
-                        {{ matter.description|truncatechars:160 }}
-                      </div>
-                    {% else %}
-                      <div class="small text-muted">
-                        Ingen beskrivning angiven.
-                      </div>
-                    {% endif %}
-
-                    {% if matter.prepared_statement %}
-                      <div class="small mt-2">
-                        <span class="fw-semibold">Beredning:</span>
-                        <span class="text-muted">{{ matter.prepared_statement|truncatechars:140 }}</span>
-                      </div>
-                    {% endif %}
-                  </div>
-                </div>
-              </label>
-            {% endfor %}
-          </div>
-
-          {% if form.matters.help_text %}
-            <div class="form-text mt-2">{{ form.matters.help_text }}</div>
-          {% endif %}
-
-          {% if form.matters.errors %}
-            <div class="text-danger small mt-2">{{ form.matters.errors }}</div>
-          {% endif %}
-        {% else %}
-          <div class="alert alert-light border mb-0">
-            Det finns inga nya ärenden som är klara för stämma.
-          </div>
-        {% endif %}
-      </div>
-
-      <div class="col-12 pt-2">
-        <h2 class="h5 mb-3">Tidigare upptagna ärenden</h2>
-
-        {% if form.previous_matters.field.queryset %}
-          <div class="alert alert-warning small">
-            Dessa ärenden har redan varit kopplade till en tidigare stämma, men kan återanvändas om de fortfarande är aktuella.
-          </div>
-
-          <div class="d-flex flex-column gap-3">
-            {% for matter in form.previous_matters.field.queryset %}
-              <label for="previous_matter_{{ matter.pk }}" class="border rounded p-3 d-block bg-light-subtle">
-                <div class="d-flex align-items-start gap-3">
-                  <div class="pt-1">
-                    <input
-                      type="checkbox"
-                      id="previous_matter_{{ matter.pk }}"
-                      name="previous_matters"
-                      value="{{ matter.pk }}"
-                      class="form-check-input"
-                      {% if matter.pk in selected_previous_matter_ids %}checked{% endif %}
-                    >
-                  </div>
-
-                  <div class="flex-grow-1">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
-                      <div class="fw-semibold">{{ matter.title }}</div>
-                      <div class="small text-muted">
-                        {{ matter.get_type_display }} · {{ matter.get_status_display }}
-                      </div>
-                    </div>
-
-                    {% if matter.description %}
-                      <div class="small text-muted">
-                        {{ matter.description|truncatechars:160 }}
-                      </div>
-                    {% else %}
-                      <div class="small text-muted">
-                        Ingen beskrivning angiven.
-                      </div>
-                    {% endif %}
-
-                    {% if matter.prepared_statement %}
-                      <div class="small mt-2">
-                        <span class="fw-semibold">Beredning:</span>
-                        <span class="text-muted">{{ matter.prepared_statement|truncatechars:140 }}</span>
-                      </div>
-                    {% endif %}
-
-                    {% if matter.meeting_links.all %}
-                      <div class="small text-muted mt-2">
-                        <span class="fw-semibold">Tidigare behandlat i:</span>
-                        {% for link in matter.meeting_links.all %}
-                          <span class="badge bg-light text-dark border me-1">
-                            {{ link.meeting.title }}
-                          </span>
-                        {% endfor %}
-                      </div>
-                    {% endif %}
-                  </div>
-                </div>
-              </label>
-            {% endfor %}
-          </div>
-
-          {% if form.previous_matters.help_text %}
-            <div class="form-text mt-2">{{ form.previous_matters.help_text }}</div>
-          {% endif %}
-
-          {% if form.previous_matters.errors %}
-            <div class="text-danger small mt-2">{{ form.previous_matters.errors }}</div>
-          {% endif %}
-        {% else %}
-          <div class="text-muted small">
-            Inga tidigare upptagna ärenden finns tillgängliga.
-          </div>
-        {% endif %}
-      </div>
-
-      <div class="col-12 d-flex gap-2 pt-2">
-        <button type="submit" class="btn btn-dark">
-          Skapa stämma
-        </button>
-        <a href="{% url 'governance:dashboard' %}" class="btn btn-outline-secondary">
-          Avbryt
+      <div class="gov-board-header-actions">
+        <a href="{% url 'governance:dashboard' %}" class="gov-secondary-cta">
+          Tillbaka
         </a>
       </div>
-    </form>
+    </div>
+  </header>
+
+  <div class="gov-form-grid">
+    <article class="ccv2-card gov-form-card">
+      <form method="post" class="gov-form" novalidate>
+        {% csrf_token %}
+        {% if from_calendar %}
+          <input type="hidden" name="from_calendar" value="1">
+        {% endif %}
+
+        {% if form.non_field_errors %}
+          <div class="gov-form-errors" role="alert">
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            <div>
+              <p class="gov-form-errors-title">Kunde inte skapa stämma</p>
+              <div class="gov-form-errors-body">{{ form.non_field_errors }}</div>
+            </div>
+          </div>
+        {% endif %}
+
+        <section class="gov-form-section" aria-labelledby="gov-meeting-section-basics">
+          <h2 id="gov-meeting-section-basics" class="gov-form-section-title">Grunduppgifter</h2>
+
+          <div class="gov-form-field">
+            <label for="{{ form.title.id_for_label }}" class="gov-form-label">Titel</label>
+            {{ form.title }}
+            {% if form.title.errors %}
+              <div class="gov-field-error">{{ form.title.errors }}</div>
+            {% endif %}
+          </div>
+
+          <div class="gov-form-field">
+            <label for="{{ form.location.id_for_label }}" class="gov-form-label">Plats</label>
+            {{ form.location }}
+            {% if form.location.errors %}
+              <div class="gov-field-error">{{ form.location.errors }}</div>
+            {% endif %}
+          </div>
+
+          <div class="gov-form-row-two-col">
+            <div class="gov-form-field">
+              <label for="{{ form.meeting_type.id_for_label }}" class="gov-form-label">Typ av möte</label>
+              {{ form.meeting_type }}
+              {% if form.meeting_type.errors %}
+                <div class="gov-field-error">{{ form.meeting_type.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div class="gov-form-field">
+              <label for="{{ form.meeting_date.id_for_label }}" class="gov-form-label">Datum och tid</label>
+              {{ form.meeting_date }}
+              {% if form.meeting_date.errors %}
+                <div class="gov-field-error">{{ form.meeting_date.errors }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+
+        <section class="gov-form-section" aria-labelledby="gov-meeting-section-matters">
+          <h2 id="gov-meeting-section-matters" class="gov-form-section-title">Ärenden</h2>
+
+          <div class="gov-meeting-matter-block">
+            <h3 class="gov-meeting-matter-heading">Tillgängliga ärenden</h3>
+
+            {% if form.matters.field.queryset %}
+              <div class="gov-matter-pick-list">
+                {% for matter in form.matters.field.queryset %}
+                  <label for="matter_{{ matter.pk }}" class="gov-matter-pick-row">
+                    <span class="gov-matter-pick-check">
+                      <input
+                        type="checkbox"
+                        id="matter_{{ matter.pk }}"
+                        name="matters"
+                        value="{{ matter.pk }}"
+                        class="form-check-input"
+                        {% if matter.pk in selected_matter_ids %}checked{% endif %}
+                      >
+                    </span>
+                    <span class="gov-matter-pick-body">
+                      <span class="gov-matter-pick-head">
+                        <span class="gov-matter-pick-title">{{ matter.title }}</span>
+                        <span class="gov-meta-badge gov-meta-badge--inactive gov-matter-pick-badge">
+                          {{ matter.get_type_display }} · {{ matter.get_status_display }}
+                        </span>
+                      </span>
+                      {% if matter.description %}
+                        <span class="gov-matter-pick-desc">{{ matter.description|truncatechars:160 }}</span>
+                      {% else %}
+                        <span class="gov-matter-pick-desc gov-matter-pick-desc--muted">Ingen beskrivning angiven.</span>
+                      {% endif %}
+                      {% if matter.prepared_statement %}
+                        <span class="gov-matter-pick-extra">
+                          <strong>Beredning:</strong>
+                          {{ matter.prepared_statement|truncatechars:140 }}
+                        </span>
+                      {% endif %}
+                    </span>
+                  </label>
+                {% endfor %}
+              </div>
+
+              {% if form.matters.help_text %}
+                <p class="gov-form-help gov-meeting-matter-help">{{ form.matters.help_text }}</p>
+              {% endif %}
+
+              {% if form.matters.errors %}
+                <div class="gov-field-error">{{ form.matters.errors }}</div>
+              {% endif %}
+            {% else %}
+              <div class="gov-matters-empty">
+                <i class="fa-regular fa-folder-open gov-matters-empty-icon" aria-hidden="true"></i>
+                <p class="gov-matters-empty-title">Inga ärenden är redo för stämma</p>
+                <p class="gov-matters-empty-text">
+                  När ett ärende är färdigt att tas upp visas det här.
+                </p>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="gov-meeting-matter-block gov-meeting-matter-block--previous">
+            <h3 class="gov-meeting-matter-heading">Tidigare upptagna ärenden</h3>
+
+            {% if form.previous_matters.field.queryset %}
+              <p class="gov-meeting-previous-note">
+                Dessa ärenden har redan varit kopplade till en tidigare stämma, men kan återanvändas om de fortfarande är aktuella.
+              </p>
+
+              <div class="gov-matter-pick-list">
+                {% for matter in form.previous_matters.field.queryset %}
+                  <label for="previous_matter_{{ matter.pk }}" class="gov-matter-pick-row gov-matter-pick-row--previous">
+                    <span class="gov-matter-pick-check">
+                      <input
+                        type="checkbox"
+                        id="previous_matter_{{ matter.pk }}"
+                        name="previous_matters"
+                        value="{{ matter.pk }}"
+                        class="form-check-input"
+                        {% if matter.pk in selected_previous_matter_ids %}checked{% endif %}
+                      >
+                    </span>
+                    <span class="gov-matter-pick-body">
+                      <span class="gov-matter-pick-head">
+                        <span class="gov-matter-pick-title">{{ matter.title }}</span>
+                        <span class="gov-meta-badge gov-meta-badge--warning gov-matter-pick-badge">
+                          {{ matter.get_type_display }} · {{ matter.get_status_display }}
+                        </span>
+                      </span>
+                      {% if matter.description %}
+                        <span class="gov-matter-pick-desc">{{ matter.description|truncatechars:160 }}</span>
+                      {% else %}
+                        <span class="gov-matter-pick-desc gov-matter-pick-desc--muted">Ingen beskrivning angiven.</span>
+                      {% endif %}
+                      {% if matter.prepared_statement %}
+                        <span class="gov-matter-pick-extra">
+                          <strong>Beredning:</strong>
+                          {{ matter.prepared_statement|truncatechars:140 }}
+                        </span>
+                      {% endif %}
+                      {% if matter.meeting_links.all %}
+                        <span class="gov-matter-pick-meetings">
+                          <strong>Tidigare behandlat i:</strong>
+                          {% for link in matter.meeting_links.all %}
+                            <span class="gov-meta-badge gov-meta-badge--muted">{{ link.meeting.title }}</span>
+                          {% endfor %}
+                        </span>
+                      {% endif %}
+                    </span>
+                  </label>
+                {% endfor %}
+              </div>
+
+              {% if form.previous_matters.help_text %}
+                <p class="gov-form-help gov-meeting-matter-help">{{ form.previous_matters.help_text }}</p>
+              {% endif %}
+
+              {% if form.previous_matters.errors %}
+                <div class="gov-field-error">{{ form.previous_matters.errors }}</div>
+              {% endif %}
+            {% else %}
+              <p class="gov-matters-empty-subtle">
+                Inga tidigare upptagna ärenden finns tillgängliga.
+              </p>
+            {% endif %}
+          </div>
+        </section>
+
+        <div class="gov-form-actions">
+          <button type="submit" class="gov-primary-cta gov-form-submit">Skapa stämma</button>
+          <a href="{% url 'governance:dashboard' %}" class="gov-secondary-cta">Avbryt</a>
+        </div>
+      </form>
+    </article>
+
+    <aside class="ccv2-card gov-form-aside gov-meeting-form-aside">
+      <h2 class="ccv2-card-title">Vad händer sedan?</h2>
+      <ul class="gov-form-help-list">
+        <li>
+          <strong>Stämman skapas</strong>
+          <span>Grunduppgifter sparas och mötet blir tillgängligt i styrelseflödet.</span>
+        </li>
+        <li>
+          <strong>Valda ärenden kopplas</strong>
+          <span>Ärenden du markerar läggs till på dagordningen.</span>
+        </li>
+        <li>
+          <strong>Protokoll i nästa steg</strong>
+          <span>Efter mötet kan protokoll hanteras och justeras som vanligt.</span>
+        </li>
+      </ul>
+
+      <h2 class="ccv2-card-title gov-meeting-aside-tips-title">Tips</h2>
+      <ul class="gov-form-help-list">
+        <li>
+          <strong>Ärenden</strong>
+          <span>Lägg bara till ärenden som är redo för stämma.</span>
+        </li>
+        <li>
+          <strong>Datum och plats</strong>
+          <span>Kontrollera att tid och plats stämmer innan du skapar.</span>
+        </li>
+        <li>
+          <strong>Protokoll</strong>
+          <span>Protokoll skapas och hanteras i nästa steg efter mötet.</span>
+        </li>
+      </ul>
+    </aside>
   </div>
 </div>
+
 {% endblock %}

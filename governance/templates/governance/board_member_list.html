@@ -1,148 +1,129 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
 {% block title %}Styrelsemedlemmar{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/governance.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Styrelse</div>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-  <div>
-    <h1 class="page-title h2 mb-1">Styrelsemedlemmar</h1>
-    <div class="muted-label">
-      Översikt över roller, ansvar och behörigheter i styrelsen.
+
+<div class="dashboard-shell governance-shell gov-board-shell">
+  <header class="ccv2-header gov-board-header">
+    <div class="gov-board-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Styrelsemedlemmar</h1>
+        <p class="ccv2-subtitle mb-0">Översikt över roller, ansvar och behörigheter i styrelsen.</p>
+      </div>
+      {% if membership.can_manage_members %}
+        <div class="gov-board-header-actions">
+          <a href="{% url 'governance:board_member_create' %}" class="gov-primary-cta">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            Lägg till medlem
+          </a>
+        </div>
+      {% endif %}
     </div>
-  </div>
+  </header>
 
-  {% if membership.can_manage_members %}
-  <div class="d-flex gap-2">
-    <a href="{% url 'governance:board_member_create' %}" class="btn btn-dark">
-      + Lägg till medlem
-    </a>
-  </div>
-  {% endif %}
-</div>
-
-<div class="card shadow-soft mb-4">
-  <div class="card-body">
-    <div class="d-flex flex-wrap gap-2">
+  <article class="ccv2-card gov-filter-panel">
+    <div class="gov-filter-pills" role="group" aria-label="Filtrera styrelsemedlemmar">
       <a
         href="{% url 'governance:board_member_list' %}?status=active"
-        class="btn {% if status == 'active' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+        class="gov-filter-pill{% if status == 'active' %} gov-filter-pill--active{% endif %}"
       >
         Aktiva
       </a>
-
       <a
         href="{% url 'governance:board_member_list' %}?status=inactive"
-        class="btn {% if status == 'inactive' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+        class="gov-filter-pill{% if status == 'inactive' %} gov-filter-pill--active{% endif %}"
       >
         Inaktiva
       </a>
-
       <a
         href="{% url 'governance:board_member_list' %}?status=all"
-        class="btn {% if status == 'all' %}btn-dark{% else %}btn-outline-secondary{% endif %} btn-sm"
+        class="gov-filter-pill{% if status == 'all' %} gov-filter-pill--active{% endif %}"
       >
         Alla
       </a>
     </div>
-  </div>
-</div>
+  </article>
 
-<div class="card shadow-soft">
-  <div class="card-body p-0">
-
-    {% if members %}
-      <div class="table-responsive">
-        <table class="table align-middle mb-0">
-          <thead>
-            <tr>
-              <th class="ps-4">Namn</th>
-              <th>Roll</th>
-              <th>Status</th>
-              <th>Behörigheter</th>
-
-              {% if membership.can_manage_members %}
-                <th class="text-end pe-4">Åtgärder</th>
-              {% endif %}
-            </tr>
-          </thead>
-
-          <tbody>
-            {% for member in members %}
-              <tr>
-                <td class="ps-4">
-                  <div class="fw-semibold">
-                    {{ member.user.get_full_name|default:member.user.username }}
-                  </div>
-                  <div class="small text-muted">
-                    {{ member.user.email }}
-                  </div>
-                </td>
-
-                <td>
-                  <span class="fw-medium">
-                    {{ member.get_role_display }}
-                  </span>
-                </td>
-
-                <td>
-                  {% if member.is_active %}
-                    <span class="badge text-bg-success">Aktiv</span>
-                  {% else %}
-                    <span class="badge text-bg-secondary">Inaktiv</span>
-                  {% endif %}
-                </td>
-
-                <td>
-                  <div class="small text-muted">
-                    {% if member.can_manage_members %}
-                      <span class="me-2">Medlemmar</span>
-                    {% endif %}
-
-                    {% if member.can_manage_matters %}
-                      <span class="me-2">Ärenden</span>
-                    {% endif %}
-
-                    {% if member.can_manage_documents %}
-                      <span class="me-2">Dokument</span>
-                    {% endif %}
-
-                    {% if not member.can_manage_members and not member.can_manage_matters and not member.can_manage_documents %}
-                      Inga särskilda behörigheter
-                    {% endif %}
-                  </div>
-                </td>
-
-                {% if membership.can_manage_members %}
-                  <td class="text-end pe-4">
-                    <div class="d-flex justify-content-end gap-2">
-                      <a href="{% url 'governance:board_member_update' member.pk %}" class="btn btn-sm btn-outline-secondary">
-                        Redigera
-                      </a>
-
-                      {% if member.is_active %}
-                        <a href="{% url 'governance:board_member_deactivate' member.pk %}" class="btn btn-sm btn-outline-danger">
-                          Inaktivera
-                        </a>
-                      {% else %}
-                        <span class="btn btn-sm btn-outline-secondary disabled">
-                          Inaktiv
-                        </span>
-                      {% endif %}
-                    </div>
-                  </td>
+  {% if members %}
+    <section class="ccv2-section ccv2-attention gov-member-list-card">
+      <div class="ccv2-section-head">
+        <h2 class="ccv2-section-title">Medlemmar</h2>
+        <span class="gov-member-count">{{ members|length }}</span>
+      </div>
+      <div class="ccv2-action-list gov-member-list">
+        {% for member in members %}
+          <div class="ccv2-action-row gov-member-row ccv2-priority-normal">
+            <div class="ccv2-action-main">
+              <div class="ccv2-action-title">
+                {{ member.user.get_full_name|default:member.user.username }}
+              </div>
+              <div class="ccv2-muted gov-member-email">{{ member.user.email }}</div>
+              <div class="gov-meta-badges">
+                <span class="gov-meta-badge gov-meta-badge--role{% if member.role == 'chair' %} gov-meta-badge--emphasis{% endif %}">
+                  {{ member.get_role_display }}
+                </span>
+                {% if member.is_active %}
+                  <span class="gov-meta-badge gov-meta-badge--active">Aktiv</span>
+                {% else %}
+                  <span class="gov-meta-badge gov-meta-badge--inactive">Inaktiv</span>
                 {% endif %}
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+                {% if member.can_manage_members %}
+                  <span class="gov-meta-badge gov-meta-badge--perm">Medlemmar</span>
+                {% endif %}
+                {% if member.can_manage_matters %}
+                  <span class="gov-meta-badge gov-meta-badge--perm">Ärenden</span>
+                {% endif %}
+                {% if member.can_manage_documents %}
+                  <span class="gov-meta-badge gov-meta-badge--perm">Dokument</span>
+                {% endif %}
+                {% if not member.can_manage_members and not member.can_manage_matters and not member.can_manage_documents %}
+                  <span class="gov-meta-badge gov-meta-badge--none">Inga särskilda behörigheter</span>
+                {% endif %}
+              </div>
+            </div>
+            {% if membership.can_manage_members %}
+              <div class="gov-member-aside">
+                <a href="{% url 'governance:board_member_update' member.pk %}" class="gov-row-action">
+                  Redigera
+                </a>
+                {% if member.is_active %}
+                  <a href="{% url 'governance:board_member_deactivate' member.pk %}" class="gov-row-action gov-row-action--danger">
+                    Inaktivera
+                  </a>
+                {% else %}
+                  <span class="gov-row-action gov-row-action--disabled">Inaktiv</span>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
       </div>
-
-    {% else %}
-      <div class="p-4 text-muted">
-        Inga styrelsemedlemmar hittades för valt filter.
+    </section>
+  {% else %}
+    <article class="ccv2-card gov-empty">
+      <div class="gov-empty-inner">
+        <p class="gov-empty-title">Inga styrelsemedlemmar hittades</p>
+        <p class="gov-empty-text">Det finns inga medlemmar för valt filter.</p>
+        {% if membership.can_manage_members %}
+          <a href="{% url 'governance:board_member_create' %}" class="gov-primary-cta">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            Lägg till medlem
+          </a>
+        {% endif %}
       </div>
-    {% endif %}
-
-  </div>
+    </article>
+  {% endif %}
 </div>
+
 {% endblock %}

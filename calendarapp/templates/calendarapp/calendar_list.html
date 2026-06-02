@@ -4,180 +4,195 @@
 {% block title %}Kalender{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/calendar.css' %}?v=1">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/document.css' %}?v=11">
+<link rel="stylesheet" href="{% static 'css/calendar.css' %}?v=4">
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h1 class="page-title h3 mb-1">Kalender</h1>
-    <div class="text-muted small">Händelser för aktiv organisation.</div>
-  </div>
-  <div class="d-flex gap-2">
-    <a href="{% url 'governance:meeting_create' %}?from_calendar=1" class="btn btn-outline-dark btn-sm">
-      Boka möte
-    </a>
-    <a href="{% url 'calendarapp:create' %}" class="btn btn-dark btn-sm">
-      Skapa händelse
-    </a>
-  </div>
-</div>
 
-<div class="card shadow-soft">
-  <div class="card-body">
-    <div class="calendar-legend">
-      <div class="calendar-legend-item">
-        <span class="calendar-event-pill text-bg-secondary calendar-event-regular">Händelse</span>
+<div class="dashboard-shell cal-shell">
+  <header class="ccv2-header cal-header">
+    <div class="cal-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Kalender</h1>
+        <p class="ccv2-subtitle mb-0">Händelser för aktiv organisation.</p>
       </div>
-      <div class="calendar-legend-item">
-        <span class="calendar-event-pill text-bg-primary calendar-event-governance">Möte</span>
+      <div class="cal-header-actions">
+        <a href="{% url 'governance:meeting_create' %}?from_calendar=1" class="doc-detail-btn doc-detail-btn--secondary">
+          Boka möte
+        </a>
+        <a href="{% url 'calendarapp:create' %}" class="doc-detail-btn doc-detail-btn--primary">
+          Skapa händelse
+        </a>
       </div>
-      <div class="calendar-legend-item">
-        <span class="calendar-event-pill text-bg-dark calendar-event-annual">Årsstämma</span>
+    </div>
+  </header>
+
+  <section class="ccv2-attention cal-card">
+    <div class="calendar-legend cal-legend" aria-label="Färglegend">
+      <div class="calendar-legend-item cal-legend-item">
+        <span class="calendar-event-pill cal-legend-pill text-bg-secondary calendar-event-regular">Händelse</span>
+      </div>
+      <div class="calendar-legend-item cal-legend-item">
+        <span class="calendar-event-pill cal-legend-pill text-bg-primary calendar-event-governance">Möte</span>
+      </div>
+      <div class="calendar-legend-item cal-legend-item">
+        <span class="calendar-event-pill cal-legend-pill text-bg-dark calendar-event-annual">Årsstämma</span>
       </div>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <nav class="cal-month-nav" aria-label="Månadnavigering">
       <a
         href="{% url 'calendarapp:list' %}?year={{ previous_month.year }}&month={{ previous_month.month }}"
-        class="btn btn-outline-secondary btn-sm"
+        class="doc-detail-btn doc-detail-btn--secondary cal-month-nav-btn"
       >
         Föregående
       </a>
 
-      <h2 class="h5 mb-0">{{ month_start|date:"F Y"|capfirst }}</h2>
+      <h2 class="cal-month-title">{{ month_start|date:"F Y"|capfirst }}</h2>
 
       <a
         href="{% url 'calendarapp:list' %}?year={{ next_month.year }}&month={{ next_month.month }}"
-        class="btn btn-outline-secondary btn-sm"
+        class="doc-detail-btn doc-detail-btn--secondary cal-month-nav-btn"
       >
         Nästa
       </a>
-    </div>
+    </nav>
 
-    <div class="calendar-grid-wrapper">
-    <div class="table-responsive">
-      <table class="table table-bordered align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Mån</th>
-            <th>Tis</th>
-            <th>Ons</th>
-            <th>Tor</th>
-            <th>Fre</th>
-            <th>Lör</th>
-            <th>Sön</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for week in weeks %}
+    <div class="calendar-grid-wrapper cal-grid-wrapper">
+      <div class="table-responsive cal-table-responsive">
+        <table class="table table-bordered align-middle mb-0 cal-grid">
+          <thead class="cal-grid-head">
             <tr>
-              {% for day in week %}
-                <td
-                  class="position-relative align-top calendar-day-cell{% if not day.is_current_month %} calendar-day-outside{% endif %}{% if day.is_today %} calendar-day-today{% endif %}{% if highlight_date and day.date == highlight_date %} calendar-day-highlight{% endif %}"
-                  data-drop-date="{{ day.date|date:'Y-m-d' }}"
-                >
-                  <div class="calendar-day-content">
-                    <div class="calendar-day-header">
-                      <div class="small fw-semibold calendar-day-number">{{ day.date.day }}</div>
-                      <div class="dropdown">
-                        <button
-                          type="button"
-                          class="btn btn-outline-secondary btn-sm calendar-day-create-btn"
-                          data-bs-toggle="dropdown"
-                          aria-expanded="false"
-                          aria-label="Skapa på {{ day.date|date:'Y-m-d' }}"
-                          title="Skapa på detta datum"
-                        >
-                          +
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                          <li>
-                            <a class="dropdown-item" href="{% url 'calendarapp:create' %}?date={{ day.date|date:'Y-m-d' }}">
-                              Skapa händelse
-                            </a>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              class="dropdown-item js-open-meeting-create-modal"
-                              data-date="{{ day.date|date:'Y-m-d' }}"
-                              data-meeting-type="meeting"
-                            >
-                              Boka möte
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              class="dropdown-item js-open-meeting-create-modal"
-                              data-date="{{ day.date|date:'Y-m-d' }}"
-                              data-meeting-type="annual_meeting"
-                            >
-                              Boka årsstämma
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    {% with day_events=events_by_day|dict_get:day.date %}
-                      <div class="d-flex flex-column gap-1">
-                        {% for event in day_events|slice:":2" %}
-                        <a
-                          href="{% if event.meeting_id %}{% url 'governance:meeting_detail' event.meeting.pk %}{% else %}{% url 'calendarapp:detail' event.pk %}{% endif %}"
-                          class="calendar-event-pill js-event-preview {% if event.event_type == 'meeting' %}text-bg-primary{% elif event.event_type == 'annual_meeting' %}text-bg-dark{% elif event.event_type == 'deadline' %}text-bg-danger{% elif event.event_type == 'reminder' %}text-bg-warning{% else %}text-bg-secondary{% endif %}{% if event.event_type == 'annual_meeting' %} calendar-event-annual{% elif event.meeting_id %} calendar-event-governance{% else %} calendar-event-regular{% endif %}"
-                          title="{{ event.title }}"
-                          draggable="true"
-                          data-event-id="{{ event.pk }}"
-                          data-event-title="{{ event.title }}"
-                          data-event-type="{{ event.get_event_type_display }}"
-                          data-event-start="{{ event.start_at|date:'Y-m-d H:i' }}"
-                          data-event-end="{% if event.end_at %}{{ event.end_at|date:'Y-m-d H:i' }}{% else %}—{% endif %}"
-                          data-event-location="{{ event.location|default:'—' }}"
-                          data-event-description="{{ event.description|default:'—' }}"
-                          data-event-detail-url="{% if event.meeting_id %}{% url 'governance:meeting_detail' event.meeting.pk %}{% else %}{% url 'calendarapp:detail' event.pk %}{% endif %}"
-                        >
-                          {{ event.title }}
-                        </a>
-                        {% endfor %}
-
-                        {% if day_events|length > 2 %}
-                          <div class="small text-muted">+ {{ day_events|length|add:"-2" }} fler</div>
-                        {% endif %}
-                      </div>
-                    {% endwith %}
-                  </div>
-                </td>
-              {% endfor %}
+              <th scope="col">Mån</th>
+              <th scope="col">Tis</th>
+              <th scope="col">Ons</th>
+              <th scope="col">Tor</th>
+              <th scope="col">Fre</th>
+              <th scope="col">Lör</th>
+              <th scope="col">Sön</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for week in weeks %}
+              <tr>
+                {% for day in week %}
+                  <td
+                    class="position-relative align-top calendar-day-cell{% if not day.is_current_month %} calendar-day-outside{% endif %}{% if day.is_today %} calendar-day-today{% endif %}{% if highlight_date and day.date == highlight_date %} calendar-day-highlight{% endif %}"
+                    data-drop-date="{{ day.date|date:'Y-m-d' }}"
+                  >
+                    <div class="calendar-day-content">
+                      <div class="calendar-day-header">
+                        <div class="small fw-semibold calendar-day-number">{{ day.date.day }}</div>
+                        <div class="dropdown">
+                          <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm calendar-day-create-btn"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                            aria-label="Skapa på {{ day.date|date:'Y-m-d' }}"
+                            title="Skapa på detta datum"
+                          >
+                            +
+                          </button>
+                          <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                              <a class="dropdown-item" href="{% url 'calendarapp:create' %}?date={{ day.date|date:'Y-m-d' }}">
+                                Skapa händelse
+                              </a>
+                            </li>
+                            <li>
+                              <button
+                                type="button"
+                                class="dropdown-item js-open-meeting-create-modal"
+                                data-date="{{ day.date|date:'Y-m-d' }}"
+                                data-meeting-type="meeting"
+                              >
+                                Boka möte
+                              </button>
+                            </li>
+                            <li>
+                              <button
+                                type="button"
+                                class="dropdown-item js-open-meeting-create-modal"
+                                data-date="{{ day.date|date:'Y-m-d' }}"
+                                data-meeting-type="annual_meeting"
+                              >
+                                Boka årsstämma
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      {% with day_events=events_by_day|dict_get:day.date %}
+                        <div class="cal-day-events d-flex flex-column gap-1">
+                          {% for event in day_events|slice:":2" %}
+                          <a
+                            href="{% if event.meeting_id %}{% url 'governance:meeting_detail' event.meeting.pk %}{% else %}{% url 'calendarapp:detail' event.pk %}{% endif %}"
+                            class="calendar-event-pill js-event-preview {% if event.event_type == 'meeting' %}text-bg-primary{% elif event.event_type == 'annual_meeting' %}text-bg-dark{% elif event.event_type == 'deadline' %}text-bg-danger{% elif event.event_type == 'reminder' %}text-bg-warning{% else %}text-bg-secondary{% endif %}{% if event.event_type == 'annual_meeting' %} calendar-event-annual{% elif event.meeting_id %} calendar-event-governance{% else %} calendar-event-regular{% endif %}"
+                            title="{{ event.title }}"
+                            draggable="true"
+                            data-event-id="{{ event.pk }}"
+                            data-event-title="{{ event.title }}"
+                            data-event-type="{{ event.get_event_type_display }}"
+                            data-event-start="{{ event.start_at|date:'Y-m-d H:i' }}"
+                            data-event-end="{% if event.end_at %}{{ event.end_at|date:'Y-m-d H:i' }}{% else %}—{% endif %}"
+                            data-event-location="{{ event.location|default:'—' }}"
+                            data-event-description="{{ event.description|default:'—' }}"
+                            data-event-detail-url="{% if event.meeting_id %}{% url 'governance:meeting_detail' event.meeting.pk %}{% else %}{% url 'calendarapp:detail' event.pk %}{% endif %}"
+                          >
+                            {{ event.title }}
+                          </a>
+                          {% endfor %}
+
+                          {% if day_events|length > 2 %}
+                            <div class="cal-day-more small text-muted">+ {{ day_events|length|add:"-2" }} fler</div>
+                          {% endif %}
+                        </div>
+                      {% endwith %}
+                    </div>
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
-    </div>
-  </div>
+  </section>
 </div>
 
-<div class="modal fade" id="calendarMeetingRedirectModal" tabindex="-1" aria-labelledby="calendarMeetingRedirectModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="calendarMeetingRedirectModalLabel">Fortsätt till mötesdelen</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+<div class="modal fade cal-meeting-modal" id="calendarMeetingRedirectModal" tabindex="-1" aria-labelledby="calendarMeetingRedirectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered cal-meeting-modal-dialog">
+    <div class="modal-content cal-meeting-modal-content">
+      <div class="modal-header cal-meeting-modal-header">
+        <h5 class="modal-title cal-meeting-modal-title" id="calendarMeetingRedirectModalLabel">Fortsätt till mötesdelen</h5>
+        <button type="button" class="btn-close cal-meeting-modal-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
       </div>
-      <div class="modal-body">
-        <div class="small text-muted">Datum</div>
-        <div class="fw-semibold mb-2" id="meetingRedirectDate">—</div>
-        <div class="small text-muted">Typ</div>
-        <div class="fw-semibold mb-3" id="meetingRedirectType">—</div>
-        <div class="text-muted small">
-          Du fortsätter i mötesdelen där du kan koppla ärenden och skapa dagordning.
+      <div class="modal-body cal-meeting-modal-body">
+        <div class="cal-meeting-modal-meta-grid">
+          <div class="cal-meeting-modal-meta-item">
+            <span class="cal-meeting-modal-meta-label">Datum</span>
+            <span class="cal-meeting-modal-meta-value" id="meetingRedirectDate">—</span>
+          </div>
+          <div class="cal-meeting-modal-meta-item">
+            <span class="cal-meeting-modal-meta-label">Typ</span>
+            <span class="cal-meeting-modal-meta-value" id="meetingRedirectType">—</span>
+          </div>
         </div>
+        <p class="cal-meeting-modal-lead">
+          Du fortsätter till mötesdelen där mötet kan förberedas med ärenden, dagordning och protokoll.
+        </p>
       </div>
-      <div class="modal-footer">
-        <a href="#" id="meetingRedirectContinueLink" class="btn btn-dark">Fortsätt till skapa stämma</a>
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
+      <div class="modal-footer cal-meeting-modal-footer">
+        <a href="#" id="meetingRedirectContinueLink" class="doc-detail-btn doc-detail-btn--primary cal-meeting-modal-continue">
+          Fortsätt till mötesdelen
+        </a>
+        <button type="button" class="doc-detail-btn doc-detail-btn--secondary" data-bs-dismiss="modal">
+          Avbryt
+        </button>
       </div>
     </div>
   </div>

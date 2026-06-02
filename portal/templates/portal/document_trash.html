@@ -1,137 +1,129 @@
 {% extends "portal/base.html" %}
 {% load static %}
+
 {% block title %}Papperskorg{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/document.css' %}">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/document.css' %}?v=11">
 {% endblock %}
 
 {% block content %}
 
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-  <div>
-    <h1 class="page-title h2 mb-1">Papperskorg</h1>
-    <div class="muted-label">
-      Borttagna dokument som kan återställas
+<div class="dashboard-shell doc-trash-shell">
+  <header class="ccv2-header doc-trash-header">
+    <div class="doc-trash-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Papperskorg</h1>
+        <p class="ccv2-subtitle mb-0">
+          Borttagna dokument som kan återställas
+        </p>
+      </div>
+      <span class="doc-trash-count-chip">
+        {{ page_obj.paginator.count }} borttagna dokument
+      </span>
     </div>
-  </div>
+  </header>
 
-  <div class="d-flex gap-2 align-items-center">
-    <span class="badge text-bg-light border">
-      {{ page_obj.paginator.count }} borttagna dokument
-    </span>
-  </div>
-</div>
-
-<div class="card shadow-soft mb-4">
-  <div class="card-body">
-    <form method="get" class="row g-2 align-items-center">
-      <div class="col-12 col-md-4">
-        <input
-          type="search"
-          name="q"
-          value="{{ q }}"
-          class="form-control"
-          placeholder="Sök borttagna dokument..."
-        >
-      </div>
-
-      <div class="col-auto">
-        <button type="submit" class="btn btn-dark">Sök</button>
-      </div>
-
-      {% if q %}
-        <div class="col-auto">
-          <a href="{% url 'portal:document_trash' %}" class="btn btn-outline-secondary">
+  <section class="ccv2-card doc-trash-search-card" aria-label="Sök borttagna dokument">
+    <form method="get" class="doc-trash-search-form">
+      <label for="doc-trash-search" class="visually-hidden">Sök borttagna dokument</label>
+      <input
+        type="search"
+        id="doc-trash-search"
+        name="q"
+        value="{{ q }}"
+        class="form-control doc-trash-search-input"
+        placeholder="Sök borttagna dokument..."
+      >
+      <div class="doc-trash-search-actions">
+        <button type="submit" class="doc-detail-btn doc-detail-btn--primary">
+          Sök
+        </button>
+        {% if q %}
+          <a href="{% url 'portal:document_trash' %}" class="doc-detail-btn doc-detail-btn--secondary">
             Rensa
           </a>
-        </div>
-      {% endif %}
+        {% endif %}
+      </div>
     </form>
-  </div>
-</div>
+  </section>
 
-<div class="card shadow-soft">
-  <div class="card-body p-0">
-    {% if page_obj and page_obj.paginator.count > 0 %}
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th class="ps-3">Titel</th>
-              <th>Borttagen</th>
-              <th>Av</th>
-              <th style="width: 140px;"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for doc in page_obj %}
-              <tr>
-                <td class="ps-3 fw-semibold">{{ doc.title }}</td>
-
-                <td class="text-muted small">
-                  {{ doc.deleted_at|date:"Y-m-d H:i" }}
-                </td>
-
-                <td class="text-muted small">
-                  {% if doc.deleted_by %}
-                    {{ doc.deleted_by.email|default:doc.deleted_by.username }}
-                  {% else %}
-                    —
-                  {% endif %}
-                </td>
-
-                <td class="text-end pe-3">
-                  <a href="{% url 'portal:document_restore' doc.pk %}" class="btn btn-sm btn-outline-dark">
-                    Återställ
-                  </a>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+  {% if page_obj and page_obj.paginator.count > 0 %}
+    <section class="ccv2-attention doc-trash-list-card" aria-label="Borttagna dokument">
+      <div class="doc-trash-list">
+        {% for doc in page_obj %}
+          <article class="doc-trash-row">
+            <div class="doc-trash-row-icon-wrap" aria-hidden="true">
+              <i class="fa-regular fa-file-lines doc-trash-row-icon"></i>
+            </div>
+            <div class="doc-trash-row-main">
+              <h2 class="doc-trash-row-title">{{ doc.title }}</h2>
+              <p class="doc-trash-row-meta">
+                Borttagen: {{ doc.deleted_at|date:"Y-m-d H:i" }}
+                {% if doc.deleted_by %}
+                  · Av: {{ doc.deleted_by.email|default:doc.deleted_by.username }}
+                {% endif %}
+              </p>
+            </div>
+            <div class="doc-trash-row-actions">
+              <a
+                href="{% url 'portal:document_restore' doc.pk %}"
+                class="doc-detail-btn doc-detail-btn--compact doc-detail-btn--positive-outline"
+              >
+                Återställ
+              </a>
+            </div>
+          </article>
+        {% endfor %}
       </div>
-    {% else %}
-      <div class="p-5 text-center">
-        <div class="fw-semibold mb-2">Papperskorgen är tom</div>
-        <div class="text-muted small">
-          Inga borttagna dokument finns just nu.
-        </div>
+
+      {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="doc-trash-pagination" aria-label="Sidnavigering för papperskorgen">
+          {% if page_obj.has_previous %}
+            <a href="?q={{ q|urlencode }}&page={{ page_obj.previous_page_number }}" class="doc-trash-pagination-btn">
+              Föregående
+            </a>
+          {% else %}
+            <span class="doc-trash-pagination-btn doc-trash-pagination-btn--disabled" aria-disabled="true">
+              Föregående
+            </span>
+          {% endif %}
+
+          <span class="doc-trash-pagination-status">
+            Sida {{ page_obj.number }} av {{ page_obj.paginator.num_pages }}
+          </span>
+
+          {% if page_obj.has_next %}
+            <a href="?q={{ q|urlencode }}&page={{ page_obj.next_page_number }}" class="doc-trash-pagination-btn">
+              Nästa
+            </a>
+          {% else %}
+            <span class="doc-trash-pagination-btn doc-trash-pagination-btn--disabled" aria-disabled="true">
+              Nästa
+            </span>
+          {% endif %}
+        </nav>
+      {% endif %}
+    </section>
+  {% else %}
+    <article class="ccv2-card doc-trash-empty">
+      <div class="doc-trash-empty-inner">
+        <i class="fa-regular fa-trash-can doc-trash-empty-icon" aria-hidden="true"></i>
+        {% if q %}
+          <p class="doc-trash-empty-title">Inga dokument matchar sökningen</p>
+          <p class="doc-trash-empty-text">
+            Testa ett annat sökord.
+          </p>
+        {% else %}
+          <p class="doc-trash-empty-title">Inga borttagna dokument</p>
+          <p class="doc-trash-empty-text">
+            Dokument som tas bort hamnar här innan de återställs eller rensas permanent.
+          </p>
+        {% endif %}
       </div>
-    {% endif %}
-  </div>
+    </article>
+  {% endif %}
 </div>
-
-{% if page_obj.paginator.num_pages > 1 %}
-  <nav class="mt-3">
-    <ul class="pagination pagination-sm">
-      {% if page_obj.has_previous %}
-        <li class="page-item">
-          <a class="page-link" href="?q={{ q }}&page={{ page_obj.previous_page_number }}">
-            Föregående
-          </a>
-        </li>
-      {% else %}
-        <li class="page-item disabled"><span class="page-link">Föregående</span></li>
-      {% endif %}
-
-      <li class="page-item disabled">
-        <span class="page-link">
-          Sida {{ page_obj.number }} av {{ page_obj.paginator.num_pages }}
-        </span>
-      </li>
-
-      {% if page_obj.has_next %}
-        <li class="page-item">
-          <a class="page-link" href="?q={{ q }}&page={{ page_obj.next_page_number }}">
-            Nästa
-          </a>
-        </li>
-      {% else %}
-        <li class="page-item disabled"><span class="page-link">Nästa</span></li>
-      {% endif %}
-    </ul>
-  </nav>
-{% endif %}
 
 {% endblock %}

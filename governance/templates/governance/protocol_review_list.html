@@ -1,85 +1,111 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
 {% block title %}Protokoll för justering{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/governance.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Styrelse</div>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-  <div>
-    <h1 class="page-title h2 mb-1">Protokoll för justering</h1>
-    <div class="muted-label">
-      Här visas mötesprotokoll som ännu inte är färdigställda och arkiverade.
+
+<div class="dashboard-shell governance-shell gov-protocol-shell">
+  <header class="ccv2-header gov-board-header">
+    <div class="gov-board-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Protokoll för justering</h1>
+        <p class="ccv2-subtitle mb-0">
+          Här visas mötesprotokoll som ännu inte är färdigställda och arkiverade.
+        </p>
+      </div>
     </div>
-  </div>
+  </header>
+
+  {% if protocols %}
+    <section class="ccv2-section ccv2-attention gov-protocol-list-card">
+      <div class="ccv2-section-head">
+        <h2 class="ccv2-section-title">Väntar på justering</h2>
+        <span class="gov-member-count">{{ protocols|length }}</span>
+      </div>
+      <div class="ccv2-action-list gov-protocol-list">
+        {% for doc in protocols %}
+          <div class="ccv2-action-row gov-protocol-row ccv2-priority-normal">
+            <div class="ccv2-action-main">
+              <div class="ccv2-action-title">
+                <a href="{% url 'portal:document_detail' doc.pk %}" class="gov-protocol-title-link">
+                  {{ doc.title }}
+                </a>
+              </div>
+              <p class="gov-protocol-meta">
+                {% if doc.meeting %}
+                  Möte: {{ doc.meeting.title }}
+                  <span class="gov-protocol-meta-sep" aria-hidden="true">·</span>
+                  Datum: {{ doc.meeting.meeting_date|date:"Y-m-d H:i" }}
+                {% else %}
+                  <span class="gov-protocol-meta-muted">Inget möte kopplat</span>
+                {% endif %}
+              </p>
+              <div class="gov-meta-badges">
+                {% if doc.workflow_status == "under_review" %}
+                  <span class="gov-meta-badge gov-meta-badge--warning">
+                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                    Under justering
+                  </span>
+                {% elif doc.workflow_status == "approved" %}
+                  <span class="gov-meta-badge gov-meta-badge--active">
+                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                    Redo för signering
+                  </span>
+                {% elif doc.workflow_status == "draft" %}
+                  <span class="gov-meta-badge gov-meta-badge--warning">
+                    <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
+                    {{ doc.get_workflow_status_display }}
+                  </span>
+                {% else %}
+                  <span class="gov-meta-badge gov-meta-badge--inactive">
+                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    {{ doc.get_workflow_status_display }}
+                  </span>
+                {% endif %}
+
+                {% if doc.approved_count == doc.total_reviewers and doc.total_reviewers > 0 %}
+                  <span class="gov-meta-badge gov-meta-badge--active">
+                    <i class="fa-solid fa-user-check" aria-hidden="true"></i>
+                    Justerare: {{ doc.approved_count }} / {{ doc.total_reviewers }} klara
+                  </span>
+                {% else %}
+                  <span class="gov-meta-badge gov-meta-badge--warning">
+                    <i class="fa-solid fa-users" aria-hidden="true"></i>
+                    Justerare: {{ doc.approved_count }} / {{ doc.total_reviewers }} godkända
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="gov-member-aside">
+              <a href="{% url 'portal:document_detail' doc.pk %}" class="ccv2-open-link">
+                Öppna <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% else %}
+    <article class="ccv2-card gov-protocol-empty">
+      <div class="gov-protocol-empty-inner">
+        <i class="fa-regular fa-file-lines gov-protocol-empty-icon" aria-hidden="true"></i>
+        <p class="gov-protocol-empty-title">Inga protokoll väntar på justering</p>
+        <p class="gov-protocol-empty-text">
+          När ett mötesprotokoll behöver justeras visas det här.
+        </p>
+      </div>
+    </article>
+  {% endif %}
 </div>
 
-<div class="card shadow-soft">
-  <div class="card-body">
-    {% if protocols %}
-      <div class="table-responsive">
-        <table class="table align-middle">
-          <thead>
-            <tr>
-              <th>Titel</th>
-              <th>Möte</th>
-              <th>Datum</th>
-              <th>Status</th>
-              <th>Justerare</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for doc in protocols %}
-              <tr>
-                <td class="fw-semibold">{{ doc.title }}</td>
-                <td>
-                  {% if doc.meeting %}
-                    {{ doc.meeting.title }}
-                  {% else %}
-                    —
-                  {% endif %}
-                </td>
-                <td>
-                  {% if doc.meeting %}
-                    {{ doc.meeting.meeting_date|date:"Y-m-d H:i" }}
-                  {% else %}
-                    —
-                  {% endif %}
-                </td>
-                <td>
-                  {% if doc.workflow_status == "under_review" %}
-                    <span class="badge bg-warning text-dark">Under justering</span>
-                  {% elif doc.workflow_status == "approved" %}
-                    <span class="badge bg-success">Redo för signering</span>
-                  {% else %}
-                    {{ doc.get_workflow_status_display }}
-                  {% endif %}
-                </td>
-                <td>
-                  {% if doc.approved_count == doc.total_reviewers and doc.total_reviewers > 0 %}
-                    <span class="badge bg-success">
-                      {{ doc.approved_count }} / {{ doc.total_reviewers }} klara
-                    </span>
-                  {% else %}
-                    <span class="badge bg-warning text-dark">
-                      {{ doc.approved_count }} / {{ doc.total_reviewers }} godkända
-                    </span>
-                  {% endif %}
-                </td>
-                <td class="text-end">
-                  <a href="{% url 'portal:document_detail' doc.pk %}" class="btn btn-sm btn-dark">
-                    Öppna
-                  </a>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <div class="text-muted">
-        Inga protokoll väntar på justering just nu.
-      </div>
-    {% endif %}
-  </div>
-</div>
 {% endblock %}

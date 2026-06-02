@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -157,16 +158,21 @@ def log_governance_activity(org, user, action, message="", target_user=None):
 def activity_log_list(request):
     membership = get_board_membership(request)
 
-    activities = GovernanceActivityLog.objects.filter(
-        org=request.org
-    ).select_related("user", "target_user").order_by("-created_at")[:100]
+    activities_qs = (
+        GovernanceActivityLog.objects.filter(org=request.org)
+        .select_related("user", "target_user")
+        .order_by("-created_at")
+    )
+    paginator = Paginator(activities_qs, 10)
+    page_obj = paginator.get_page(request.GET.get("page"))
 
     return render(
         request,
         "governance/activity_log_list.html",
         {
             "membership": membership,
-            "activities": activities,
+            "page_obj": page_obj,
+            "activities": page_obj.object_list,
         },
     )
 

@@ -4,58 +4,126 @@
 {% block title %}Ny version{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/document.css' %}">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/document.css' %}?v=11">
 {% endblock %}
 
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-  <div>
-    <h1 class="page-title h2 mb-1">Ladda upp ny version</h1>
-    <div class="muted-label">
-      {{ document.title }} · version {{ next_version_number }}
-    </div>
-  </div>
 
-  <div>
-    <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
-      Tillbaka till dokument
-    </a>
-  </div>
-</div>
-
-<div class="card shadow-soft">
-  <div class="card-body p-4">
-    <form method="post" enctype="multipart/form-data" class="row g-3">
-      {% csrf_token %}
-
-      <div class="col-12">
-        <label class="form-label">Ny fil</label>
-        {{ form.file }}
-        {% if form.file.errors %}
-          <div class="text-danger small mt-1">{{ form.file.errors }}</div>
-        {% endif %}
+<div class="dashboard-shell doc-version-upload-shell">
+  <header class="ccv2-header doc-version-upload-header">
+    <div class="doc-version-upload-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Ladda upp ny version</h1>
+        <p class="ccv2-subtitle mb-0">
+          {{ document.title }}
+          <span class="doc-version-upload-meta-sep" aria-hidden="true">·</span>
+          version {{ next_version_number }}
+        </p>
       </div>
-
-      <div class="col-12">
-        <label class="form-label">Vad har ändrats?</label>
-        {{ form.notes }}
-        {% if form.notes.errors %}
-          <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
-        {% endif %}
-        <div class="form-text">
-          Exempel: "Rättat paragraf 4", "Ny version efter årsstämma", "Uppdaterad kontaktinfo".
-        </div>
-      </div>
-
-      <div class="col-12 d-flex gap-2 pt-2">
-        <button type="submit" class="btn btn-dark">
-          Ladda upp version {{ next_version_number }}
-        </button>
-        <a href="{% url 'portal:document_detail' document.pk %}" class="btn btn-outline-secondary">
-          Avbryt
+      <div class="doc-version-upload-header-actions">
+        <a href="{% url 'portal:document_detail' document.pk %}" class="doc-detail-btn doc-detail-btn--secondary">
+          Tillbaka till dokument
         </a>
       </div>
-    </form>
+    </div>
+  </header>
+
+  <div class="doc-version-upload-grid">
+    <div class="doc-version-upload-main">
+      <form method="post" enctype="multipart/form-data" class="doc-version-upload-form" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="doc-edit-errors" role="alert">
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            <div>
+              <p class="doc-edit-errors-title">Kunde inte ladda upp</p>
+              <div class="doc-edit-errors-body">{{ form.non_field_errors }}</div>
+            </div>
+          </div>
+        {% endif %}
+
+        <section class="ccv2-card doc-version-upload-card">
+          <h2 class="doc-edit-card-title">Ny version</h2>
+
+          <div class="doc-edit-field">
+            <label for="{{ form.file.id_for_label }}" class="doc-edit-label">Ny fil</label>
+            <p class="doc-version-upload-field-help">
+              Välj den uppdaterade filen som ska bli nästa version.
+            </p>
+            <div class="doc-version-upload-file-wrap">
+              {{ form.file }}
+            </div>
+            {% if form.file.errors %}
+              <div class="doc-edit-field-error">{{ form.file.errors }}</div>
+            {% endif %}
+          </div>
+
+          <div class="doc-edit-field">
+            <label for="{{ form.notes.id_for_label }}" class="doc-edit-label">Vad har ändrats?</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}
+              <div class="doc-edit-field-error">{{ form.notes.errors }}</div>
+            {% endif %}
+            <div class="doc-version-upload-hint-box">
+              <i class="fa-regular fa-lightbulb doc-version-upload-hint-icon" aria-hidden="true"></i>
+              <p class="doc-version-upload-hint-text">
+                Exempel: “Rättat paragraf 4”, “Ny version efter årsstämma”, “Uppdaterad kontaktinfo”.
+              </p>
+            </div>
+          </div>
+
+          <div class="doc-edit-actions doc-version-upload-actions">
+            <button type="submit" class="doc-detail-btn doc-detail-btn--primary doc-edit-submit">
+              Ladda upp version {{ next_version_number }}
+            </button>
+            <a href="{% url 'portal:document_detail' document.pk %}" class="doc-detail-btn doc-detail-btn--secondary">
+              Avbryt
+            </a>
+          </div>
+        </section>
+      </form>
+    </div>
+
+    <aside class="doc-version-upload-aside">
+      <section class="ccv2-card doc-edit-side-card">
+        <h2 class="doc-edit-card-title">Versionsflöde</h2>
+        <ol class="doc-version-upload-flow">
+          <li>
+            <strong>Ladda upp ny fil</strong>
+            <span>Välj den fil som ska ersätta eller komplettera innehållet.</span>
+          </li>
+          <li>
+            <strong>Beskriv ändringen</strong>
+            <span>Förklara kort vad som är nytt eller rättat.</span>
+          </li>
+          <li>
+            <strong>Sparas i historiken</strong>
+            <span>Ny version visas i versionshistoriken på dokumentet.</span>
+          </li>
+        </ol>
+      </section>
+
+      <section class="ccv2-card doc-edit-side-card">
+        <h2 class="doc-edit-card-title">Tips</h2>
+        <ul class="doc-edit-tips-list">
+          <li>
+            <strong>Beskriv tydligt</strong>
+            <span>Skriv så att andra förstår varför versionen laddades upp.</span>
+          </li>
+          <li>
+            <strong>Korta exempel</strong>
+            <span>“Rättat paragraf 4” eller “Uppdaterad kontaktinfo”.</span>
+          </li>
+          <li>
+            <strong>Historik</strong>
+            <span>Gamla versioner finns kvar och kan öppnas från dokumentet.</span>
+          </li>
+        </ul>
+      </section>
+    </aside>
   </div>
 </div>
+
 {% endblock %}

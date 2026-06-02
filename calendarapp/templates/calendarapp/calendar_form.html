@@ -1,66 +1,156 @@
 {% extends "portal/base.html" %}
+{% load static %}
+
 {% block title %}{{ page_title|default:"Skapa händelse" }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/document.css' %}?v=11">
+<link rel="stylesheet" href="{% static 'css/calendar.css' %}?v=3">
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h1 class="page-title h3 mb-1">{{ page_title|default:"Skapa händelse" }}</h1>
-    <div class="text-muted small">{{ page_subtitle|default:"Lägg till en kalenderhändelse för aktiv organisation." }}</div>
-  </div>
-  <a href="{% if event %}{% url 'calendarapp:detail' event.pk %}{% else %}{% url 'calendarapp:list' %}{% endif %}" class="btn btn-outline-secondary btn-sm">
-    Tillbaka
-  </a>
-</div>
 
-<div class="card shadow-soft">
-  <div class="card-body">
-    <form method="post" class="row g-3">
-      {% csrf_token %}
-
-      <div class="col-12">
-        <label for="{{ form.title.id_for_label }}" class="form-label">Titel</label>
-        {{ form.title }}
+<div class="dashboard-shell cal-form-shell">
+  <header class="ccv2-header cal-form-header">
+    <div class="cal-form-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">{{ page_title|default:"Skapa händelse" }}</h1>
+        <p class="ccv2-subtitle mb-0">
+          {{ page_subtitle|default:"Lägg till en kalenderhändelse för aktiv organisation." }}
+        </p>
       </div>
+      <a
+        href="{% if event %}{% url 'calendarapp:detail' event.pk %}{% else %}{% url 'calendarapp:list' %}{% endif %}"
+        class="doc-detail-btn doc-detail-btn--secondary"
+      >
+        Tillbaka
+      </a>
+    </div>
+  </header>
 
-      <div class="col-12">
-        <label for="{{ form.description.id_for_label }}" class="form-label">Beskrivning</label>
-        {{ form.description }}
-      </div>
+  <div class="cal-form-grid">
+    <div class="cal-form-main">
+      <form method="post" class="cal-form" novalidate>
+        {% csrf_token %}
 
-      <div class="col-md-4">
-        <label for="{{ form.event_type.id_for_label }}" class="form-label">Typ</label>
-        {{ form.event_type }}
-      </div>
+        {% if form.non_field_errors %}
+          <div class="doc-edit-errors cal-form-errors" role="alert">
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            <div>
+              <p class="doc-edit-errors-title">Kunde inte spara</p>
+              <div class="doc-edit-errors-body">{{ form.non_field_errors }}</div>
+            </div>
+          </div>
+        {% endif %}
 
-      <div class="col-md-4">
-        <label for="{{ form.start_at.id_for_label }}" class="form-label">Start</label>
-        {{ form.start_at }}
-      </div>
+        <section class="ccv2-card cal-form-card">
+          <h2 class="cal-form-card-title">Grunduppgifter</h2>
 
-      <div class="col-md-4">
-        <label for="{{ form.end_at.id_for_label }}" class="form-label">Slut</label>
-        {{ form.end_at }}
-      </div>
+          <div class="doc-edit-field">
+            <label for="{{ form.title.id_for_label }}" class="doc-edit-label">Titel</label>
+            {{ form.title }}
+            {% if form.title.errors %}
+              <div class="doc-edit-field-error">{{ form.title.errors }}</div>
+            {% endif %}
+          </div>
 
-      <div class="col-md-8">
-        <label for="{{ form.location.id_for_label }}" class="form-label">Plats</label>
-        {{ form.location }}
-      </div>
+          <div class="doc-edit-field cal-form-field--description">
+            <label for="{{ form.description.id_for_label }}" class="doc-edit-label">Beskrivning</label>
+            {{ form.description }}
+            {% if form.description.errors %}
+              <div class="doc-edit-field-error">{{ form.description.errors }}</div>
+            {% endif %}
+          </div>
 
-      <div class="col-md-4 d-flex align-items-end">
-        <div class="form-check mb-2">
-          {{ form.is_all_day }}
-          <label class="form-check-label" for="{{ form.is_all_day.id_for_label }}">
-            Heldag
-          </label>
+          <div class="doc-edit-field cal-form-field--type">
+            <label for="{{ form.event_type.id_for_label }}" class="doc-edit-label">Typ</label>
+            {{ form.event_type }}
+            {% if form.event_type.errors %}
+              <div class="doc-edit-field-error">{{ form.event_type.errors }}</div>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="ccv2-card cal-form-card">
+          <h2 class="cal-form-card-title">Tid och plats</h2>
+
+          <div class="cal-form-time-grid">
+            <div class="doc-edit-field">
+              <label for="{{ form.start_at.id_for_label }}" class="doc-edit-label">Start</label>
+              {{ form.start_at }}
+              {% if form.start_at.errors %}
+                <div class="doc-edit-field-error">{{ form.start_at.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div class="doc-edit-field">
+              <label for="{{ form.end_at.id_for_label }}" class="doc-edit-label">Slut</label>
+              {{ form.end_at }}
+              {% if form.end_at.errors %}
+                <div class="doc-edit-field-error">{{ form.end_at.errors }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="cal-form-place-row">
+            <div class="doc-edit-field cal-form-field--location">
+              <label for="{{ form.location.id_for_label }}" class="doc-edit-label">Plats</label>
+              {{ form.location }}
+              {% if form.location.errors %}
+                <div class="doc-edit-field-error">{{ form.location.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div class="cal-form-allday">
+              <div class="cal-form-allday-inner">
+                {{ form.is_all_day }}
+                <label class="cal-form-allday-label" for="{{ form.is_all_day.id_for_label }}">
+                  <span class="cal-form-allday-title">Heldag</span>
+                  <span class="cal-form-allday-hint">Markera om händelsen gäller hela dagen.</span>
+                </label>
+              </div>
+              {% if form.is_all_day.errors %}
+                <div class="doc-edit-field-error">{{ form.is_all_day.errors }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+
+        <div class="cal-form-actions">
+          <button type="submit" class="doc-detail-btn doc-detail-btn--primary">
+            {{ submit_label|default:"Spara" }}
+          </button>
+          <a
+            href="{% if event %}{% url 'calendarapp:detail' event.pk %}{% else %}{% url 'calendarapp:list' %}{% endif %}"
+            class="doc-detail-btn doc-detail-btn--secondary"
+          >
+            Avbryt
+          </a>
         </div>
-      </div>
+      </form>
+    </div>
 
-      <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-dark">{{ submit_label|default:"Spara" }}</button>
-        <a href="{% if event %}{% url 'calendarapp:detail' event.pk %}{% else %}{% url 'calendarapp:list' %}{% endif %}" class="btn btn-outline-secondary">Avbryt</a>
-      </div>
-    </form>
+    <aside class="cal-form-aside" aria-label="Hjälp om kalenderhändelser">
+      <section class="ccv2-card cal-form-side-card">
+        <h2 class="cal-form-card-title">Kalenderhändelse</h2>
+        <ul class="cal-form-tips-list">
+          <li>
+            <strong>Visas i kalendern</strong>
+            <span>Händelser visas i organisationens kalender.</span>
+          </li>
+          <li>
+            <strong>Möten</strong>
+            <span>Möten bör bokas via ”Boka möte”.</span>
+          </li>
+          <li>
+            <strong>Heldag</strong>
+            <span>Heldag används för aktiviteter utan specifik tid.</span>
+          </li>
+        </ul>
+      </section>
+    </aside>
   </div>
 </div>
+
 {% endblock %}

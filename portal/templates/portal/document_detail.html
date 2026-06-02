@@ -1,454 +1,419 @@
 {% extends "portal/base.html" %}
 {% load static %}
+
 {% block title %}{{ doc.title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/document.css' %}?v=8">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/governance.css' %}">
+<link rel="stylesheet" href="{% static 'css/document.css' %}?v=9">
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-  <div>
-    <h1 class="h3 mb-1">{{ doc.title }}</h1>
-    <div class="text-muted small">
-      {% if doc.category == "protocol" and not doc.meeting %}
-        Protokollutkast
-      {% else %}
-        {{ doc.get_category_display }}
-      {% endif %}
-      · Senast uppdaterad {{ doc.updated_at|date:"Y-m-d" }}
+
+<div class="dashboard-shell doc-detail-shell">
+  <header class="ccv2-header doc-detail-header">
+    <div class="gov-board-header-row">
+      <div class="doc-detail-header-main">
+        <h1 class="ccv2-title mb-1">{{ doc.title }}</h1>
+        <p class="ccv2-subtitle mb-0">
+          {% if doc.category == "protocol" and not doc.meeting %}
+            Protokollutkast
+          {% else %}
+            {{ doc.get_category_display }}
+          {% endif %}
+          · Senast uppdaterad {{ doc.updated_at|date:"Y-m-d" }}
+        </p>
+
+        <div class="gov-meta-badges doc-detail-status-badges">
+          {% if doc.workflow_status == "draft" %}
+            <span class="gov-meta-badge gov-meta-badge--inactive">Utkast</span>
+          {% elif doc.workflow_status == "locked_for_review" %}
+            <span class="gov-meta-badge gov-meta-badge--warning">Låst för justering</span>
+          {% elif doc.workflow_status == "under_review" %}
+            <span class="gov-meta-badge gov-meta-badge--role">Under justering</span>
+          {% elif doc.workflow_status == "approved" %}
+            <span class="gov-meta-badge gov-meta-badge--active">Redo för signering</span>
+          {% elif doc.workflow_status == "finalized" %}
+            <span class="gov-meta-badge gov-meta-badge--inactive">Finaliserat</span>
+          {% endif %}
+
+          {% if doc.is_archived %}
+            <span class="gov-meta-badge gov-meta-badge--role">Arkiverat</span>
+          {% endif %}
+
+          {% if doc.meeting %}
+            <span class="document-safety-badge document-safety-badge--meeting">Möteskopplat</span>
+            {% if doc.category == "protocol" %}
+              <span class="document-safety-badge document-safety-badge--meeting">Officiellt mötesprotokoll</span>
+            {% endif %}
+          {% else %}
+            <span class="document-safety-badge document-safety-badge--draft">Ej möteskopplat</span>
+            <span class="document-safety-badge document-safety-badge--draft">Arbetsdokument</span>
+            {% if doc.category == "protocol" %}
+              <span class="document-safety-badge document-safety-badge--warning">Protokollutkast</span>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        {% if doc.locked_at %}
+          <p class="doc-detail-header-note">
+            Låst av
+            {% if doc.locked_by %}
+              {{ doc.locked_by.email|default:doc.locked_by.username }}
+            {% else %}
+              okänd användare
+            {% endif %}
+            den {{ doc.locked_at|date:"Y-m-d H:i" }}
+          </p>
+        {% endif %}
+
+        {% if doc.meeting %}
+          <p class="doc-detail-header-note">
+            Kopplat möte: {{ doc.meeting.title }} · Status: {{ doc.meeting.get_status_display }}
+          </p>
+        {% elif doc.category == "protocol" %}
+          <div class="document-safety-note doc-detail-safety-note">
+            Detta dokument är ett arbetsutkast och är inte ett officiellt justerat/signerat mötesprotokoll.
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="doc-detail-actions">
+        <div class="doc-detail-action-group doc-detail-action-group--primary">
+          {% if doc.workflow_status == "draft" and doc.meeting %}
+            <a href="{% url 'portal:lock_document' doc.pk %}" class="doc-detail-btn doc-detail-btn--warning">
+              Lås för justering
+            </a>
+          {% endif %}
+
+          <a href="{% url 'portal:document_upload_version' doc.pk %}" class="doc-detail-btn doc-detail-btn--primary">
+            + Ny version
+          </a>
+        </div>
+
+        <div class="doc-detail-action-group doc-detail-action-group--secondary">
+          {% if doc.meeting and not doc.is_archived %}
+            <a href="{% url 'governance:edit_meeting_roles_from_document' doc.pk %}" class="doc-detail-btn doc-detail-btn--secondary">
+              Ange mötesroller
+            </a>
+          {% endif %}
+
+          {% if doc.workflow_status == "draft" %}
+            <a href="{% url 'portal:document_edit' doc.pk %}" class="doc-detail-btn doc-detail-btn--secondary">
+              Redigera metadata
+            </a>
+          {% endif %}
+
+          {% if doc.workflow_status == "finalized" and doc.is_archived %}
+            <a href="{% url 'portal:document_print' doc.pk %}" target="_blank" class="doc-detail-btn doc-detail-btn--secondary">
+              Skriv ut / PDF
+            </a>
+          {% endif %}
+
+          {% if doc.meeting and not doc.is_archived %}
+            <a href="{% url 'governance:protocol_review_list' %}" class="doc-detail-btn doc-detail-btn--secondary">
+              Tillbaka
+            </a>
+          {% else %}
+            <a href="{% url 'portal:document_list' %}" class="doc-detail-btn doc-detail-btn--secondary">
+              Tillbaka
+            </a>
+          {% endif %}
+        </div>
+
+        <div class="doc-detail-action-group doc-detail-action-group--danger">
+          {% if doc.meeting and doc.meeting.status == "ongoing" %}
+            <a href="{% url 'governance:close_meeting' doc.meeting.pk %}" class="doc-detail-btn doc-detail-btn--danger">
+              Avsluta möte
+            </a>
+          {% endif %}
+
+          <a href="{% url 'portal:document_delete' doc.pk %}" class="doc-detail-btn doc-detail-btn--danger-outline">
+            Ta bort
+          </a>
+        </div>
+      </div>
     </div>
+  </header>
 
-    <div class="mt-2 d-flex gap-2 flex-wrap">
-      {% if doc.workflow_status == "draft" %}
-        <span class="badge text-bg-secondary">Utkast</span>
-      {% elif doc.workflow_status == "locked_for_review" %}
-        <span class="badge text-bg-warning">Låst för justering</span>
-      {% elif doc.workflow_status == "under_review" %}
-        <span class="badge text-bg-info">Under justering</span>
-      {% elif doc.workflow_status == "approved" %}
-        <span class="badge text-bg-success">Redo för signering</span>
-      {% elif doc.workflow_status == "finalized" %}
-        <span class="badge text-bg-dark">Finaliserat</span>
-      {% endif %}
-
-      {% if doc.is_archived %}
-        <span class="badge text-bg-primary">Arkiverat</span>
-      {% endif %}
-
-      {% if doc.meeting %}
-        <span class="document-safety-badge document-safety-badge--meeting">Möteskopplat</span>
-        {% if doc.category == "protocol" %}
-          <span class="document-safety-badge document-safety-badge--meeting">Officiellt mötesprotokoll</span>
-        {% endif %}
-      {% else %}
-        <span class="document-safety-badge document-safety-badge--draft">Ej möteskopplat</span>
-        <span class="document-safety-badge document-safety-badge--draft">Arbetsdokument</span>
-        {% if doc.category == "protocol" %}
-          <span class="document-safety-badge document-safety-badge--warning">Protokollutkast</span>
-        {% endif %}
-      {% endif %}
-    </div>
-
-    {% if doc.locked_at %}
-      <div class="small text-muted mt-2">
-        Låst av
-        {% if doc.locked_by %}
-          {{ doc.locked_by.email|default:doc.locked_by.username }}
-        {% else %}
-          okänd användare
-        {% endif %}
-        den {{ doc.locked_at|date:"Y-m-d H:i" }}
-      </div>
-    {% endif %}
-
-    {% if doc.meeting %}
-      <div class="small text-muted mt-2">
-        Kopplat möte: {{ doc.meeting.title }} · Status: {{ doc.meeting.get_status_display }}
-      </div>
-    {% elif doc.category == "protocol" %}
-      <div class="document-safety-note mt-2">
-        Detta dokument är ett arbetsutkast och är inte ett officiellt justerat/signerat mötesprotokoll.
-      </div>
-    {% endif %}
-  </div>
-
-  <div class="d-flex gap-2 flex-wrap">
-    {% if doc.workflow_status == "draft" and doc.meeting %}
-      <a href="{% url 'portal:lock_document' doc.pk %}" class="btn btn-warning btn-sm">
-        🔒 Lås för justering
-      </a>
-    {% endif %}
-
-    {% if doc.meeting and not doc.is_archived %}
-      <a href="{% url 'governance:edit_meeting_roles_from_document' doc.pk %}" class="btn btn-outline-dark btn-sm">
-        Ange mötesroller
-      </a>
-    {% endif %}
-
-    {% if doc.meeting and doc.meeting.status == "ongoing" %}
-      <a href="{% url 'governance:close_meeting' doc.meeting.pk %}" class="btn btn-danger btn-sm">
-        Avsluta möte
-      </a>
-    {% endif %}
-
-    <a href="{% url 'portal:document_upload_version' doc.pk %}" class="btn btn-dark btn-sm">
-      + Ny version
-    </a>
-
-    {% if doc.workflow_status == "draft" %}
-      <a href="{% url 'portal:document_edit' doc.pk %}" class="btn btn-outline-dark btn-sm">
-        Redigera metadata
-      </a>
-    {% endif %}
-
-    <a href="{% url 'portal:document_delete' doc.pk %}" class="btn btn-outline-danger btn-sm">
-      Ta bort
-    </a>
-
-    {% if doc.workflow_status == "finalized" and doc.is_archived %}
-      <a href="{% url 'portal:document_print' doc.pk %}" target="_blank" class="btn btn-outline-dark btn-sm">
-        🖨 Skriv ut / PDF
-      </a>
-    {% endif %}
-
-    {% if doc.meeting and not doc.is_archived %}
-      <a href="{% url 'governance:protocol_review_list' %}" class="btn btn-outline-secondary btn-sm">
-        Tillbaka
-      </a>
-    {% else %}
-      <a href="{% url 'portal:document_list' %}" class="btn btn-outline-secondary btn-sm">
-        Tillbaka
-      </a>
-    {% endif %}
-  </div>
-</div>
-
-<div class="row g-4">
-
-  <div class="col-lg-8">
-    <div class="card shadow-soft mb-4">
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <div class="small text-muted">Kategori</div>
-            <div class="fw-semibold">
+  <div class="doc-detail-grid">
+    <div class="doc-detail-main">
+      <section class="ccv2-card doc-detail-meta-card">
+        <h2 class="doc-detail-card-title">Dokumentöversikt</h2>
+        <dl class="doc-detail-meta-grid">
+          <div class="doc-detail-meta-item">
+            <dt>Kategori</dt>
+            <dd>
               {% if doc.category == "protocol" and not doc.meeting %}
                 Protokollutkast
               {% else %}
                 {{ doc.get_category_display }}
               {% endif %}
-            </div>
+            </dd>
           </div>
-
-          <div class="col-md-4">
-            <div class="small text-muted">Aktuell version</div>
-            <div class="fw-semibold">
+          <div class="doc-detail-meta-item">
+            <dt>Aktuell version</dt>
+            <dd>
               {% if current_version %}
                 v{{ current_version.version_number }}
               {% else %}
                 —
               {% endif %}
-            </div>
+            </dd>
           </div>
-
-          <div class="col-md-4">
-            <div class="small text-muted">Senast uppladdad</div>
-            <div class="fw-semibold">
+          <div class="doc-detail-meta-item">
+            <dt>Senast uppladdad</dt>
+            <dd>
               {% if current_version %}
                 {{ current_version.uploaded_at|date:"Y-m-d H:i" }}
               {% else %}
                 —
               {% endif %}
-            </div>
+            </dd>
           </div>
-
-          <div class="col-md-4">
-            <div class="small text-muted">Workflow-status</div>
-            <div class="fw-semibold">
-              {{ doc.get_workflow_status_display }}
-            </div>
+          <div class="doc-detail-meta-item">
+            <dt>Workflow-status</dt>
+            <dd>{{ doc.get_workflow_status_display }}</dd>
           </div>
-
           {% if doc.locked_at %}
-            <div class="col-md-4">
-              <div class="small text-muted">Låst</div>
-              <div class="fw-semibold">{{ doc.locked_at|date:"Y-m-d H:i" }}</div>
+            <div class="doc-detail-meta-item">
+              <dt>Låst</dt>
+              <dd>{{ doc.locked_at|date:"Y-m-d H:i" }}</dd>
             </div>
           {% endif %}
-
           {% if doc.locked_by %}
-            <div class="col-md-4">
-              <div class="small text-muted">Låst av</div>
-              <div class="fw-semibold">
-                {{ doc.locked_by.email|default:doc.locked_by.username }}
-              </div>
+            <div class="doc-detail-meta-item">
+              <dt>Låst av</dt>
+              <dd>{{ doc.locked_by.email|default:doc.locked_by.username }}</dd>
             </div>
           {% endif %}
-
           {% if doc.meeting %}
-            <div class="col-md-4">
-              <div class="small text-muted">Möte</div>
-              <div class="fw-semibold">{{ doc.meeting.title }}</div>
+            <div class="doc-detail-meta-item">
+              <dt>Möte</dt>
+              <dd>{{ doc.meeting.title }}</dd>
             </div>
-
-            <div class="col-md-4">
-              <div class="small text-muted">Mötesstatus</div>
-              <div class="fw-semibold">{{ doc.meeting.get_status_display }}</div>
+            <div class="doc-detail-meta-item">
+              <dt>Mötesstatus</dt>
+              <dd>
+                {% if doc.meeting.status == "ongoing" %}
+                  <span class="gov-meta-badge gov-meta-badge--active">{{ doc.meeting.get_status_display }}</span>
+                {% else %}
+                  <span class="gov-meta-badge gov-meta-badge--inactive">{{ doc.meeting.get_status_display }}</span>
+                {% endif %}
+              </dd>
             </div>
           {% endif %}
-
-          <div class="col-md-4">
-            <div class="small text-muted">Arkiverat</div>
-            <div class="fw-semibold">
-              {% if doc.is_archived %}Ja{% else %}Nej{% endif %}
-            </div>
+          <div class="doc-detail-meta-item">
+            <dt>Arkiverat</dt>
+            <dd>
+              {% if doc.is_archived %}
+                <span class="gov-meta-badge gov-meta-badge--role">Ja</span>
+              {% else %}
+                <span class="gov-meta-badge gov-meta-badge--inactive">Nej</span>
+              {% endif %}
+            </dd>
           </div>
-        </div>
+        </dl>
 
         {% if doc.description %}
-          <hr>
-          <div class="small text-muted mb-1">Beskrivning</div>
-          <div>{{ doc.description }}</div>
+          <div class="doc-detail-description">
+            <div class="doc-detail-description-label">Beskrivning</div>
+            <div class="doc-detail-description-body">{{ doc.description }}</div>
+          </div>
         {% endif %}
 
         {% if current_version %}
-          <hr>
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div class="small text-muted">Uppladdad av</div>
-              <div class="fw-semibold">
+          <div class="doc-detail-meta-footer">
+            <div class="doc-detail-meta-footer-item">
+              <span class="doc-detail-meta-footer-label">Uppladdad av</span>
+              <span class="doc-detail-meta-footer-value">
                 {% if current_version.uploaded_by %}
                   {{ current_version.uploaded_by.email|default:current_version.uploaded_by.username }}
                 {% else %}
                   —
                 {% endif %}
-              </div>
+              </span>
             </div>
-
-            <div class="col-md-6">
-              <div class="small text-muted">Filnamn</div>
-              <div class="fw-semibold text-break">{{ current_version.file.name }}</div>
+            <div class="doc-detail-meta-footer-item">
+              <span class="doc-detail-meta-footer-label">Filnamn</span>
+              <span class="doc-detail-meta-footer-value text-break">{{ current_version.file.name }}</span>
             </div>
           </div>
-
           {% if current_version.notes %}
-            <div class="mt-3">
-              <div class="small text-muted mb-1">Versionsnotering</div>
-              <div class="border rounded p-3 bg-light-subtle">
-                {{ current_version.notes }}
-              </div>
+            <div class="doc-detail-version-notes">
+              <div class="doc-detail-description-label">Versionsnotering</div>
+              <div class="doc-detail-version-notes-body">{{ current_version.notes }}</div>
             </div>
           {% endif %}
         {% elif doc.template %}
-          <hr>
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div class="small text-muted">Dokumenttyp</div>
-              <div class="fw-semibold">Skapat från mall</div>
+          <div class="doc-detail-meta-footer">
+            <div class="doc-detail-meta-footer-item">
+              <span class="doc-detail-meta-footer-label">Dokumenttyp</span>
+              <span class="doc-detail-meta-footer-value">Skapat från mall</span>
             </div>
-
-            <div class="col-md-6">
-              <div class="small text-muted">Mall</div>
-              <div class="fw-semibold">{{ doc.template.name }}</div>
+            <div class="doc-detail-meta-footer-item">
+              <span class="doc-detail-meta-footer-label">Mall</span>
+              <span class="doc-detail-meta-footer-value">{{ doc.template.name }}</span>
             </div>
           </div>
         {% endif %}
-      </div>
-    </div>
+      </section>
 
-    <div class="card shadow-soft">
-      <div class="card-body p-4">
-
+      <section class="ccv2-card doc-detail-content-card">
         {% if doc.content %}
-          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <div class="small text-muted">
-              Mallbaserat dokument
-            </div>
-
+          <div class="doc-detail-content-toolbar">
+            <span class="doc-detail-content-label">Mallbaserat dokument</span>
             {% if doc.workflow_status == "draft" %}
-              <a href="{% url 'portal:document_edit' doc.pk %}" class="btn btn-outline-dark btn-sm">
+              <a href="{% url 'portal:document_edit' doc.pk %}" class="doc-detail-btn doc-detail-btn--secondary doc-detail-btn--compact">
                 Redigera innehåll
               </a>
             {% endif %}
           </div>
-
-          <div class="document-content">
-            {{ doc.content|safe }}
+          <div class="doc-detail-paper">
+            <div class="document-content document-content--premium">
+              {{ doc.content|safe }}
+            </div>
           </div>
 
         {% elif current_version %}
-          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <div class="small text-muted">
+          <div class="doc-detail-content-toolbar">
+            <span class="doc-detail-content-label">
               Version {{ current_version.version_number }} · {{ current_version.uploaded_at|date:"Y-m-d H:i" }}
-            </div>
-
-            <a href="{{ current_version.file.url }}" target="_blank" class="btn btn-outline-dark btn-sm">
-              🔗 Öppna i nytt fönster
+            </span>
+            <a href="{{ current_version.file.url }}" target="_blank" class="doc-detail-btn doc-detail-btn--secondary doc-detail-btn--compact">
+              Öppna i nytt fönster
             </a>
           </div>
 
           {% if preview_type == "image" %}
-            <div class="text-center">
+            <div class="doc-detail-paper doc-detail-paper--media text-center">
               <img src="{{ current_version.file.url }}" class="img-fluid rounded" alt="{{ doc.title }}">
             </div>
 
           {% elif preview_type == "pdf" %}
-            <div id="pdf-toolbar" class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-              <div class="fw-semibold">PDF-förhandsvisning</div>
-
-              <div class="d-flex gap-2 align-items-center flex-wrap">
-                <button id="zoom-out" class="btn btn-outline-secondary btn-sm" type="button">−</button>
-                <button id="zoom-in" class="btn btn-outline-secondary btn-sm" type="button">+</button>
-                <button id="prev-page" class="btn btn-outline-secondary btn-sm" type="button">Föregående</button>
-
-                <span class="small">
+            <div id="pdf-toolbar" class="doc-detail-pdf-toolbar">
+              <div class="fw-semibold doc-detail-pdf-title">PDF-förhandsvisning</div>
+              <div class="d-flex gap-2 align-items-center flex-wrap doc-detail-pdf-controls">
+                <button id="zoom-out" class="doc-detail-btn doc-detail-btn--secondary doc-detail-btn--compact" type="button">−</button>
+                <button id="zoom-in" class="doc-detail-btn doc-detail-btn--secondary doc-detail-btn--compact" type="button">+</button>
+                <button id="prev-page" class="doc-detail-btn doc-detail-btn--secondary doc-detail-btn--compact" type="button">Föregående</button>
+                <span class="small doc-detail-pdf-page">
                   Sida <span id="page-num">1</span> av <span id="page-count">?</span>
                 </span>
-
-                <button id="next-page" class="btn btn-outline-secondary btn-sm" type="button">Nästa</button>
+                <button id="next-page" class="doc-detail-btn doc-detail-btn--secondary doc-detail-btn--compact" type="button">Nästa</button>
               </div>
             </div>
-
-            <div id="pdf-wrapper" class="border rounded bg-white p-3 text-center overflow-auto">
+            <div id="pdf-wrapper" class="doc-detail-pdf-wrapper">
               <canvas
                 id="pdf-canvas"
                 data-url="{{ current_version.file.url }}"
                 class="pdf-canvas"
               ></canvas>
             </div>
-
             <script type="module" src="{% static 'js/pdf_viewer.js' %}"></script>
 
           {% else %}
-            <div class="text-center py-5">
-              <p class="text-muted mb-3">Förhandsvisning stöds inte</p>
-              <a href="{{ current_version.file.url }}" target="_blank" class="btn btn-dark">
+            <div class="doc-detail-empty-preview">
+              <p class="doc-detail-empty-preview-text">Förhandsvisning stöds inte</p>
+              <a href="{{ current_version.file.url }}" target="_blank" class="doc-detail-btn doc-detail-btn--primary">
                 Öppna fil
               </a>
             </div>
           {% endif %}
 
         {% else %}
-          <div class="text-center py-5">
-            <p class="text-muted mb-3">Inget innehåll ännu</p>
+          <div class="doc-detail-empty-preview">
+            <p class="doc-detail-empty-preview-text">Inget innehåll ännu</p>
             {% if doc.workflow_status == "draft" %}
-              <a href="{% url 'portal:document_edit' doc.pk %}" class="btn btn-dark btn-sm">
+              <a href="{% url 'portal:document_edit' doc.pk %}" class="doc-detail-btn doc-detail-btn--primary">
                 Redigera dokument
               </a>
             {% endif %}
           </div>
         {% endif %}
-
-      </div>
+      </section>
     </div>
-  </div>
 
-  <div class="col-lg-4">
-    <div class="card shadow-soft">
-      <div class="card-body">
-        <h2 class="h5 mb-3">Versionshistorik</h2>
-
+    <aside class="doc-detail-aside">
+      <section class="ccv2-card doc-detail-side-card">
+        <h2 class="doc-detail-card-title">Versionshistorik</h2>
         {% if versions %}
-          <div class="d-flex flex-column gap-3">
+          <div class="doc-detail-version-list">
             {% for v in versions %}
-              <div class="border rounded p-3 {% if current_version and v.pk == current_version.pk %}bg-light{% endif %}">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                  <div>
-                    <div class="fw-semibold">
-                      v{{ v.version_number }}
-                      {% if current_version and v.pk == current_version.pk %}
-                        <span class="badge text-bg-dark ms-1">Aktuell</span>
-                      {% endif %}
-                    </div>
-                    <div class="small text-muted">
-                      {{ v.uploaded_at|date:"Y-m-d H:i" }}
-                    </div>
+              <div class="doc-detail-version-row {% if current_version and v.pk == current_version.pk %}doc-detail-version-row--current{% endif %}">
+                <div class="doc-detail-version-main">
+                  <div class="doc-detail-version-head">
+                    <span class="doc-detail-version-num">v{{ v.version_number }}</span>
+                    {% if current_version and v.pk == current_version.pk %}
+                      <span class="gov-meta-badge gov-meta-badge--active">Aktuell</span>
+                    {% endif %}
                   </div>
-
-                  <a href="{{ v.file.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                    Öppna
-                  </a>
-                </div>
-
-                <div class="small mt-2">
-                  <span class="text-muted">Uppladdad av:</span>
-                  {% if v.uploaded_by %}
-                    {{ v.uploaded_by.email|default:v.uploaded_by.username }}
-                  {% else %}
-                    —
+                  <div class="doc-detail-version-meta">{{ v.uploaded_at|date:"Y-m-d H:i" }}</div>
+                  <div class="doc-detail-version-meta">
+                    {% if v.uploaded_by %}
+                      {{ v.uploaded_by.email|default:v.uploaded_by.username }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                  {% if v.notes %}
+                    <div class="doc-detail-version-note">{{ v.notes }}</div>
                   {% endif %}
                 </div>
-
-                {% if v.notes %}
-                  <div class="small mt-2">
-                    <span class="text-muted d-block mb-1">Notering</span>
-                    <div class="border rounded p-2 bg-body-tertiary">
-                      {{ v.notes }}
-                    </div>
-                  </div>
-                {% endif %}
+                <a href="{{ v.file.url }}" target="_blank" class="doc-detail-btn doc-detail-btn--secondary doc-detail-btn--compact">
+                  Öppna
+                </a>
               </div>
             {% endfor %}
           </div>
         {% else %}
-          <div class="text-muted small">Inga versioner</div>
+          <div class="doc-detail-side-empty">
+            <i class="fa-regular fa-clock doc-detail-side-empty-icon" aria-hidden="true"></i>
+            <p class="doc-detail-side-empty-title">Inga versioner</p>
+            <p class="doc-detail-side-empty-text">När en ny version laddas upp visas den här.</p>
+          </div>
         {% endif %}
-      </div>
-    </div>
+      </section>
 
-    {% if doc.approvals.all %}
-      <div class="card shadow-soft mt-4">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Justering / godkännande</h2>
-
-          <div class="d-flex flex-column gap-3">
+      {% if doc.approvals.all %}
+        <section class="ccv2-card doc-detail-side-card">
+          <h2 class="doc-detail-card-title">Justering / godkännande</h2>
+          <div class="doc-detail-side-list">
             {% for approval in doc.approvals.all %}
-              <div class="border rounded p-3">
-                <div class="fw-semibold">
+              <div class="doc-detail-side-row">
+                <div class="doc-detail-side-row-title">
                   {{ approval.reviewer.email|default:approval.reviewer.username }}
                 </div>
-
-                <div class="small text-muted mt-1">
-                  Justerare
-                </div>
-
-                <div class="small mt-1">
+                <div class="doc-detail-side-row-sub">Justerare</div>
+                <div class="gov-meta-badges">
                   {% if approval.status == "pending" %}
-                    <span class="badge text-bg-warning">Väntar</span>
+                    <span class="gov-meta-badge gov-meta-badge--warning">Väntar</span>
                   {% elif approval.status == "approved" %}
-                    <span class="badge text-bg-success">Godkänd</span>
+                    <span class="gov-meta-badge gov-meta-badge--active">Godkänd</span>
                   {% elif approval.status == "changes_requested" %}
-                    <span class="badge text-bg-danger">Ändringar begärda</span>
+                    <span class="gov-meta-badge gov-meta-badge--warning">Ändringar begärda</span>
                   {% endif %}
                 </div>
-
                 {% if approval.comment %}
-                  <div class="small text-muted mt-2">
-                    {{ approval.comment }}
-                  </div>
+                  <p class="doc-detail-side-row-note">{{ approval.comment }}</p>
                 {% endif %}
-
                 {% if approval.responded_at %}
-                  <div class="small text-muted mt-2">
-                    Svarade: {{ approval.responded_at|date:"Y-m-d H:i" }}
-                  </div>
+                  <p class="doc-detail-side-row-meta">Svarade: {{ approval.responded_at|date:"Y-m-d H:i" }}</p>
                 {% endif %}
-
                 {% if request.user == approval.reviewer and approval.status == "pending" %}
-                  <div class="d-flex gap-2 mt-3 flex-wrap">
-                    <a href="{% url 'portal:approve_document' approval.pk %}" class="btn btn-sm btn-dark">
+                  <div class="doc-detail-side-row-actions">
+                    <a href="{% url 'portal:approve_document' approval.pk %}" class="doc-detail-btn doc-detail-btn--primary doc-detail-btn--compact">
                       Godkänn
                     </a>
-                    <a href="{% url 'portal:request_document_changes' approval.pk %}" class="btn btn-sm btn-outline-danger">
+                    <a href="{% url 'portal:request_document_changes' approval.pk %}" class="doc-detail-btn doc-detail-btn--danger-outline doc-detail-btn--compact">
                       Begär ändringar
                     </a>
                   </div>
                 {% endif %}
-
                 {% if approval.status == "pending" and doc.workflow_status != "approved" and doc.workflow_status != "finalized" %}
-                  <div class="mt-3">
-                    <a href="{% url 'portal:remove_document_reviewer' approval.pk %}" class="btn btn-sm btn-outline-danger">
+                  <div class="doc-detail-side-row-actions">
+                    <a href="{% url 'portal:remove_document_reviewer' approval.pk %}" class="doc-detail-btn doc-detail-btn--danger-outline doc-detail-btn--compact">
                       Ta bort justerare
                     </a>
                   </div>
@@ -456,44 +421,33 @@
               </div>
             {% endfor %}
           </div>
-        </div>
-      </div>
-    {% endif %}
+        </section>
+      {% endif %}
 
-    {% if doc.workflow_status == "approved" or doc.workflow_status == "finalized" %}
-      <div class="card shadow-soft mt-4">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Signering</h2>
-
+      {% if doc.workflow_status == "approved" or doc.workflow_status == "finalized" %}
+        <section class="ccv2-card doc-detail-side-card">
+          <h2 class="doc-detail-card-title">Signering</h2>
           {% if doc.signatures.all %}
-            <div class="d-flex flex-column gap-3">
+            <div class="doc-detail-side-list">
               {% for signature in doc.signatures.all %}
-                <div class="border rounded p-3">
-                  <div class="fw-semibold">
+                <div class="doc-detail-side-row">
+                  <div class="doc-detail-side-row-title">
                     {{ signature.user.email|default:signature.user.username }}
                   </div>
-
-                  <div class="small text-muted mt-1">
-                    {{ signature.get_role_display }}
-                  </div>
-
-                  <div class="small mt-2">
+                  <div class="doc-detail-side-row-sub">{{ signature.get_role_display }}</div>
+                  <div class="gov-meta-badges">
                     {% if signature.status == "pending" %}
-                      <span class="badge text-bg-warning">Väntar</span>
+                      <span class="gov-meta-badge gov-meta-badge--warning">Väntar</span>
                     {% elif signature.status == "signed" %}
-                      <span class="badge text-bg-success">Signerad</span>
+                      <span class="gov-meta-badge gov-meta-badge--active">Signerad</span>
                     {% endif %}
                   </div>
-
                   {% if signature.signed_at %}
-                    <div class="small text-muted mt-2">
-                      Signerad: {{ signature.signed_at|date:"Y-m-d H:i" }}
-                    </div>
+                    <p class="doc-detail-side-row-meta">Signerad: {{ signature.signed_at|date:"Y-m-d H:i" }}</p>
                   {% endif %}
-
                   {% if request.user == signature.user and signature.status == "pending" and doc.workflow_status == "approved" %}
-                    <div class="mt-3">
-                      <a href="{% url 'portal:sign_document' signature.pk %}" class="btn btn-sm btn-dark">
+                    <div class="doc-detail-side-row-actions">
+                      <a href="{% url 'portal:sign_document' signature.pk %}" class="doc-detail-btn doc-detail-btn--primary doc-detail-btn--compact">
                         Signera
                       </a>
                     </div>
@@ -502,98 +456,84 @@
               {% endfor %}
             </div>
           {% else %}
-            <div class="text-muted small">Inga signaturer ännu</div>
+            <div class="doc-detail-side-empty doc-detail-side-empty--subtle">
+              <p class="doc-detail-side-empty-text">Inga signaturer ännu</p>
+            </div>
           {% endif %}
-        </div>
-      </div>
-    {% endif %}
+        </section>
+      {% endif %}
 
-    {% if doc.meeting %}
-      <div class="card shadow-soft mt-4">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Valda mötesroller</h2>
-
-          <div class="mb-3">
-            <div class="small text-muted">Mötesordförande</div>
-            <div class="fw-semibold">
-              {% if doc.meeting.chairperson %}
-                {{ doc.meeting.chairperson.get_full_name|default:doc.meeting.chairperson.username|default:doc.meeting.chairperson.email }}
-              {% else %}
-                —
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <div class="small text-muted">Sekreterare</div>
-            <div class="fw-semibold">
-              {% if doc.meeting.secretary %}
-                {{ doc.meeting.secretary.get_full_name|default:doc.meeting.secretary.username|default:doc.meeting.secretary.email }}
-              {% else %}
-                —
-              {% endif %}
-            </div>
-          </div>
-
-          <div>
-            <div class="small text-muted">Justerare</div>
-            <div class="fw-semibold">
-              {% if doc.meeting.adjusters.all %}
-                <div class="d-flex flex-column gap-1">
-                  {% for adj in doc.meeting.adjusters.all %}
-                    <div>{{ adj.user.get_full_name|default:adj.user.username|default:adj.user.email }}</div>
-                  {% endfor %}
-                </div>
-              {% else %}
-                —
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
-    {% endif %}
-
-    <div class="card shadow-soft mt-4">
-      <div class="card-body">
-        <h2 class="h5 mb-3">Aktivitet</h2>
-
-        {% if activities %}
-          <div class="d-flex flex-column gap-3">
-            {% for act in activities %}
-              <div class="border rounded p-3">
-                <div class="fw-semibold">
-                  {{ act.get_action_display }}
-                </div>
-
-                {% if act.message %}
-                  <div class="small text-muted mt-1">
-                    {{ act.message }}
-                  </div>
+      {% if doc.meeting %}
+        <section class="ccv2-card doc-detail-side-card">
+          <h2 class="doc-detail-card-title">Valda mötesroller</h2>
+          <dl class="doc-detail-role-list">
+            <div class="doc-detail-role-row">
+              <dt>Mötesordförande</dt>
+              <dd>
+                {% if doc.meeting.chairperson %}
+                  {{ doc.meeting.chairperson.get_full_name|default:doc.meeting.chairperson.username|default:doc.meeting.chairperson.email }}
+                {% else %}
+                  <span class="doc-detail-role-empty">Ej angiven</span>
                 {% endif %}
+              </dd>
+            </div>
+            <div class="doc-detail-role-row">
+              <dt>Sekreterare</dt>
+              <dd>
+                {% if doc.meeting.secretary %}
+                  {{ doc.meeting.secretary.get_full_name|default:doc.meeting.secretary.username|default:doc.meeting.secretary.email }}
+                {% else %}
+                  <span class="doc-detail-role-empty">Ej angiven</span>
+                {% endif %}
+              </dd>
+            </div>
+            <div class="doc-detail-role-row">
+              <dt>Justerare</dt>
+              <dd>
+                {% if doc.meeting.adjusters.all %}
+                  <ul class="doc-detail-adjuster-list">
+                    {% for adj in doc.meeting.adjusters.all %}
+                      <li>{{ adj.user.get_full_name|default:adj.user.username|default:adj.user.email }}</li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <span class="doc-detail-role-empty">Ej angiven</span>
+                {% endif %}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      {% endif %}
 
-                <div class="small mt-2">
-                  <span class="text-muted">Användare:</span>
+      <section class="ccv2-card doc-detail-side-card">
+        <h2 class="doc-detail-card-title">Aktivitet</h2>
+        {% if activities %}
+          <div class="doc-detail-activity-list">
+            {% for act in activities %}
+              <div class="doc-detail-activity-row">
+                <div class="doc-detail-activity-title">{{ act.get_action_display }}</div>
+                {% if act.message %}
+                  <p class="doc-detail-activity-message">{{ act.message }}</p>
+                {% endif %}
+                <p class="doc-detail-activity-meta">
                   {% if act.user %}
                     {{ act.user.email|default:act.user.username }}
                   {% else %}
                     —
                   {% endif %}
-                </div>
-
-                <div class="small text-muted mt-1">
-                  {{ act.created_at|date:"Y-m-d H:i" }}
-                </div>
+                  · {{ act.created_at|date:"Y-m-d H:i" }}
+                </p>
               </div>
             {% endfor %}
           </div>
         {% else %}
-          <div class="text-muted small">Ingen aktivitet ännu</div>
+          <div class="doc-detail-side-empty doc-detail-side-empty--subtle">
+            <p class="doc-detail-side-empty-text">Ingen aktivitet ännu</p>
+          </div>
         {% endif %}
-      </div>
-    </div>
-
-    
+      </section>
+    </aside>
   </div>
-
 </div>
+
 {% endblock %}

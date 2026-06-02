@@ -1,66 +1,104 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
 {% block title %}Kommande möten{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/governance.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Styrelse</div>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h1 class="page-title h2 mb-1">Kommande möten</h1>
-    <div class="muted-label">Framtida möten för aktiv organisation.</div>
-  </div>
-  <div class="d-flex gap-2">
-    <a href="{% url 'governance:meeting_create' %}" class="btn btn-dark">
-      Starta möte
-    </a>
-  </div>
+
+<div class="dashboard-shell governance-shell gov-meetings-shell">
+  <header class="ccv2-header gov-board-header">
+    <div class="gov-board-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">Kommande möten</h1>
+        <p class="ccv2-subtitle mb-0">Framtida möten för aktiv organisation.</p>
+      </div>
+      <div class="gov-board-header-actions">
+        <a href="{% url 'governance:meeting_create' %}" class="gov-primary-cta">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          Starta möte
+        </a>
+      </div>
+    </div>
+  </header>
+
+  {% if meetings %}
+    <section class="ccv2-section ccv2-attention gov-meeting-list-card">
+      <div class="ccv2-section-head">
+        <h2 class="ccv2-section-title">Planerade möten</h2>
+        <span class="gov-member-count">{{ meetings|length }}</span>
+      </div>
+      <div class="ccv2-action-list gov-meeting-list">
+        {% for meeting in meetings %}
+          <div class="ccv2-action-row gov-meeting-row ccv2-priority-normal">
+            <div class="ccv2-action-main">
+              <div class="ccv2-action-title">
+                <a href="{% url 'governance:meeting_detail' meeting.pk %}" class="gov-meeting-title-link">
+                  {{ meeting.title }}
+                </a>
+              </div>
+              <div class="gov-meta-badges">
+                <span class="gov-meta-badge gov-meta-badge--role">
+                  <i class="fa-solid fa-tag" aria-hidden="true"></i>
+                  {{ meeting.get_meeting_type_display }}
+                </span>
+                <span class="gov-meta-badge">
+                  <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+                  {{ meeting.meeting_date|date:"j M Y · H:i" }}
+                </span>
+                {% if meeting.location %}
+                  <span class="gov-meta-badge">
+                    <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                    {{ meeting.location }}
+                  </span>
+                {% else %}
+                  <span class="gov-meta-badge gov-meta-badge--muted">
+                    <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                    Ingen plats angiven
+                  </span>
+                {% endif %}
+                {% if meeting.status == "ongoing" %}
+                  <span class="gov-meta-badge gov-meta-badge--active">{{ meeting.get_status_display }}</span>
+                {% else %}
+                  <span class="gov-meta-badge gov-meta-badge--inactive">{{ meeting.get_status_display }}</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="gov-member-aside">
+              <a href="{% url 'governance:meeting_detail' meeting.pk %}" class="ccv2-open-link">
+                Öppna möte <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% else %}
+    <article class="ccv2-card gov-meetings-empty">
+      <div class="gov-meetings-empty-inner">
+        <i class="fa-regular fa-calendar gov-meetings-empty-icon" aria-hidden="true"></i>
+        <p class="gov-meetings-empty-title">Inga kommande möten</p>
+        <p class="gov-meetings-empty-text">
+          När ni startar eller planerar ett möte visas det här.
+        </p>
+        <p class="gov-meetings-empty-hint">
+          Möten hjälper styrelsen att samla ärenden, protokoll och beslut på ett ställe.
+        </p>
+        <a href="{% url 'governance:meeting_create' %}" class="gov-primary-cta gov-meetings-empty-cta">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          Starta första mötet
+        </a>
+      </div>
+    </article>
+  {% endif %}
 </div>
 
-<div class="card shadow-soft">
-  <div class="card-body">
-    {% if meetings %}
-      <div class="table-responsive">
-        <table class="table align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Titel</th>
-              <th>Typ</th>
-              <th>Datum</th>
-              <th>Plats</th>
-              <th>Status</th>
-              <th class="text-end"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for meeting in meetings %}
-              <tr>
-                <td>
-                  <a href="{% url 'governance:meeting_detail' meeting.pk %}" class="text-decoration-none fw-semibold">
-                    {{ meeting.title }}
-                  </a>
-                </td>
-                <td>{{ meeting.get_meeting_type_display }}</td>
-                <td>{{ meeting.meeting_date|date:"j F Y \k\l H:i" }}</td>
-                <td>{{ meeting.location|default:"—" }}</td>
-                <td>
-                  {% if meeting.status == "ongoing" %}
-                    <span class="badge text-bg-success">{{ meeting.get_status_display }}</span>
-                  {% else %}
-                    <span class="badge text-bg-secondary">{{ meeting.get_status_display }}</span>
-                  {% endif %}
-                </td>
-                <td class="text-end">
-                  <a href="{% url 'governance:meeting_detail' meeting.pk %}" class="btn btn-outline-dark btn-sm">
-                    Öppna
-                  </a>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <div class="text-muted">Det finns inga kommande möten.</div>
-    {% endif %}
-  </div>
-</div>
 {% endblock %}

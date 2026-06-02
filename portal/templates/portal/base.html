@@ -81,7 +81,34 @@
                  href="{% url 'governance:board_member_create' %}"
                  {% if ns == 'governance' and un == 'board_member_create' %} aria-current="page"{% endif %}>Lägg till medlem</a>
             </div>
-            <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_create' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' %}active{% endif %}" href="{% url 'governance:upcoming_meetings' %}"{% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_create' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' %} aria-current="page"{% endif %}>Möten</a>
+            <button class="portal-sidebar-sublink sidebar-link"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#sidebar-nav-moten"
+                    aria-expanded="{% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_create' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' %}true{% else %}false{% endif %}"
+                    aria-controls="sidebar-nav-moten">
+              Möten
+              <span class="portal-sidebar-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+            </button>
+            <div id="sidebar-nav-moten"
+                 class="collapse portal-sidebar-collapse sidebar-submenu {% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_create' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' %}show{% endif %}">
+              <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' or ns == 'governance' and un == 'create_document_from_meeting' and request.resolver_match.kwargs.doc_type == 'protocol' %}active{% endif %}"
+                 href="{% url 'governance:upcoming_meetings' %}"
+                 {% if ns == 'governance' and un == 'upcoming_meetings' or ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'close_meeting' or ns == 'governance' and un == 'edit_meeting_roles_from_document' or ns == 'governance' and un == 'create_document_from_meeting' and request.resolver_match.kwargs.doc_type == 'protocol' %} aria-current="page"{% endif %}>Kommande möten</a>
+              <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'meeting_create' %}active{% endif %}"
+                 href="{% url 'governance:meeting_create' %}"
+                 {% if ns == 'governance' and un == 'meeting_create' %} aria-current="page"{% endif %}>Starta möte</a>
+              {% if ns == 'governance' and un == 'meeting_detail' %}
+                <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' and request.resolver_match.kwargs.doc_type == 'notice' %}active{% endif %}"
+                   href="{% url 'governance:create_document_from_meeting' request.resolver_match.kwargs.pk 'notice' %}"
+                   {% if ns == 'governance' and un == 'meeting_detail' or ns == 'governance' and un == 'create_document_from_meeting' and request.resolver_match.kwargs.doc_type == 'notice' %} aria-current="page"{% endif %}>Skapa kallelse</a>
+              {% else %}
+                <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'create_document_from_meeting' and request.resolver_match.kwargs.doc_type == 'notice' %}active{% endif %}"
+                   href="{% url 'governance:upcoming_meetings' %}"
+                   title="Öppna ett möte under Kommande möten för att skapa kallelse"
+                   {% if ns == 'governance' and un == 'create_document_from_meeting' and request.resolver_match.kwargs.doc_type == 'notice' %} aria-current="page"{% endif %}>Skapa kallelse</a>
+              {% endif %}
+            </div>
             <a class="portal-sidebar-sublink sidebar-link {% if ns == 'governance' and un == 'protocol_review_list' %}active{% endif %}" href="{% url 'governance:protocol_review_list' %}"{% if ns == 'governance' and un == 'protocol_review_list' %} aria-current="page"{% endif %}>Protokoll för justering</a>
             <button class="portal-sidebar-sublink sidebar-link"
                     type="button"

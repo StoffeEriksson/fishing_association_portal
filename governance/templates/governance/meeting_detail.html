@@ -1,127 +1,166 @@
 {% extends "portal/base.html" %}
+{% load static %}
 
 {% block title %}{{ meeting.title }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/governance.css' %}">
+{% endblock %}
+
+{% block portal_topbar_start %}
+<div class="portal-topbar-heading text-body-secondary fw-semibold mb-0 small">Styrelse</div>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-  <div>
-    <h1 class="page-title h2 mb-1">{{ meeting.title }}</h1>
-    <div class="muted-label">
-      Dagordning och kopplade ärenden för stämman.
-    </div>
-  </div>
 
-  <div class="d-flex gap-2 flex-wrap">
-  <a href="{% url 'governance:dashboard' %}" class="btn btn-outline-secondary">
-    Tillbaka
-  </a>
-
-  {% if membership.can_manage_matters %}
-  <a href="{% url 'governance:create_document_from_meeting' meeting.pk 'notice' %}" class="btn btn-outline-dark">
-    Skapa kallelse
-  </a>
-
-  {% if protocol_document %}
-    <a href="{% url 'portal:document_detail' protocol_document.pk %}" class="btn btn-dark">
-      Öppna protokoll
-    </a>
-  {% else %}
-    <a href="{% url 'governance:create_document_from_meeting' meeting.pk 'protocol' %}" class="btn btn-dark">
-      Skapa protokoll
-    </a>
-  {% endif %}
-  {% if membership.can_manage_matters and meeting.status == "ongoing" and protocol_document %}
-    <a href="{% url 'governance:close_meeting' meeting.pk %}" class="btn btn-danger">
-      Avsluta möte
-    </a>
-  {% endif %}
-{% endif %}
-</div>
-</div>
-
-<div class="card shadow-soft mb-4">
-  <div class="card-body">
-    <div class="row g-4">
-      <div class="col-md-3">
-        <div class="small text-muted">Typ av möte</div>
-        <div class="fw-semibold">{{ meeting.get_meeting_type_display }}</div>
+<div class="dashboard-shell governance-shell gov-meeting-detail-shell">
+  <header class="ccv2-header gov-board-header">
+    <div class="gov-board-header-row">
+      <div>
+        <h1 class="ccv2-title mb-1">{{ meeting.title }}</h1>
+        <p class="ccv2-subtitle mb-0">
+          Dagordning och kopplade ärenden för stämman.
+        </p>
       </div>
+      <div class="gov-board-header-actions">
+        <a href="{% url 'governance:dashboard' %}" class="gov-secondary-cta">
+          Tillbaka
+        </a>
 
-      <div class="col-md-3">
-        <div class="small text-muted">Status</div>
-        <div class="fw-semibold">{{ meeting.get_status_display }}</div>
-      </div>
-
-      <div class="col-md-3">
-        <div class="small text-muted">Mötesdatum</div>
-        <div class="fw-semibold">{{ meeting.meeting_date|date:"Y-m-d H:i" }}</div>
-      </div>
-
-      <div class="col-md-3">
-        <div class="small text-muted">Plats</div>
-        <div class="fw-semibold">
-          {{ meeting.location|default:"—" }}
-        </div>
-      </div>
-
-      <div class="col-md-3">
-        <div class="small text-muted">Skapad av</div>
-        <div class="fw-semibold">
-          {% if meeting.created_by %}
-            {{ meeting.created_by.get_full_name|default:meeting.created_by.username }}
+        {% if membership.can_manage_matters %}
+          {% if protocol_document %}
+            <a href="{% url 'portal:document_detail' protocol_document.pk %}" class="gov-primary-cta">
+              Öppna protokoll
+            </a>
           {% else %}
-            —
+            <a href="{% url 'governance:create_document_from_meeting' meeting.pk 'protocol' %}" class="gov-primary-cta">
+              Skapa protokoll
+            </a>
+          {% endif %}
+
+          {% if meeting.status == "ongoing" and protocol_document %}
+            <a href="{% url 'governance:close_meeting' meeting.pk %}" class="gov-meeting-close-cta">
+              Avsluta möte
+            </a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <div class="gov-meeting-detail-grid">
+    <div class="gov-meeting-detail-main">
+      <section class="ccv2-card gov-meeting-meta-card">
+        <h2 class="gov-meeting-meta-card-title">Mötesinformation</h2>
+        <dl class="gov-meeting-meta-grid">
+          <div class="gov-meeting-meta-item">
+            <dt>Typ av möte</dt>
+            <dd>{{ meeting.get_meeting_type_display }}</dd>
+          </div>
+          <div class="gov-meeting-meta-item">
+            <dt>Status</dt>
+            <dd>
+              {% if meeting.status == "ongoing" %}
+                <span class="gov-meta-badge gov-meta-badge--active">{{ meeting.get_status_display }}</span>
+              {% else %}
+                <span class="gov-meta-badge gov-meta-badge--inactive">{{ meeting.get_status_display }}</span>
+              {% endif %}
+            </dd>
+          </div>
+          <div class="gov-meeting-meta-item">
+            <dt>Datum och tid</dt>
+            <dd>{{ meeting.meeting_date|date:"j M Y · H:i" }}</dd>
+          </div>
+          <div class="gov-meeting-meta-item">
+            <dt>Plats</dt>
+            <dd>{{ meeting.location|default:"—" }}</dd>
+          </div>
+          <div class="gov-meeting-meta-item gov-meeting-meta-item--wide">
+            <dt>Skapad av</dt>
+            <dd>
+              {% if meeting.created_by %}
+                {{ meeting.created_by.get_full_name|default:meeting.created_by.username }}
+              {% else %}
+                —
+              {% endif %}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="ccv2-section ccv2-attention gov-meeting-agenda-card">
+        <div class="ccv2-section-head">
+          <h2 class="ccv2-section-title">Dagordning</h2>
+          {% if matters %}
+            <span class="gov-member-count">{{ matters|length }}</span>
           {% endif %}
         </div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<div class="card shadow-soft">
-  <div class="card-body">
-    <h2 class="h5 mb-4">Dagordning</h2>
-
-    {% if matters %}
-      <div class="d-flex flex-column gap-4">
-        {% for matter in matters %}
-          <div class="border rounded p-4">
-            <div class="small text-muted mb-2">
-              Punkt {{ forloop.counter }}
-            </div>
-
-            <h3 class="h5 mb-2">
-              <a href="{% url 'governance:matter_detail' matter.pk %}" class="text-decoration-none">
-                {{ matter.title }}
-              </a>
-            </h3>
-
-            <div class="small text-muted mb-2">
-              {{ matter.get_type_display }} · {{ matter.get_status_display }}
-            </div>
-
-            {% if matter.description %}
-              <div class="text-muted">
-                {{ matter.description|linebreaks }}
-              </div>
-            {% endif %}
-
-            {% if matter.prepared_statement %}
-              <div class="mt-3">
-                <div class="small text-muted mb-1">Beredning / yttrande</div>
-                <div class="border rounded p-3 bg-light-subtle">
-                  {{ matter.prepared_statement|linebreaks }}
+        {% if matters %}
+          <div class="ccv2-action-list gov-meeting-agenda-list">
+            {% for matter in matters %}
+              <div class="ccv2-action-row gov-meeting-agenda-row ccv2-priority-normal">
+                <div class="ccv2-action-main">
+                  <div class="gov-meeting-agenda-point">Punkt {{ forloop.counter }}</div>
+                  <div class="ccv2-action-title">
+                    <a href="{% url 'governance:matter_detail' matter.pk %}" class="gov-meeting-agenda-title-link">
+                      {{ matter.title }}
+                    </a>
+                  </div>
+                  <div class="gov-meta-badges">
+                    <span class="gov-meta-badge gov-meta-badge--inactive">
+                      {{ matter.get_type_display }} · {{ matter.get_status_display }}
+                    </span>
+                  </div>
+                  {% if matter.description %}
+                    <p class="gov-meeting-agenda-desc">{{ matter.description|truncatechars:200 }}</p>
+                  {% endif %}
+                  {% if matter.prepared_statement %}
+                    <p class="gov-meeting-agenda-extra">
+                      <strong>Beredning / yttrande:</strong>
+                      {{ matter.prepared_statement|truncatechars:180 }}
+                    </p>
+                  {% endif %}
+                </div>
+                <div class="gov-member-aside">
+                  <a href="{% url 'governance:matter_detail' matter.pk %}" class="ccv2-open-link">
+                    Öppna ärende <span aria-hidden="true">→</span>
+                  </a>
                 </div>
               </div>
-            {% endif %}
+            {% endfor %}
           </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="text-muted">
-        Inga ärenden är kopplade till denna stämma ännu.
-      </div>
-    {% endif %}
+        {% else %}
+          <div class="gov-meeting-agenda-empty">
+            <i class="fa-regular fa-list-check gov-meeting-agenda-empty-icon" aria-hidden="true"></i>
+            <p class="gov-meeting-agenda-empty-title">Inga ärenden är kopplade ännu</p>
+            <p class="gov-meeting-agenda-empty-text">
+              När ärenden läggs till mötet visas de här.
+            </p>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <aside class="ccv2-card gov-form-aside gov-meeting-detail-aside">
+      <h2 class="ccv2-card-title">Vad händer sedan?</h2>
+      <ul class="gov-form-help-list">
+        <li>
+          <strong>Skapa kallelse</strong>
+          <span>Använd menyn under Möten → Skapa kallelse när du står på detta möte.</span>
+        </li>
+        <li>
+          <strong>Lägg till ärenden</strong>
+          <span>Koppla ärenden via stämma eller ärendehantering innan mötet.</span>
+        </li>
+        <li>
+          <strong>Protokoll</strong>
+          <span>Skapa eller öppna protokoll när mötet är genomfört.</span>
+        </li>
+      </ul>
+    </aside>
   </div>
 </div>
+
 {% endblock %}
